@@ -1491,11 +1491,16 @@ stock bool CalculateFloatTime(float value, float timer)
 	return view_as<bool>(value > 0.0 && GetGameTime() - value > timer);
 }
 
-stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToClientSafe(int client, char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (!IsPlayerIndex(client) || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
 	{
 		return false;
+	}
+	
+	if (StrContains(sample, "sound/") == 0)
+	{
+		RemoveFrontString(sample, sizeof(sample), 6);
 	}
 
 	if (!IsSoundPrecached(sample))
@@ -1512,11 +1517,16 @@ stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = S
 	return false;
 }
 
-stock bool EmitSoundToAllSafe(const char[] sample, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToAllSafe(char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (strlen(sample) == 0)
 	{
 		return false;
+	}
+	
+	if (StrContains(sample, "sound/") == 0)
+	{
+		RemoveFrontString(sample, sizeof(sample), 6);
 	}
 
 	if (!IsSoundPrecached(sample))
@@ -1633,10 +1643,12 @@ stock int PrepareModel(const char[] model, bool prefix = false, bool preload = f
 	
 	if (prefix)
 	{
-		Format(sBuffer, sizeof(sBuffer), "models/", sBuffer);
+		Format(sBuffer, sizeof(sBuffer), "models/%s", sBuffer);
 	}
 	
-	return PrecacheModel(sBuffer, preload);
+	PrecacheModel(sBuffer, preload);
+	
+	return IsModelPrecached(sBuffer);
 }
 
 stock bool SetModelViaConVar(int entity, ConVar convar, bool prefix = false, bool preload = false)
@@ -1668,7 +1680,7 @@ stock bool SetModel(int entity, const char[] model, bool prefix = false, bool pr
 	return false;
 }
 
-stock bool PrepareSoundConVar(ConVar convar, bool prefix = false, bool preload = false)
+stock bool PrepareSoundConVar(ConVar convar, bool preload = false)
 {
 	if (convar == null)
 	{
@@ -1678,59 +1690,41 @@ stock bool PrepareSoundConVar(ConVar convar, bool prefix = false, bool preload =
 	char sBuffer[PLATFORM_MAX_PATH];
 	GetConVarString(convar, sBuffer, sizeof(sBuffer));
 	
-	return PrepareSound(sBuffer, prefix, preload);
+	return PrepareSound(sBuffer, preload);
 }
 
-stock bool PrepareSound(const char[] sound, bool prefix = false, bool preload = false)
+stock bool PrepareSound(const char[] sound, bool preload = false)
 {
 	if (strlen(sound) == 0)
 	{
 		return false;
 	}
 	
-	char sBuffer[PLATFORM_MAX_PATH];
-	strcopy(sBuffer, sizeof(sBuffer), sound);
-	
-	if (prefix)
-	{
-		Format(sBuffer, sizeof(sBuffer), "sound/", sBuffer);
-	}
-	
-	return PrecacheSound(sBuffer, preload);
+	return PrecacheSound(sound, preload);
 }
 
-stock bool EmitSoundToClientViaConVar(int client, ConVar convar, bool prefix = false, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToClientViaConVar(int client, ConVar &convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
-	if (!PrepareSoundConVar(convar, prefix, preload))
+	if (!PrepareSoundConVar(convar, preload))
 	{
 		return false;
 	}
 	
 	char sBuffer[PLATFORM_MAX_PATH];
 	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-	
-	if (prefix)
-	{
-		Format(sBuffer, sizeof(sBuffer), "sound/", sBuffer);
-	}
 	
 	return EmitSoundToClientSafe(client, sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
 
-stock bool EmitSoundToAllViaConVar(ConVar convar, bool prefix = false, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToAllViaConVar(ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
-	if (!PrepareSoundConVar(convar, prefix, preload))
+	if (!PrepareSoundConVar(convar, preload))
 	{
 		return false;
 	}
 	
 	char sBuffer[PLATFORM_MAX_PATH];
 	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-	
-	if (prefix)
-	{
-		Format(sBuffer, sizeof(sBuffer), "sound/", sBuffer);
-	}
 	
 	return EmitSoundToAllSafe(sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
