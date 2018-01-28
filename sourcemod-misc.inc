@@ -2,8 +2,8 @@
 *
 *	This include contains a ton of useful stocks and functions you can use.
 *	I made this include considering I feel like most of this stuff should be built into Sourcemod anyways.
-*	Author: Keith Warren (Sky Guardian)
-*	https://github.com/SkyGuardian
+*	Author: Keith Warren (Aerial Vanguard)
+*	https://github.com/AerialVanguard
 *
 **/
 
@@ -49,7 +49,7 @@
 #define	SHAKE_START_RUMBLEONLY		4			// Starts a shake effect that only rumbles the controller, no screen effect.
 #define	SHAKE_START_NORUMBLE		5			// Starts a shake that does NOT rumble the controller.
 
-stock void PrintToSkyGuardian(const char[] format, any ...)
+stock void PrintToAV(const char[] format, any ...)
 {
 	char sBuffer[255];
 	VFormat(sBuffer, sizeof(sBuffer), format, 2);
@@ -64,7 +64,7 @@ stock void PrintToSkyGuardian(const char[] format, any ...)
 	}
 }
 
-stock int GetSkyGuardian()
+stock int GetAV()
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -77,9 +77,9 @@ stock int GetSkyGuardian()
 	return INVALID_INDEX;
 }
 
-stock bool IsSkyGuardian(int client)
+stock bool IsAV(int client)
 {
-	return view_as<bool>(client == GetSkyGuardian());
+	return view_as<bool>(client == GetAV());
 }
 
 stock bool KickClientBySteamID(const char[] steamid, const char[] reason, any ...)
@@ -135,6 +135,34 @@ stock bool KvGetBool(Handle kv, const char[] key, bool defvalue=false)
 stock bool StringToBool(const char[] str)
 {
 	return view_as<bool>(StringToInt(str));
+}
+
+stock void StringToVector(const char[] buffer, float vec[3], float defvalue[3] = {0.0, 0.0, 0.0})
+{
+	if (strlen(buffer) == 0)
+	{
+		vec[0] = defvalue[0];
+		vec[1] = defvalue[1];
+		vec[2] = defvalue[2];
+		
+		return;
+	}
+
+	char sPart[3][32];
+	int iReturned = ExplodeString(buffer, StrContains(buffer, ",") != -1 ? ", " : " ", sPart, 3, 32);
+
+	if (iReturned != 3)
+	{
+		vec[0] = defvalue[0];
+		vec[1] = defvalue[1];
+		vec[2] = defvalue[2];
+		
+		return;
+	}
+
+	vec[0] = StringToFloat(sPart[0]);
+	vec[1] = StringToFloat(sPart[1]);
+	vec[2] = StringToFloat(sPart[2]);
 }
 
 //Forgot
@@ -1081,14 +1109,14 @@ stock int GetActiveWeapon(int client)
 	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 }
 
-stock int GetRandomClient(bool ingame = true, bool alive = false, bool nofake = false, int team = 0)
+stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = false, int team = 0)
 {
 	int[] clients = new int[MaxClients];
 	int amount;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (ingame && !IsClientInGame(i) || alive && !IsPlayerAlive(i) || nofake && IsFakeClient(i) || team > 0 && team != GetClientTeam(i))
+		if (ingame && !IsClientInGame(i) || alive && !IsPlayerAlive(i) || !fake && IsFakeClient(i) || team > 0 && team != GetClientTeam(i))
 		{
 			continue;
 		}
@@ -1139,14 +1167,19 @@ stock void SQL_TQueryF(Handle& database, SQLTCallback callback, any data, DBPrio
 	SQL_TQuery(database, callback, query, data, priority);
 }
 
-stock int TF2_GetPlayerMaxHealth(int client)
-{
-	return GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
-}
-
 stock int GetMaxHealth(int client)
 {
 	return GetEntProp(client, Prop_Data, "m_iMaxHealth");
+}
+
+stock void SetClientHealth(int client, int health)
+{
+	SetEntityHealth(client, ClampCell(health, 1, GetMaxHealth(client)));
+}
+
+stock void AddClientHealth(int client, int health)
+{
+	SetClientHealth(client, GetClientHealth(client) + health);
 }
 
 stock float[] GetClientAbsPosition(int client)
@@ -1495,63 +1528,6 @@ stock bool CalculateFloatTime(float value, float timer)
 	return view_as<bool>(value > 0.0 && GetGameTime() - value > timer);
 }
 
-stock bool EmitSoundToClientSafe(int client, char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
-{
-	if (!IsPlayerIndex(client) || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
-	{
-		return false;
-	}
-
-	if (StrContains(sample, "sound/") == 0)
-	{
-		RemoveFrontString(sample, sizeof(sample), 6);
-	}
-
-	if (!IsSoundPrecached(sample))
-	{
-		PrecacheSound(sample);
-	}
-
-	if (IsSoundPrecached(sample))
-	{
-		EmitSoundToClient(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
-		return true;
-	}
-
-	return false;
-}
-
-stock bool EmitSoundToAllSafe(char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
-{
-	if (strlen(sample) == 0)
-	{
-		return false;
-	}
-
-	if (StrContains(sample, "sound/") == 0)
-	{
-		RemoveFrontString(sample, sizeof(sample), 6);
-	}
-
-	if (!IsSoundPrecached(sample))
-	{
-		PrecacheSound(sample);
-	}
-
-	if (IsSoundPrecached(sample))
-	{
-		EmitSoundToAll(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
-		return true;
-	}
-
-	return false;
-}
-
-stock void FakePrecacheSound(const char[] szPath)
-{
-	AddToStringTable(FindStringTable("soundprecache"), szPath);
-}
-
 stock void PrintTopTextAll(int color[4], const char[] format, any ...)
 {
 	char message[100];
@@ -1620,117 +1596,6 @@ stock void CSGO_StripToKnife(int client)
 stock void CSGO_GiveClientArmor(int client)
 {
 	SetEntProp(client, Prop_Data, "m_ArmorValue", 100);
-}
-
-stock int PrepareModelConVar(ConVar convar, bool prefix = false, bool preload = false)
-{
-	if (convar == null)
-	{
-		return 0;
-	}
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-
-	return PrepareModel(sBuffer, prefix, preload);
-}
-
-stock int PrepareModel(const char[] model, bool prefix = false, bool preload = false)
-{
-	if (strlen(model) == 0)
-	{
-		return 0;
-	}
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	strcopy(sBuffer, sizeof(sBuffer), model);
-
-	if (prefix)
-	{
-		Format(sBuffer, sizeof(sBuffer), "models/%s", sBuffer);
-	}
-
-	PrecacheModel(sBuffer, preload);
-
-	return IsModelPrecached(sBuffer);
-}
-
-stock bool SetModelViaConVar(int entity, ConVar convar, bool prefix = false, bool preload = false)
-{
-	if (convar == null)
-	{
-		return false;
-	}
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-
-	return SetModel(entity, sBuffer, prefix, preload);
-}
-
-stock bool SetModel(int entity, const char[] model, bool prefix = false, bool preload = false)
-{
-	if (entity <= 0 || strlen(model) == 0)
-	{
-		return false;
-	}
-
-	if (PrepareModel(model, prefix, preload))
-	{
-		SetEntityModel(entity, model);
-		return true;
-	}
-
-	return false;
-}
-
-stock bool PrepareSoundConVar(ConVar convar, bool preload = false)
-{
-	if (convar == null)
-	{
-		return false;
-	}
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-
-	return PrepareSound(sBuffer, preload);
-}
-
-stock bool PrepareSound(const char[] sound, bool preload = false)
-{
-	if (strlen(sound) == 0)
-	{
-		return false;
-	}
-
-	return PrecacheSound(sound, preload);
-}
-
-stock bool EmitSoundToClientViaConVar(int client, ConVar &convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
-{
-	if (!PrepareSoundConVar(convar, preload))
-	{
-		return false;
-	}
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-
-	return EmitSoundToClientSafe(client, sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
-}
-
-stock bool EmitSoundToAllViaConVar(ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
-{
-	if (!PrepareSoundConVar(convar, preload))
-	{
-		return false;
-	}
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
-
-	return EmitSoundToAllSafe(sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
 
 stock bool IsValidEntityRef(int ref)
@@ -1925,9 +1790,57 @@ public Action Timer_ResetOverlay938217591327590(Handle timer, any data)
 	ShowOverlay(GetClientOfUserId(data), "", 0.0);
 }
 
+stock float GetVotePercent(int votes, int totalVotes)
+{
+	return FloatDiv(float(votes), float(totalVotes));
+}
+
+/* Found from the MOTDGD plugin. Though, I did reformat it for the new SourceMod syntax. */
+stock void urlencode(const char[] sString, char[] sResult, int iLen)
+{
+	char[] sHexTable = "0123456789abcdef";
+	int from, c;
+	int to;
+
+	while(from < iLen)
+	{
+		c = sString[from++];
+		
+		if(c == 0)
+		{
+			sResult[to++] = c;
+			break;
+		}
+		else if(c == ' ')
+		{
+			sResult[to++] = '+';
+		}
+		else if((c < '0' && c != '-' && c != '.') ||
+				(c < 'A' && c > '9') ||
+				(c > 'Z' && c < 'a' && c != '_') ||
+				(c > 'z'))
+		{
+			if((to + 3) > iLen)
+			{
+				sResult[to] = 0;
+				break;
+			}
+			sResult[to++] = '%';
+			sResult[to++] = sHexTable[c >> 4];
+			sResult[to++] = sHexTable[c & 15];
+		}
+		else
+		{
+			sResult[to++] = c;
+		}
+	}
+}  
+
+
 /*---------------------------------------------------------*/
 //Menu stocks by Kisslick
 /*---------------------------------------------------------*/
+
 stock void PushMenuString(Handle hndl, const char[] id, const char[] data)
 {
 	AddMenuItem(hndl, id, data, ITEMDRAW_IGNORE);
@@ -2011,6 +1924,7 @@ stock bool AddMenuItemFormat(Handle& menu, const char[] info, int style = ITEMDR
 
 	return view_as<bool>(AddMenuItem(menu, info, display, style));
 }
+
 /*--------------------------------------------------------->*/
 //TF2 Healing Stocks by Chdata
 /*--------------------------------------------------------->*/
@@ -2020,21 +1934,21 @@ stock bool TF2_ReadyToOverheal(int client, int add = 0)
 	return (add > 0) ? ((TF2_GetMaxHealth(client) - GetClientHealth(client)) < add) : (GetClientHealth(client) >= TF2_GetMaxHealth(client));
 }
 
-stock void TF2_AddPlayerHealth(int client, int add, float overheal = 1.5, bool additive = false, bool event = false)
+stock void TF2_AddPlayerHealth(int client, int add, float overheal = 1.5, bool additive = false, bool event = true)
 {
 	int iHealth = GetClientHealth(client);
 	int iNewHealth = iHealth + add;
 	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
-	
+
 	if (iHealth < iMax)
 	{
 		iNewHealth = ClampCell(iNewHealth, 1, iMax);
-		
+
 		if (event)
 		{
 			TF2_ShowHealthGain(client, iNewHealth - iHealth);
 		}
-		
+
 		SetEntityHealth(client, iNewHealth);
 	}
 }
@@ -2042,7 +1956,7 @@ stock void TF2_AddPlayerHealth(int client, int add, float overheal = 1.5, bool a
 stock void TF2_ShowHealthGain(int patient, int health, int healer = -1)
 {
 	int iUserId = GetClientUserId(patient);
-	
+
 	Event hEvent = CreateEvent("player_healed", true);
 	SetEventBool(hEvent, "sourcemod", true);
 	SetEventInt(hEvent, "patient", iUserId);
@@ -2077,5 +1991,231 @@ stock void TF2_SetHealth(int client, int health)
 {
 	SetEntProp(client, Prop_Send, "m_iHealth", health);
 	SetEntProp(client, Prop_Data, "m_iHealth", health);
-}  
+}
+
 /*--------------------------------------------------------->*/
+//Model Stocks
+/*--------------------------------------------------------->*/
+
+stock bool SetModel(int entity, char model[PLATFORM_MAX_PATH], bool preload = false)
+{
+	if (entity <= 0 || strlen(model) == 0)
+	{
+		return false;
+	}
+
+	if (PrepareModel(model, preload) != -1)
+	{
+		SetEntityModel(entity, model);
+		return true;
+	}
+
+	return false;
+}
+
+stock bool SetModelViaConVar(int entity, ConVar &convar, bool preload = false)
+{
+	if (convar == null)
+	{
+		return false;
+	}
+
+	char sBuffer[PLATFORM_MAX_PATH];
+	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+
+	return SetModel(entity, sBuffer, preload);
+}
+
+stock int PrepareModel(char model[PLATFORM_MAX_PATH], bool preload = false)
+{
+	if (strlen(model) == 0)
+	{
+		return 0;
+	}
+
+	if (StrContains(model, "models/") != 0)
+	{
+		Format(model, sizeof(model), "models/%s", model);
+	}
+
+	return PrecacheModel(model, preload);
+}
+
+stock int PrepareModelConVar(ConVar &convar, bool preload = false)
+{
+	if (convar == null)
+	{
+		return -1;
+	}
+
+	char sBuffer[PLATFORM_MAX_PATH];
+	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+
+	return PrepareModel(sBuffer, preload);
+}
+
+stock int CSGO_ReplaceWeapon(int client, int slot, const char[] weapon_string)
+{
+	int old_weapon = GetPlayerWeaponSlot(client, slot);
+
+	if (IsValidEntity(old_weapon))
+	{
+		if (GetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity") != client)
+		{
+			SetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity", client);
+		}
+
+		CS_DropWeapon(client, old_weapon, false, true);
+		AcceptEntityInput(old_weapon, "Kill");
+	}
+
+	int new_weapon = GivePlayerItem(client, weapon_string);
+
+	if (IsValidEntity(new_weapon))
+	{
+		EquipPlayerWeapon(client, new_weapon);
+	}
+	
+	return new_weapon;
+}
+
+stock void CSGO_SetMoney(int client, int money)
+{
+	SetEntProp(client, Prop_Send, "m_iAccount", ClampCell(money, 0, CSGO_GetMaxMoney()));
+}
+
+stock void CSGO_GetMoney(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iAccount");
+}
+
+stock void CSGO_AddMoney(int client, int money)
+{
+	CSGO_SetMoney(client, CSGO_GetMoney(client) + money);
+}
+
+stock int CSGO_GetMaxMoney()
+{
+	return GetConVarInt(FindConVar("mp_maxmoney"));
+}
+
+/*--------------------------------------------------------->*/
+//Sound Stocks
+/*--------------------------------------------------------->*/
+
+stock bool EmitSoundToClientSafe(int client, char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	if (!IsPlayerIndex(client) || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
+	{
+		return false;
+	}
+
+	PrepareSound(sample);
+
+	if (IsSoundPrecached(sample))
+	{
+		EmitSoundToClient(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+		return true;
+	}
+
+	return false;
+}
+
+stock bool EmitSoundToClientViaConVar(int client, ConVar &convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	if (!PrepareSoundConVar(convar, preload))
+	{
+		return false;
+	}
+
+	char sBuffer[PLATFORM_MAX_PATH];
+	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+
+	return EmitSoundToClientSafe(client, sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+}
+
+stock bool EmitSoundToAllSafe(char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	if (strlen(sample) == 0)
+	{
+		return false;
+	}
+
+	PrepareSound(sample);
+
+	if (IsSoundPrecached(sample))
+	{
+		EmitSoundToAll(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+		return true;
+	}
+
+	return false;
+}
+
+stock bool EmitSoundToAllViaConVar(ConVar &convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	if (!PrepareSoundConVar(convar, preload))
+	{
+		return false;
+	}
+
+	char sBuffer[PLATFORM_MAX_PATH];
+	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+
+	return EmitSoundToAllSafe(sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+}
+
+stock bool PrepareSoundConVar(ConVar &convar, bool preload = false, bool download = true)
+{
+	if (convar == null)
+	{
+		return false;
+	}
+
+	char sBuffer[PLATFORM_MAX_PATH];
+	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+
+	return PrepareSound(sBuffer, preload, download);
+}
+
+stock bool PrepareSound(char sound[PLATFORM_MAX_PATH], bool preload = false, bool download = true)
+{
+	if (strlen(sound) == 0)
+	{
+		return false;
+	}
+
+	if (StrContains(sound, "sound/") == 0)
+	{
+		if (download)
+		{
+			AddFileToDownloadsTable(sound);
+		}
+
+		RemoveFrontString(sound, sizeof(sound), 6);
+	}
+	else if (download)
+	{
+		char sBuffer[PLATFORM_MAX_PATH];
+		FormatEx(sBuffer, sizeof(sBuffer), "sounds/%s", sound);
+		AddFileToDownloadsTable(sBuffer);
+	}
+
+	return PrecacheSound(sound, preload);
+}
+
+stock void FakePrecacheSound(const char[] soundPath)
+{
+	char fullPath[PLATFORM_MAX_PATH];
+	Format(fullPath, sizeof(fullPath), "sound/%s", soundPath);
+	
+	if(!FileExists(fullPath))
+	{
+		return;
+	}
+	
+	AddFileToDownloadsTable(fullPath);
+	
+	Format(fullPath, sizeof(fullPath), "*/%s", soundPath);
+	AddToStringTable(FindStringTable("soundprecache"), fullPath);
+}
