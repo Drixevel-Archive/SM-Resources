@@ -7,6 +7,13 @@
 *
 **/
 
+//Easy fix to make sure this include doesn't compile as an actual plugin.
+//You'll need to define 'IS_PLUGIN' in your plugin to include this naturally.
+//#define IS_PLUGIN
+//#if !defined IS_PLUGIN
+//#error Can't compile include.
+//#endif
+
 #if defined _sourcemod_misc_included
 #endinput
 #endif
@@ -20,6 +27,10 @@
 #include <tf2_stocks>
 #include <cstrike>
 #define REQUIRE_EXTENSIONS
+
+#undef  REQUIRE_PLUGIN
+#tryinclude <tf2attributes>
+#define REQUIRE_PLUGIN
 
 #define IS_CONSOLE 0
 #define IS_SERVER 0
@@ -144,7 +155,7 @@ stock void StringToVector(const char[] buffer, float vec[3], float defvalue[3] =
 		vec[0] = defvalue[0];
 		vec[1] = defvalue[1];
 		vec[2] = defvalue[2];
-		
+
 		return;
 	}
 
@@ -156,7 +167,7 @@ stock void StringToVector(const char[] buffer, float vec[3], float defvalue[3] =
 		vec[0] = defvalue[0];
 		vec[1] = defvalue[1];
 		vec[2] = defvalue[2];
-		
+
 		return;
 	}
 
@@ -268,17 +279,17 @@ stock int ParseFormula(const char[] formula, int defaultValue)
 
 		switch (currentCharacter[0])
 		{
-		case ' ', '\t':
+			case ' ', '\t':
 			{
 				continue;
 			}
-		case '(':
+			case '(':
 			{
 				bracket++;
 				SetArrayCell(sumArray, bracket, 0.0);
 				SetArrayCell(_operator, bracket, Operator_None);
 			}
-		case ')':
+			case ')':
 			{
 				OperateString(sumArray, bracket, value, sizeof(value), _operator);
 
@@ -298,19 +309,19 @@ stock int ParseFormula(const char[] formula, int defaultValue)
 
 				Operate(sumArray, bracket, GetArrayCell(sumArray, bracket + 1), _operator);
 			}
-		case '\0':
+			case '\0':
 			{
 				OperateString(sumArray, bracket, value, sizeof(value), _operator);
 			}
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.':
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.':
 			{
 				StrCat(value, sizeof(value), currentCharacter);
 			}
-		case '{':
+			case '{':
 			{
 				escapeCharacter = true;
 			}
-		case '}':
+			case '}':
 			{
 				if (!escapeCharacter)
 				{
@@ -335,35 +346,35 @@ stock int ParseFormula(const char[] formula, int defaultValue)
 
 				Format(variable, sizeof(variable), "");
 			}
-		case '+', '-', '*', '/', '^':
+			case '+', '-', '*', '/', '^':
 			{
 				OperateString(sumArray, bracket, value, sizeof(value), _operator);
 
 				switch (currentCharacter[0])
 				{
-				case '+':
+					case '+':
 					{
 						SetArrayCell(_operator, bracket, Operator_Add);
 					}
-				case '-':
+					case '-':
 					{
 						SetArrayCell(_operator, bracket, Operator_Subtract);
 					}
-				case '*':
+					case '*':
 					{
 						SetArrayCell(_operator, bracket, Operator_Multiply);
 					}
-				case '/':
+					case '/':
 					{
 						SetArrayCell(_operator, bracket, Operator_Divide);
 					}
-				case '^':
+					case '^':
 					{
 						SetArrayCell(_operator, bracket, Operator_Exponent);
 					}
 				}
 			}
-		default:
+			default:
 			{
 				if (escapeCharacter)
 				{
@@ -398,19 +409,19 @@ stock void Operate(Handle sumArray, int& bracket, float value, Handle _operator)
 
 	switch (GetArrayCell(_operator, bracket))
 	{
-	case Operator_Add:
+		case Operator_Add:
 		{
 			SetArrayCell(sumArray, bracket, sum+value);
 		}
-	case Operator_Subtract:
+		case Operator_Subtract:
 		{
 			SetArrayCell(sumArray, bracket, sum-value);
 		}
-	case Operator_Multiply:
+		case Operator_Multiply:
 		{
 			SetArrayCell(sumArray, bracket, sum*value);
 		}
-	case Operator_Divide:
+		case Operator_Divide:
 		{
 			if (!value)
 			{
@@ -420,11 +431,11 @@ stock void Operate(Handle sumArray, int& bracket, float value, Handle _operator)
 
 			SetArrayCell(sumArray, bracket, sum/value);
 		}
-	case Operator_Exponent:
+		case Operator_Exponent:
 		{
 			SetArrayCell(sumArray, bracket, Pow(sum, value));
 		}
-	default:
+		default:
 		{
 			SetArrayCell(sumArray, bracket, value);
 		}
@@ -476,8 +487,8 @@ stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char
 	char sSeconds[32];
 	switch (precision)
 	{
-	case true: Format(sSeconds, sizeof(sSeconds), "%05.2f", float(t) + seconds - RoundToFloor(seconds));
-	case false: Format(sSeconds, sizeof(sSeconds), "%02d", t);
+		case true: Format(sSeconds, sizeof(sSeconds), "%05.2f", float(t) + seconds - RoundToFloor(seconds));
+		case false: Format(sSeconds, sizeof(sSeconds), "%02d", t);
 	}
 
 	strcopy(buffer, maxlength, format);
@@ -994,16 +1005,16 @@ stock void TF2_GetClassName(TFClassType class, char[] name, int size, bool capit
 {
 	switch (class)
 	{
-	case TFClass_Unknown: strcopy(name, size, "unknown");
-	case TFClass_Scout: strcopy(name, size, "scout");
-	case TFClass_Sniper: strcopy(name, size, "sniper");
-	case TFClass_Soldier: strcopy(name, size, "soldier");
-	case TFClass_DemoMan: strcopy(name, size, "demoman");
-	case TFClass_Medic: strcopy(name, size, "medic");
-	case TFClass_Heavy: strcopy(name, size, "heavy");
-	case TFClass_Pyro: strcopy(name, size, "pyro");
-	case TFClass_Spy: strcopy(name, size, "spy");
-	case TFClass_Engineer: strcopy(name, size, "engineer");
+		case TFClass_Unknown: strcopy(name, size, "unknown");
+		case TFClass_Scout: strcopy(name, size, "scout");
+		case TFClass_Sniper: strcopy(name, size, "sniper");
+		case TFClass_Soldier: strcopy(name, size, "soldier");
+		case TFClass_DemoMan: strcopy(name, size, "demoman");
+		case TFClass_Medic: strcopy(name, size, "medic");
+		case TFClass_Heavy: strcopy(name, size, "heavy");
+		case TFClass_Pyro: strcopy(name, size, "pyro");
+		case TFClass_Spy: strcopy(name, size, "spy");
+		case TFClass_Engineer: strcopy(name, size, "engineer");
 	}
 
 	if (capitalize)
@@ -1058,6 +1069,11 @@ stock void SetClip(int weapon, int clip)
 		return;
 	}
 
+	if (clip < 0)
+	{
+		clip = 0;
+	}
+
 	SetEntProp(weapon, Prop_Data, "m_iClip1", clip);
 }
 
@@ -1078,6 +1094,11 @@ stock void SetAmmo(int client, int weapon, int ammo)
 	if (client == 0 || client > MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"))
 	{
 		return;
+	}
+
+	if (ammo < 0)
+	{
+		ammo = 0;
 	}
 
 	int iOffset = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4;
@@ -1106,6 +1127,11 @@ stock void KillTimerSafe(Handle& timer)
 
 stock int GetActiveWeapon(int client)
 {
+	if (!IsPlayerIndex(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
+	{
+		return 0;
+	}
+
 	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 }
 
@@ -1182,10 +1208,9 @@ stock void AddClientHealth(int client, int health)
 	SetClientHealth(client, GetClientHealth(client) + health);
 }
 
-stock float[] GetClientAbsPosition(int client)
+stock void GetClientAbsPosition(int client, float origin[3])
 {
-	float target_point[3];
-	GetClientAbsOrigin(client, target_point);
+	GetClientAbsOrigin(client, origin);
 
 	float target_velocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", target_velocity);
@@ -1211,17 +1236,15 @@ stock float[] GetClientAbsPosition(int client)
 	}
 
 	ScaleVector(target_velocity, correct);
-	SubtractVectors(target_point, target_velocity, target_point);
-
-	return target_point;
+	SubtractVectors(origin, target_velocity, origin);
 }
 
 stock int GetClientActiveSlot(int client)
 {
-	return GetWeaponEntitySlot(client, GetActiveWeapon(client));
+	return GetWeaponSlot(client, GetActiveWeapon(client));
 }
 
-stock int GetWeaponEntitySlot(int client, int weapon)
+stock int GetWeaponSlot(int client, int weapon)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !IsValidEntity(weapon))
 	{
@@ -1322,7 +1345,8 @@ stock void TF2_SetPlayerColor(int client, int red, int green, int blue, int alph
 	int entity = INVALID_ENT_INDEX;
 	while((entity = FindEntityByClassname(entity, "tf_wearable_*")) != INVALID_ENT_INDEX)
 	{
-		if (GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client)
+		if ((HasEntProp(entity, Prop_Send, "m_hOwner") && GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client) ||
+		 (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client))
 		{
 			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
 			SetEntityRenderColor(entity, red, green, blue, alpha);
@@ -1332,7 +1356,8 @@ stock void TF2_SetPlayerColor(int client, int red, int green, int blue, int alph
 	entity = INVALID_ENT_INDEX;
 	while((entity = FindEntityByClassname(entity, "tf_weapon_*")) != INVALID_ENT_INDEX)
 	{
-		if (GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client)
+		if ((HasEntProp(entity, Prop_Send, "m_hOwner") && GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client) ||
+		 (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client))
 		{
 			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
 			SetEntityRenderColor(entity, red, green, blue, alpha);
@@ -1497,7 +1522,7 @@ stock int TF2_GetHealingTarget(int client)
 {
 	int weapon = GetPlayerWeaponSlot(client, 1);
 
-	if (!IsValidEntity(weapon) || weapon != GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon"))
+	if (!IsValidEntity(weapon) || weapon != GetActiveWeapon(client))
 	{
 		return -1;
 	}
@@ -1582,11 +1607,23 @@ stock void CSGO_StripToKnife(int client)
 	{
 		if (i == CS_SLOT_KNIFE)
 		{
+			weapon = GetPlayerWeaponSlot(client, i);
+
+			if (IsValidEntity(i))
+			{
+				EquipPlayerWeapon(i, weapon);
+			}
+
 			continue;
 		}
 
 		if ((weapon = GetPlayerWeaponSlot(client, i)) != INVALID_ENT_INDEX)
 		{
+			if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
+			{
+				SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", client);
+			}
+
 			SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
 			AcceptEntityInput(weapon, "Kill");
 		}
@@ -1613,9 +1650,11 @@ stock bool IsValidEntity2(int entity)
 	return true;
 }
 
-stock void DamageArea(float origin[3], float distance = 500.0, int attacker = 0, int inflictor = 0, int team = 0, float damage = 500.0, int damagetype = 0, int weapon = INVALID_ENT_INDEX, float damageforce[3] = {0.0, 0.0, 0.0})
+stock void DamageArea(float origin[3], float distance = 500.0, float damage = 500.0, int& attacker = 0, int inflictor = 0, int team = 0, int damagetype = DMG_GENERIC, int& weapon = -1, float damageforce[3] = NULL_VECTOR)
 {
-	if (weapon == INVALID_ENT_INDEX && attacker > 0)
+	//attacker = 0;
+
+	if (weapon == -1 && attacker > 0)
 	{
 		weapon = GetActiveWeapon(attacker);
 	}
@@ -1623,7 +1662,7 @@ stock void DamageArea(float origin[3], float distance = 500.0, int attacker = 0,
 	float vecOrigin[3];
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || team > 0 && team != GetClientTeam(i) || attacker > 0 && i == attacker)
+		if (!IsClientInGame(i) || !IsPlayerAlive(i) || (team > 0 && team != GetClientTeam(i)) || (attacker > 0 && i == attacker))
 		{
 			continue;
 		}
@@ -1633,6 +1672,17 @@ stock void DamageArea(float origin[3], float distance = 500.0, int attacker = 0,
 		if (GetVectorDistance(origin, vecOrigin) <= distance)
 		{
 			SDKHooks_TakeDamage(i, inflictor, attacker, damage, damagetype, weapon, damageforce, origin);
+		}
+	}
+
+	int entity = INVALID_ENT_INDEX;
+	while ((entity = FindEntityByClassname(entity, "func_breakable")) != INVALID_ENT_INDEX)
+	{
+		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vecOrigin);
+
+		if (GetVectorDistance(origin, vecOrigin) <= distance)
+		{
+			SDKHooks_TakeDamage(entity, inflictor, attacker, damage, damagetype, weapon, damageforce, origin);
 		}
 	}
 }
@@ -1805,7 +1855,7 @@ stock void urlencode(const char[] sString, char[] sResult, int iLen)
 	while(from < iLen)
 	{
 		c = sString[from++];
-		
+
 		if(c == 0)
 		{
 			sResult[to++] = c;
@@ -1816,9 +1866,9 @@ stock void urlencode(const char[] sString, char[] sResult, int iLen)
 			sResult[to++] = '+';
 		}
 		else if((c < '0' && c != '-' && c != '.') ||
-				(c < 'A' && c > '9') ||
-				(c > 'Z' && c < 'a' && c != '_') ||
-				(c > 'z'))
+		(c < 'A' && c > '9') ||
+		(c > 'Z' && c < 'a' && c != '_') ||
+		(c > 'z'))
 		{
 			if((to + 3) > iLen)
 			{
@@ -1834,8 +1884,185 @@ stock void urlencode(const char[] sString, char[] sResult, int iLen)
 			sResult[to++] = c;
 		}
 	}
-}  
+}
 
+stock float GetPlayerSpeed(int client)
+{
+	float vecVelocity[3];
+	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", vecVelocity);
+	return GetVectorLength(vecVelocity);
+}
+
+stock bool GetClientSteamID(int client, char[] buffer, int size)
+{
+	if (!IsPlayerIndex(client))
+	{
+		return false;
+	}
+
+	GetClientAuthId(client, AuthId_Steam2, buffer, size);
+
+	if (GetEngineVersion() == Engine_CSGO)
+	{
+		ReplaceString(buffer, size, "STEAM_0", "STEAM_1");
+	}
+
+	return true;
+}
+
+stock int CSGO_ReplaceWeapon(int client, int slot, const char[] weapon_string)
+{
+	int old_weapon = GetPlayerWeaponSlot(client, slot);
+
+	if (IsValidEntity(old_weapon))
+	{
+		if (GetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity") != client)
+		{
+			SetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity", client);
+		}
+
+		CS_DropWeapon(client, old_weapon, false, true);
+		AcceptEntityInput(old_weapon, "Kill");
+	}
+
+	int new_weapon = GivePlayerItem(client, weapon_string);
+
+	if (IsValidEntity(new_weapon))
+	{
+		EquipPlayerWeapon(client, new_weapon);
+	}
+
+	return new_weapon;
+}
+
+stock void CSGO_SetMoney(int client, int money)
+{
+	SetEntProp(client, Prop_Send, "m_iAccount", ClampCell(money, 0, CSGO_GetMaxMoney()));
+}
+
+stock void CSGO_GetMoney(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iAccount");
+}
+
+stock void CSGO_AddMoney(int client, int money)
+{
+	CSGO_SetMoney(client, CSGO_GetMoney(client) + money);
+}
+
+stock int CSGO_GetMaxMoney()
+{
+	return GetConVarInt(FindConVar("mp_maxmoney"));
+}
+
+stock void TF2_CreateExplosion(float origin[3], float damage = 99999.0, float radius = 250.0, float magnitude = 500.0, int attacker = 0, int inflictor = 0, int team = 0, const char[] particle = "cinefx_goldrush", const char[] sound = "items/cart_explode.wav", float amplitude = 50.0, float frequency = 150.0, float duration = 3.0)
+{
+	CreateParticle(particle, 10.0, origin);
+	EmitSoundToAllSafe(sound);
+	ScreenShakeAll(SHAKE_START, amplitude, frequency, duration);
+	DamageArea(origin, radius, damage, attacker, inflictor, team, DMG_BLAST);
+	PushAllPlayersFromPoint(origin, magnitude, radius, team);
+}
+
+stock bool PushPlayerFromPoint(int client, float point[3], float magnitude = 50.0, float radius = 0.0)
+{
+	float vecOrigin[3];
+	GetClientAbsOrigin(client, vecOrigin);
+
+	if (radius > 0.0 && GetVectorDistance(point, vecOrigin) > radius)
+	{
+		return false;
+	}
+
+	float vector[3];
+	MakeVectorFromPoints(point, vecOrigin, vector);
+
+	NormalizeVector(vector, vector);
+	ScaleVector(vector, magnitude);
+
+	if (GetEntityFlags(client) & FL_ONGROUND)
+	{
+		if (vector[2] < 251.0)
+		{
+			vector[2] = 251.0;
+		}
+	}
+
+	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vector);
+	return true;
+}
+
+stock void PushAllPlayersFromPoint(float point[3], float magnitude = 50.0, float radius = 0.0, int team = 0, int attacker = 0)
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsPlayerAlive(i))
+		{
+			if ((team > 0 && team != GetClientTeam(i)) || (attacker > 0 && i == attacker))
+			{
+				continue;
+			}
+
+			PushPlayerFromPoint(i, point, magnitude, radius);
+		}
+	}
+}
+
+stock void SpeakResponseConcept(int client, const char[] concept)
+{
+	SetVariantString(concept);
+	AcceptEntityInput(client, "SpeakResponseConcept");
+}
+
+stock void SpeakResponseConceptDelayed(int client, const char[] concept, float delayed = 0.0)
+{
+	DataPack hPack;
+	CreateDataTimer(ClampCell(delayed, 0.0, 999999.0), Timer_DelayClientConcept28305820358023532, hPack, TIMER_FLAG_NO_MAPCHANGE);
+	WritePackCell(hPack, GetClientUserId(client));
+	WritePackString(hPack, concept);
+}
+
+public Action Timer_DelayClientConcept28305820358023532(Handle timer, any data)
+{
+	ResetPack(data);
+	int client = GetClientOfUserId(ReadPackCell(data));
+
+	char sConcept[256];
+	ReadPackString(data, sConcept, sizeof(sConcept));
+
+	if (IsPlayerIndex(client) && IsClientInGame(client) && IsPlayerAlive(client))
+	{
+		SpeakResponseConcept(client, sConcept);
+	}
+}
+
+stock void SpeakResponseConceptAll(const char[] concept)
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsPlayerAlive(i))
+		{
+			SpeakResponseConcept(i, concept);
+		}
+	}
+}
+
+stock void SpeakResponseConceptAllDelayed(const char[] concept, float delay = 0.0)
+{
+	DataPack hPack;
+	CreateDataTimer(ClampCell(delay, 0.0, 999999.0), Timer_DelayAllConcept28305820358023532, hPack, TIMER_FLAG_NO_MAPCHANGE);
+	WritePackString(hPack, concept);
+}
+
+public Action Timer_DelayAllConcept28305820358023532(Handle timer, any data)
+{
+	ResetPack(data);
+
+	char sConcept[256];
+	ReadPackString(data, sConcept, sizeof(sConcept));
+
+	SpeakResponseConceptAll(sConcept);
+}
 
 /*---------------------------------------------------------*/
 //Menu stocks by Kisslick
@@ -2038,6 +2265,8 @@ stock int PrepareModel(char model[PLATFORM_MAX_PATH], bool preload = false)
 		Format(model, sizeof(model), "models/%s", model);
 	}
 
+	ParseMDLFiles(model);
+
 	return PrecacheModel(model, preload);
 }
 
@@ -2054,74 +2283,37 @@ stock int PrepareModelConVar(ConVar &convar, bool preload = false)
 	return PrepareModel(sBuffer, preload);
 }
 
-stock int CSGO_ReplaceWeapon(int client, int slot, const char[] weapon_string)
-{
-	int old_weapon = GetPlayerWeaponSlot(client, slot);
-
-	if (IsValidEntity(old_weapon))
-	{
-		if (GetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity") != client)
-		{
-			SetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity", client);
-		}
-
-		CS_DropWeapon(client, old_weapon, false, true);
-		AcceptEntityInput(old_weapon, "Kill");
-	}
-
-	int new_weapon = GivePlayerItem(client, weapon_string);
-
-	if (IsValidEntity(new_weapon))
-	{
-		EquipPlayerWeapon(client, new_weapon);
-	}
-	
-	return new_weapon;
-}
-
-stock void CSGO_SetMoney(int client, int money)
-{
-	SetEntProp(client, Prop_Send, "m_iAccount", ClampCell(money, 0, CSGO_GetMaxMoney()));
-}
-
-stock void CSGO_GetMoney(int client)
-{
-	return GetEntProp(client, Prop_Send, "m_iAccount");
-}
-
-stock void CSGO_AddMoney(int client, int money)
-{
-	CSGO_SetMoney(client, CSGO_GetMoney(client) + money);
-}
-
-stock int CSGO_GetMaxMoney()
-{
-	return GetConVarInt(FindConVar("mp_maxmoney"));
-}
-
 /*--------------------------------------------------------->*/
 //Sound Stocks
 /*--------------------------------------------------------->*/
 
-stock bool EmitSoundToClientSafe(int client, char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (!IsPlayerIndex(client) || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
 	{
 		return false;
 	}
 
-	PrepareSound(sample);
+	char sSound[PLATFORM_MAX_PATH];
+	strcopy(sSound, sizeof(sSound), sample);
 
-	if (IsSoundPrecached(sample))
+	PrepareSound(sSound);
+
+	if (RequiresFakePrecache())
 	{
-		EmitSoundToClient(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+
+	if (IsSoundPrecached(sSound))
+	{
+		EmitSoundToClient(client, sSound, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 		return true;
 	}
 
 	return false;
 }
 
-stock bool EmitSoundToClientViaConVar(int client, ConVar &convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToClientViaConVar(int client, ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (!PrepareSoundConVar(convar, preload))
 	{
@@ -2134,25 +2326,89 @@ stock bool EmitSoundToClientViaConVar(int client, ConVar &convar, bool preload =
 	return EmitSoundToClientSafe(client, sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
 
-stock bool EmitSoundToAllSafe(char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToClientSafeDelayed(int client, const char[] sample, float delay = 0.0, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	DataPack hPack;
+	CreateDataTimer(ClampCell(delay, 0, 9999999.9), Timer_PlayClientSound280358023580235, hPack, TIMER_FLAG_NO_MAPCHANGE);
+	WritePackCell(hPack, client);
+	WritePackString(hPack, sample);
+	WritePackCell(hPack, entity);
+	WritePackCell(hPack, channel);
+	WritePackCell(hPack, level);
+	WritePackCell(hPack, flags);
+	WritePackFloat(hPack, volume);
+	WritePackCell(hPack, pitch);
+	WritePackCell(hPack, speakerentity);
+	WritePackFloat(hPack, origin[0]);
+	WritePackFloat(hPack, origin[1]);
+	WritePackFloat(hPack, origin[2]);
+	WritePackFloat(hPack, dir[0]);
+	WritePackFloat(hPack, dir[1]);
+	WritePackFloat(hPack, dir[2]);
+	WritePackCell(hPack, updatePos);
+	WritePackFloat(hPack, soundtime);
+}
+
+public Action Timer_PlayClientSound280358023580235(Handle timer, any data)
+{
+	ResetPack(data);
+
+	int client = ReadPackCell(data);
+
+	char sample[PLATFORM_MAX_PATH];
+	ReadPackString(data, sample, sizeof(sample));
+
+	int entity = ReadPackCell(data);
+	int channel = ReadPackCell(data);
+	int level = ReadPackCell(data);
+	int flags = ReadPackCell(data);
+	float volume = ReadPackFloat(data);
+	int pitch = ReadPackCell(data);
+	int speakerentity = ReadPackCell(data);
+
+	float origin[3];
+ 	origin[0] = ReadPackFloat(data);
+ 	origin[1] = ReadPackFloat(data);
+ 	origin[2] = ReadPackFloat(data);
+
+	float dir[3];
+ 	dir[0] = ReadPackFloat(data);
+ 	dir[1] = ReadPackFloat(data);
+ 	dir[2] = ReadPackFloat(data);
+
+	bool updatePos = ReadPackCell(data);
+	float soundtime = ReadPackFloat(data);
+
+	EmitSoundToClientSafe(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+}
+
+stock bool EmitSoundToAllSafe(const char[] sample, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (strlen(sample) == 0)
 	{
 		return false;
 	}
 
-	PrepareSound(sample);
+	char sSound[PLATFORM_MAX_PATH];
+	strcopy(sSound, sizeof(sSound), sample);
 
-	if (IsSoundPrecached(sample))
+	PrepareSound(sSound);
+
+	if (RequiresFakePrecache())
 	{
-		EmitSoundToAll(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+
+	if (IsSoundPrecached(sSound))
+	{
+		EmitSoundToAll(sSound, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 		return true;
 	}
 
 	return false;
 }
 
-stock bool EmitSoundToAllViaConVar(ConVar &convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToAllViaConVar(ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (!PrepareSoundConVar(convar, preload))
 	{
@@ -2165,7 +2421,118 @@ stock bool EmitSoundToAllViaConVar(ConVar &convar, bool preload = false, int ent
 	return EmitSoundToAllSafe(sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
 
-stock bool PrepareSoundConVar(ConVar &convar, bool preload = false, bool download = true)
+stock bool EmitSoundToAllSafeDelayed(const char[] sample, float delay = 0.0, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+{
+	DataPack hPack;
+	CreateDataTimer(ClampCell(delay, 0, 9999999.9), Timer_PlayAllSound280358023580235, hPack, TIMER_FLAG_NO_MAPCHANGE);
+	WritePackString(hPack, sample);
+	WritePackCell(hPack, entity);
+	WritePackCell(hPack, channel);
+	WritePackCell(hPack, level);
+	WritePackCell(hPack, flags);
+	WritePackFloat(hPack, volume);
+	WritePackCell(hPack, pitch);
+	WritePackCell(hPack, speakerentity);
+	WritePackFloat(hPack, origin[0]);
+	WritePackFloat(hPack, origin[1]);
+	WritePackFloat(hPack, origin[2]);
+	WritePackFloat(hPack, dir[0]);
+	WritePackFloat(hPack, dir[1]);
+	WritePackFloat(hPack, dir[2]);
+	WritePackCell(hPack, updatePos);
+	WritePackFloat(hPack, soundtime);
+}
+
+public Action Timer_PlayAllSound280358023580235(Handle timer, any data)
+{
+	ResetPack(data);
+
+	char sample[PLATFORM_MAX_PATH];
+	ReadPackString(data, sample, sizeof(sample));
+
+	int entity = ReadPackCell(data);
+	int channel = ReadPackCell(data);
+	int level = ReadPackCell(data);
+	int flags = ReadPackCell(data);
+	float volume = ReadPackFloat(data);
+	int pitch = ReadPackCell(data);
+	int speakerentity = ReadPackCell(data);
+
+	float origin[3];
+ 	origin[0] = ReadPackFloat(data);
+ 	origin[1] = ReadPackFloat(data);
+ 	origin[2] = ReadPackFloat(data);
+
+	float dir[3];
+ 	dir[0] = ReadPackFloat(data);
+ 	dir[1] = ReadPackFloat(data);
+ 	dir[2] = ReadPackFloat(data);
+
+	bool updatePos = ReadPackCell(data);
+	float soundtime = ReadPackFloat(data);
+
+	EmitSoundToAllSafe(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+}
+
+stock bool EmitAmbientSoundSafe(const char[] sample, const float origin[3], int entity = SOUND_FROM_WORLD, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float vol = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, float delay = 0.0)
+{
+	if (strlen(sample) == 0)
+	{
+		return false;
+	}
+
+	char sSound[PLATFORM_MAX_PATH];
+	strcopy(sSound, sizeof(sSound), sample);
+
+	PrepareSound(sSound);
+
+	if (RequiresFakePrecache())
+	{
+		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+
+	if (IsSoundPrecached(sSound))
+	{
+		EmitAmbientSound(sSound, origin, entity, level, flags, vol, pitch, delay);
+		return true;
+	}
+
+	return false;
+}
+
+stock bool EmitAmbientSoundViaConVar(ConVar convar, bool preload = false, const float origin[3], int entity = SOUND_FROM_WORLD, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float vol = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, float delay = 0.0)
+{
+	if (!PrepareSoundConVar(convar, preload))
+	{
+		return false;
+	}
+
+	char sBuffer[PLATFORM_MAX_PATH];
+	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+
+	return EmitAmbientSoundSafe(sBuffer, origin, entity, level, flags, vol, pitch, delay);
+}
+
+stock bool StopSoundSafe(int entity, int channel, const char[] sample)
+{
+	if (entity <= 0 || entity > MAX_ENTITY_LIMIT || strlen(sample) == 0)
+	{
+		return false;
+	}
+
+	char sSound[PLATFORM_MAX_PATH];
+	strcopy(sSound, sizeof(sSound), sample);
+
+	if (RequiresFakePrecache())
+	{
+		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+
+	StopSound(entity, channel, sSound);
+	return true;
+}
+
+stock bool PrepareSoundConVar(ConVar convar, bool preload = false, bool download = true)
 {
 	if (convar == null)
 	{
@@ -2178,44 +2545,583 @@ stock bool PrepareSoundConVar(ConVar &convar, bool preload = false, bool downloa
 	return PrepareSound(sBuffer, preload, download);
 }
 
-stock bool PrepareSound(char sound[PLATFORM_MAX_PATH], bool preload = false, bool download = true)
+stock bool PrepareSound(const char[] sample, bool preload = false, bool download = true)
 {
-	if (strlen(sound) == 0)
+	if (strlen(sample) == 0)
 	{
 		return false;
 	}
 
-	if (StrContains(sound, "sound/") == 0)
+	char sSound[PLATFORM_MAX_PATH];
+	strcopy(sSound, sizeof(sSound), sample);
+
+	if (StrContains(sSound, "sound/") == 0)
 	{
 		if (download)
 		{
-			AddFileToDownloadsTable(sound);
+			AddFileToDownloadsTable(sSound);
 		}
 
-		RemoveFrontString(sound, sizeof(sound), 6);
+		RemoveFrontString(sSound, sizeof(sSound), 6);
 	}
 	else if (download)
 	{
 		char sBuffer[PLATFORM_MAX_PATH];
-		FormatEx(sBuffer, sizeof(sBuffer), "sounds/%s", sound);
+		FormatEx(sBuffer, sizeof(sBuffer), "sounds/%s", sSound);
 		AddFileToDownloadsTable(sBuffer);
 	}
 
-	return PrecacheSound(sound, preload);
+	return RequiresFakePrecache() ? FakePrecacheSound(sSound) : PrecacheSound(sSound, preload);
 }
 
-stock void FakePrecacheSound(const char[] soundPath)
+stock bool FakePrecacheSound(const char[] sound)
 {
-	char fullPath[PLATFORM_MAX_PATH];
-	Format(fullPath, sizeof(fullPath), "sound/%s", soundPath);
-	
-	if(!FileExists(fullPath))
+	char sPath[PLATFORM_MAX_PATH];
+	Format(sPath, sizeof(sPath), "sound/%s", sound);
+
+	if (!FileExists(sPath))
 	{
+		return false;
+	}
+
+	AddFileToDownloadsTable(sPath);
+
+	Format(sPath, sizeof(sPath), "*/%s", sound);
+	AddToStringTable(FindStringTable("soundprecache"), sPath);
+	return true;
+}
+
+stock bool RequiresFakePrecache()
+{
+	EngineVersion engine = GetEngineVersion();
+	return view_as<bool>(engine == Engine_CSGO || engine == Engine_DOTA);
+}
+
+/*--------------------------------------------------------->*/
+//TF2Attributes Stocks
+/*--------------------------------------------------------->*/
+
+stock void TF2Attrib_SetByName_Weapons(int client, int weapon = -1, char[] attrib, float value, bool invert = false)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_SetByName(weapon, attrib, value);
 		return;
 	}
-	
-	AddFileToDownloadsTable(fullPath);
-	
-	Format(fullPath, sizeof(fullPath), "*/%s", soundPath);
-	AddToStringTable(FindStringTable("soundprecache"), fullPath);
+
+	if (invert)
+	{
+		value = 1.0 + value;
+	}
+	else
+	{
+		value = 1.0 - value;
+	}
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+		{
+			TF2Attrib_SetByName(weapon2, attrib, value);
+		}
+	}
 }
+
+stock void TF2Attrib_RemoveByName_Weapons(int client, int weapon = -1, char[] attrib)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_RemoveByName(weapon, attrib);
+		return;
+	}
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+		{
+			TF2Attrib_RemoveByName(weapon2, attrib);
+		}
+	}
+}
+
+stock void TF2Attrib_ApplyMoveSpeedBonus(int client, float value)
+{
+	TF2Attrib_SetByName(client, "move speed bonus", 1.0 + value);
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+}
+
+stock void TF2Attrib_RemoveMoveSpeedBonus(int client)
+{
+	TF2Attrib_RemoveByName(client, "move speed bonus");
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+}
+
+stock void TF2Attrib_ApplyMoveSpeedPenalty(int client, float value)
+{
+	TF2Attrib_SetByName(client, "move speed bonus", 1.0 - value);
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+}
+
+stock void TF2Attrib_RemoveMoveSpeedPenalty(int client)
+{
+	TF2Attrib_RemoveByName(client, "move speed bonus");
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+}
+
+/*--------------------------------------------------------->*/
+//SmartDM - Zephyrius
+/*--------------------------------------------------------->*/
+
+Handle g_hCachedFiles;
+Handle g_hCachedNums;
+char g_szModelExts[][16] = {".phy", ".sw.vtx", ".dx80.vtx", ".dx90.vtx", ".vtx", ".xbox.vtx", ".vvd"};
+char g_szMaterialKeys[][64] = {"$baseTexture", "$bumpmap", "$lightwarptexture"};
+Handle g_hCustomFiles;
+
+stock int ParseMDLFiles(char[] filename)
+{
+	int len = strlen(filename);
+	ReplaceString(filename, len, "\\", "/");
+	for (int ch=0; ch<len; ch++){
+		filename[ch] = CharToLower(filename[ch]);
+	}
+
+	if (!FileExists2(filename))
+		return 0;
+
+	if (g_hCachedNums == null)
+	{
+		g_hCachedNums = CreateTrie();
+		g_hCachedFiles = CreateArray(PLATFORM_MAX_PATH);
+	}
+
+	AddFileToDownloadsTable(filename);
+
+	int m_iValue;
+	if (GetTrieValue(g_hCachedNums, filename, m_iValue))
+	{
+		int m_iStart = FindStringInArray(g_hCachedFiles, filename)+1;
+		char m_szFile[PLATFORM_MAX_PATH];
+		for (int i=m_iStart-m_iValue-1;i<m_iStart-1;++i)
+		{
+			if (i<0)
+				break;
+			GetArrayString(g_hCachedFiles, i, m_szFile, sizeof(m_szFile));
+			AddFileToDownloadsTable(m_szFile);
+		}
+		return true;
+	}
+
+	char m_szExt[16];
+	int m_iDot = FindCharInString(filename, '.', true);
+	if (m_iDot == -1)
+		return true;
+
+	int m_iNumFiles = 0;
+
+	strcopy(m_szExt, sizeof(m_szExt), filename[m_iDot]);
+	char m_szMaterials[8][PLATFORM_MAX_PATH];
+	int m_iNum;
+	if (strcmp(m_szExt, ".mdl") == 0)
+	{
+		char m_szFiles[sizeof(g_szModelExts)][PLATFORM_MAX_PATH];
+		char m_szInternal[64];
+
+		m_iNum = Downloader_ParseMDL(filename, m_szInternal, sizeof(m_szInternal), m_szMaterials, sizeof(m_szMaterials), sizeof(m_szMaterials[]));
+		for (int i=0;i<m_iNum;++i)
+		{
+			if (FileExists2(m_szMaterials[i])){
+				m_iNumFiles += ParseMDLFiles(m_szMaterials[i])+1;
+			}
+		}
+
+		m_iNum = Downloader_GetModelFiles(filename, m_szInternal, m_szFiles, sizeof(m_szFiles), sizeof(m_szFiles[]));
+		for (int i=0;i<m_iNum;++i)
+			m_iNumFiles += ParseMDLFiles(m_szFiles[i])+1;
+	} else if (strcmp(m_szExt, ".vmt") == 0)
+	{
+		m_iNum = Downloader_GetMaterialsFromVMT(filename, m_szMaterials, sizeof(m_szMaterials), sizeof(m_szMaterials[]));
+		char m_szMaterial[PLATFORM_MAX_PATH];
+		for (int i=0;i<m_iNum;++i)
+		{
+			Format(m_szMaterial, sizeof(m_szMaterial), "materials\\%s.vtf", m_szMaterials[i]);
+
+			if (FileExists2(m_szMaterial))
+				m_iNumFiles += ParseMDLFiles(m_szMaterial)+1;
+		}
+	}
+
+	PushArrayString(g_hCachedFiles, filename);
+	SetTrieValue(g_hCachedNums, filename, m_iNumFiles);
+
+	return m_iNumFiles;
+}
+
+stock int Downloader_ParseMDL(const char[] model, char[] internal, int maxlen1, char[][] files, int maxsize, int maxlen2)
+{
+	if (!FileExists2(model))
+		return 0;
+
+	int m_iID;
+	int m_iVersion;
+	int m_iNum = 0;
+	int m_iDirNum = 0;
+	int m_iOffset = 0;
+	int m_iDirOffset = 0;
+	int m_iNameOffset = 0;
+	int m_iIdx = 0;
+
+	Handle m_hFile = OpenFile2(model, "rb");
+	if (m_hFile==null)
+		return 0;
+
+	ReadFileCell(m_hFile, m_iID, 4);
+	ReadFileCell(m_hFile, m_iVersion, 4);
+	FileSeek(m_hFile, 4, SEEK_CUR);
+	ReadFileString(m_hFile, internal, maxlen1);
+
+	FileSeek(m_hFile, 204, SEEK_SET);
+	ReadFileCell(m_hFile, m_iNum, 4);
+	ReadFileCell(m_hFile, m_iOffset, 4);
+	ReadFileCell(m_hFile, m_iDirNum, 4);
+	ReadFileCell(m_hFile, m_iDirOffset, 4);
+
+	char m_szPath[PLATFORM_MAX_PATH];
+	if (m_iDirNum!=0)
+	{
+		FileSeek(m_hFile, m_iDirOffset, SEEK_SET);
+		ReadFileCell(m_hFile, m_iDirOffset, 4);
+		FileSeek(m_hFile, m_iDirOffset, SEEK_SET);
+		ReadFileString(m_hFile, m_szPath, sizeof(m_szPath));
+	}
+
+	char m_szMaterial[PLATFORM_MAX_PATH];
+	for (m_iIdx=0;m_iIdx<m_iNum;++m_iIdx)
+	{
+		FileSeek(m_hFile, m_iOffset+m_iIdx*64, SEEK_SET);
+		ReadFileCell(m_hFile, m_iNameOffset, 4);
+		FileSeek(m_hFile, m_iNameOffset-4, SEEK_CUR);
+		ReadFileString(m_hFile, m_szMaterial, sizeof(m_szMaterial));
+
+		Format(files[m_iIdx], maxlen2, "materials\\%s%s.vmt", m_szPath, m_szMaterial);
+	}
+
+	return m_iNum;
+}
+
+stock int Downloader_GetModelFiles(const char[] model, const char[] internal, char[][] files, int maxsize, int maxlen)
+{
+	char m_szRawPath1[PLATFORM_MAX_PATH];
+	char m_szRawPath2[PLATFORM_MAX_PATH];
+	strcopy(m_szRawPath1, sizeof(m_szRawPath1), model);
+	Format(m_szRawPath2, sizeof(m_szRawPath2), "models/%s", internal);
+
+	int m_iDot = FindCharInString(m_szRawPath1, '.', true);
+	if (m_iDot == -1)
+		return 0;
+	m_szRawPath1[m_iDot] = 0;
+
+	m_iDot = FindCharInString(m_szRawPath2, '.', true);
+	if (m_iDot == -1)
+		return 0;
+	m_szRawPath2[m_iDot] = 0;
+
+	int m_iNum = 0;
+	for (int i=0;i<sizeof(g_szModelExts);++i)
+	{
+		if (m_iNum == maxsize)
+			break;
+		Format(files[m_iNum], maxlen, "%s%s", m_szRawPath1, g_szModelExts[i]);
+		if (FileExists2(files[m_iNum]))
+			++m_iNum;
+		else
+		{
+			Format(files[m_iNum], maxlen, "%s%s", m_szRawPath2, g_szModelExts[i]);
+			if (FileExists2(files[m_iNum]))
+				++m_iNum;
+		}
+	}
+	return m_iNum;
+}
+
+stock int Downloader_GetMaterialsFromVMT(const char[] vmt, char[][] materials, int maxsize, int maxlen)
+{
+	if (!FileExists2(vmt))
+		return 0;
+
+	char m_szLine[512];
+
+	Handle m_hFile = OpenFile2(vmt, "r");
+
+	bool m_bFound[sizeof(g_szMaterialKeys)];
+	int m_iPos;
+	int m_iLast;
+	int m_iNum = 0;
+	while(ReadFileLine(m_hFile, m_szLine, sizeof(m_szLine))!=false)
+	{
+		if (m_iNum == sizeof(g_szMaterialKeys) || maxsize == m_iNum)
+			break;
+
+		for (int i=0;i<sizeof(g_szMaterialKeys);++i)
+		{
+			if (m_bFound[i])
+				continue;
+			if ((m_iPos = StrContains(m_szLine, g_szMaterialKeys[i], false)) > 0)
+			{
+				m_bFound[i]=true;
+				while(m_szLine[m_iPos] != '"' && m_szLine[m_iPos] != ' ' && m_szLine[m_iPos] != '	')
+					++m_iPos;
+				while(m_szLine[m_iPos] == ' ' || m_szLine[m_iPos] == '	' || m_szLine[m_iPos] == '"')
+					++m_iPos;
+				m_iLast = m_iPos;
+				while(m_szLine[m_iLast] != '"' && m_szLine[m_iLast] != '\r' && m_szLine[m_iLast] != '\n' && m_szLine[m_iLast] != ' ' && m_szLine[m_iLast] != '	' && m_szLine[m_iLast] != 0)
+					++m_iLast;
+				m_szLine[m_iLast] = 0;
+				strcopy(materials[m_iNum], maxlen, m_szLine[m_iPos]);
+				++m_iNum;
+			}
+		}
+	}
+
+	CloseHandle(m_hFile);
+
+	return m_iNum;
+}
+
+public void CacheCustomDirectory()
+{
+	g_hCustomFiles = CreateTrie();
+
+	Handle m_hDir = OpenDirectory("custom");
+	if (m_hDir == null)
+		return;
+
+	char m_szDirectory[PLATFORM_MAX_PATH] = "custom/";
+	FileType m_eType;
+	int m_unLen = strlen(m_szDirectory);
+
+	while(ReadDirEntry(m_hDir, m_szDirectory[m_unLen], sizeof(m_szDirectory)-m_unLen, m_eType))
+	{
+		if (m_eType != FileType_Directory)
+			continue;
+
+		if (strcmp(m_szDirectory[m_unLen], ".")==0 || strcmp(m_szDirectory[m_unLen], "..")==0)
+			continue;
+
+		CacheDirectory(m_szDirectory);
+	}
+	CloseHandle(m_hDir);
+}
+
+public void CacheDirectory(const char[] directory)
+{
+	Handle m_hDir = OpenDirectory(directory);
+	char m_szPath[PLATFORM_MAX_PATH];
+	FileType m_eType;
+	Format(m_szPath, sizeof(m_szPath), "%s/", directory);
+	int m_unLen = strlen(m_szPath);
+	int m_unOffset = FindCharInString(m_szPath, '/')+1;
+	m_unOffset += FindCharInString(m_szPath[m_unOffset], '/')+1;
+
+	while(ReadDirEntry(m_hDir, m_szPath[m_unLen], sizeof(m_szPath)-m_unLen, m_eType))
+	{
+		if (strcmp(m_szPath[m_unLen], ".")==0 || strcmp(m_szPath[m_unLen], "..")==0)
+			continue;
+
+		if (m_eType == FileType_Directory)
+			CacheDirectory(m_szPath);
+		else if (m_eType == FileType_File)
+		{
+			int len = strlen(m_szPath);
+			ReplaceString(m_szPath, len, "\\", "/");
+			for (int ch=0; ch<len; ch++){
+				m_szPath[ch] = CharToLower(m_szPath[ch]);
+			}
+			SetTrieString(g_hCustomFiles, m_szPath[m_unOffset], m_szPath);
+		}
+	}
+	CloseHandle(m_hDir);
+}
+
+stock Handle OpenFile2(const char[] file, const char[] mode)
+{
+	if (g_hCustomFiles == null)
+		CacheCustomDirectory();
+
+	char file2[PLATFORM_MAX_PATH];
+	strcopy(file2, PLATFORM_MAX_PATH, file);
+
+	int len = strlen(file2);
+	ReplaceString(file2, len, "\\", "/");
+	for (int ch=0; ch<len; ch++){
+		file2[ch] = CharToLower(file2[ch]);
+	}
+
+	char m_szPath[PLATFORM_MAX_PATH];
+	if (!GetTrieString(g_hCustomFiles, file2, m_szPath, sizeof(m_szPath)))
+	{
+		strcopy(m_szPath, sizeof(m_szPath), file2);
+	}
+
+	return OpenFile(m_szPath, mode);
+}
+
+stock bool FileExists2(const char[] file)
+{
+	if (g_hCustomFiles == null){
+		CacheCustomDirectory();
+	}
+
+	char file2[PLATFORM_MAX_PATH];
+	strcopy(file2, PLATFORM_MAX_PATH, file);
+
+	int len = strlen(file2);
+	ReplaceString(file2, len, "\\", "/");
+	for (int ch=0; ch<len; ch++){
+		file2[ch] = CharToLower(file2[ch]);
+	}
+
+	char m_szPath[PLATFORM_MAX_PATH];
+	if (!GetTrieString(g_hCustomFiles, file2, m_szPath, sizeof(m_szPath))){
+		return FileExists(file2);
+	}
+	return FileExists(m_szPath);
+}
+
+/*--------------------------------------------------------->*/
+//From SMLIB, lets draw happy little boxes together.
+/*--------------------------------------------------------->*/
+
+stock void Effect_DrawBeamBoxToClient(int client, const float bottomCorner[3], const float upperCorner[3], int modelIndex, int haloIndex, int startFrame = 0, int frameRate = 30, float life = 5.0, float width = 5.0, float endWidth = 5.0, int fadeLength = 2, float amplitude = 1.0, const color[4] =  { 255, 0, 0, 255 }, int speed = 0)
+{
+	int clients[1];
+	clients[0] = client;
+	Effect_DrawBeamBox(clients, 1, bottomCorner, upperCorner, modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+}
+
+stock void Effect_DrawBeamBoxToAll(const float bottomCorner[3], const float upperCorner[3], int modelIndex, int haloIndex, int startFrame = 0, int frameRate = 30, float life = 5.0, float width = 5.0, float endWidth = 5.0, int fadeLength = 2, float amplitude = 1.0, const int color[4] = { 255, 255, 255, 255 }, int speed = 0)
+{
+	int[] clients = new int[MaxClients];
+	int numClients;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && !IsFakeClient(i))
+		{
+			clients[numClients++] = i;
+		}
+	}
+
+	Effect_DrawBeamBox(clients, numClients, bottomCorner, upperCorner, modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+}
+
+stock void Effect_DrawBeamBox(int[] clients, int numClients, const float bottomCorner[3], const float upperCorner[3], int modelIndex, int haloIndex, int startFrame = 0, int frameRate = 30, float life = 5.0, float width = 5.0, float endWidth = 5.0, int fadeLength = 2, float amplitude = 1.0, const color[4] =  { 255, 0, 0, 255 }, int speed = 0)
+{
+	float corners[8][3];
+
+	for (int i = 0; i < 4; i++)
+	{
+		CopyArrayToArray(bottomCorner, corners[i], 3);
+		CopyArrayToArray(upperCorner, corners[i + 4], 3);
+	}
+
+	corners[1][0] = upperCorner[0];
+	corners[2][0] = upperCorner[0];
+	corners[2][1] = upperCorner[1];
+	corners[3][1] = upperCorner[1];
+	corners[4][0] = bottomCorner[0];
+	corners[4][1] = bottomCorner[1];
+	corners[5][1] = bottomCorner[1];
+	corners[7][0] = bottomCorner[0];
+
+	for (int i = 0; i < 4; i++)
+	{
+		int j = (i == 3 ? 0 : i + 1);
+		TE_SetupBeamPoints(corners[i], corners[j], modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+		TE_Send(clients, numClients);
+	}
+
+	for (int i = 4; i < 8; i++)
+	{
+		int j = (i == 7 ? 4 : i + 1);
+		TE_SetupBeamPoints(corners[i], corners[j], modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+		TE_Send(clients, numClients);
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		TE_SetupBeamPoints(corners[i], corners[i + 4], modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+		TE_Send(clients, numClients);
+	}
+}
+
+stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
+{
+	float origin[3];
+
+	GetEntPropVector(ent, Prop_Data, "m_vecOrigin", origin);
+	GetEntPropVector(ent, Prop_Data, "m_vecMins", mins);
+	GetEntPropVector(ent, Prop_Data, "m_vecMaxs", maxs);
+
+	mins[0] += origin[0];
+	mins[1] += origin[1];
+	mins[2] += origin[2];
+
+	maxs[0] += origin[0];
+	maxs[1] += origin[1];
+	maxs[2] += origin[2];
+}
+
+/*--------------------------------------------------------->*/
+//TF2 force look stocks by Pelipoika
+/*--------------------------------------------------------->*/
+
+stock void TF2_LookAtPos(int client, float flGoal[3], float flAimSpeed = 0.05)
+{
+    float flPos[3];
+    GetClientEyePosition(client, flPos);
+
+    float flAng[3];
+    GetClientEyeAngles(client, flAng);
+
+    // get normalised direction from target to client
+    float desired_dir[3];
+    MakeVectorFromPoints(flPos, flGoal, desired_dir);
+    GetVectorAngles(desired_dir, desired_dir);
+
+    // ease the current direction to the target direction
+    flAng[0] += AngleNormalize(desired_dir[0] - flAng[0]) * flAimSpeed;
+    flAng[1] += AngleNormalize(desired_dir[1] - flAng[1]) * flAimSpeed;
+
+    TeleportEntity(client, NULL_VECTOR, flAng, NULL_VECTOR);
+}
+
+stock float AngleNormalize(float angle)
+{
+    angle = fmodf(angle, 360.0);
+    if (angle > 180)
+    {
+        angle -= 360;
+    }
+    if (angle < -180)
+    {
+        angle += 360;
+    }
+
+    return angle;
+}
+
+stock float fmodf(float number, float denom)
+{
+    return number - RoundToFloor(number / denom) * denom;
+}
+
+/*--------------------------------------------------------->*/
+//This is the end of this THICCCCCC include file.
+/*--------------------------------------------------------->*/
