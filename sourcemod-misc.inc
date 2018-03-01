@@ -2064,6 +2064,15 @@ public Action Timer_DelayAllConcept28305820358023532(Handle timer, any data)
 	SpeakResponseConceptAll(sConcept);
 }
 
+stock void SQL_FetchClientName(int client, Handle database, char[] buffer, int& size)
+{
+	char sName[MAX_NAME_LENGTH];
+	GetClientName(client, sName, sizeof(sName));
+
+	size = 2 * strlen(sName) + 1;
+	SQL_EscapeString(database, sName, buffer, size);
+}
+
 /*---------------------------------------------------------*/
 //Menu stocks by Kisslick
 /*---------------------------------------------------------*/
@@ -2265,7 +2274,7 @@ stock int PrepareModel(char model[PLATFORM_MAX_PATH], bool preload = false)
 		Format(model, sizeof(model), "models/%s", model);
 	}
 
-	ParseMDLFiles(model);
+	//ParseMDLFiles(model);
 
 	return PrecacheModel(model, preload);
 }
@@ -2297,11 +2306,13 @@ stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = S
 	char sSound[PLATFORM_MAX_PATH];
 	strcopy(sSound, sizeof(sSound), sample);
 
-	PrepareSound(sSound);
-
 	if (RequiresFakePrecache())
 	{
 		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+	else
+	{
+		PrepareSound(sample);
 	}
 
 	if (IsSoundPrecached(sSound))
@@ -2310,12 +2321,13 @@ stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = S
 		return true;
 	}
 
+	LogError("Error playing sound to client %N, not precached: %s", client, sSound);
 	return false;
 }
 
 stock bool EmitSoundToClientViaConVar(int client, ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
-	if (!PrepareSoundConVar(convar, preload))
+	if (convar == null)
 	{
 		return false;
 	}
@@ -2392,11 +2404,13 @@ stock bool EmitSoundToAllSafe(const char[] sample, int entity = SOUND_FROM_PLAYE
 	char sSound[PLATFORM_MAX_PATH];
 	strcopy(sSound, sizeof(sSound), sample);
 
-	PrepareSound(sSound);
-
 	if (RequiresFakePrecache())
 	{
 		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+	else
+	{
+		PrepareSound(sample);
 	}
 
 	if (IsSoundPrecached(sSound))
@@ -2405,12 +2419,13 @@ stock bool EmitSoundToAllSafe(const char[] sample, int entity = SOUND_FROM_PLAYE
 		return true;
 	}
 
+	LogError("Error playing sound to all, not precached: %s", sSound);
 	return false;
 }
 
 stock bool EmitSoundToAllViaConVar(ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
-	if (!PrepareSoundConVar(convar, preload))
+	if (convar = null)
 	{
 		return false;
 	}
@@ -2484,11 +2499,13 @@ stock bool EmitAmbientSoundSafe(const char[] sample, const float origin[3], int 
 	char sSound[PLATFORM_MAX_PATH];
 	strcopy(sSound, sizeof(sSound), sample);
 
-	PrepareSound(sSound);
-
 	if (RequiresFakePrecache())
 	{
 		Format(sSound, sizeof(sSound), "*%s", sSound);
+	}
+	else
+	{
+		PrepareSound(sample);
 	}
 
 	if (IsSoundPrecached(sSound))
@@ -2497,12 +2514,13 @@ stock bool EmitAmbientSoundSafe(const char[] sample, const float origin[3], int 
 		return true;
 	}
 
+	LogError("Error playing ambient sound, not precached: %s", sSound);
 	return false;
 }
 
 stock bool EmitAmbientSoundViaConVar(ConVar convar, bool preload = false, const float origin[3], int entity = SOUND_FROM_WORLD, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float vol = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, float delay = 0.0)
 {
-	if (!PrepareSoundConVar(convar, preload))
+	if (convar == null)
 	{
 		return false;
 	}
@@ -3068,6 +3086,8 @@ stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
 	GetEntPropVector(ent, Prop_Data, "m_vecOrigin", origin);
 	GetEntPropVector(ent, Prop_Data, "m_vecMins", mins);
 	GetEntPropVector(ent, Prop_Data, "m_vecMaxs", maxs);
+
+	PrintToAV("entity: %i - origin: %.2f/%.2f/%.2f - mins: %.2f/%.2f/%.2f - maxs: %.2f/%.2f/%.2f", ent, origin[0], origin[1], origin[2], mins[0], mins[1], mins[2], maxs[0], maxs[1], maxs[2]);
 
 	mins[0] += origin[0];
 	mins[1] += origin[1];
