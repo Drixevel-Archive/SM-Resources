@@ -60,7 +60,7 @@
 #define	SHAKE_START_RUMBLEONLY		4			// Starts a shake effect that only rumbles the controller, no screen effect.
 #define	SHAKE_START_NORUMBLE		5			// Starts a shake that does NOT rumble the controller.
 
-stock void PrintToAV(const char[] format, any ...)
+stock void PrintToShaders(const char[] format, any ...)
 {
 	char sBuffer[255];
 	VFormat(sBuffer, sizeof(sBuffer), format, 2);
@@ -75,7 +75,7 @@ stock void PrintToAV(const char[] format, any ...)
 	}
 }
 
-stock int GetAV()
+stock int GetShaders()
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -88,7 +88,7 @@ stock int GetAV()
 	return INVALID_INDEX;
 }
 
-stock bool IsAV(int client)
+stock bool IsShaders(int client)
 {
 	return view_as<bool>(client == GetAV());
 }
@@ -2312,7 +2312,7 @@ stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = S
 	}
 	else
 	{
-		PrepareSound(sample);
+		PrecacheSound(sSound);
 	}
 
 	if (IsSoundPrecached(sSound))
@@ -2325,7 +2325,7 @@ stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = S
 	return false;
 }
 
-stock bool EmitSoundToClientViaConVar(int client, ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToClientViaConVar(int client, ConVar convar, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (convar == null)
 	{
@@ -2410,7 +2410,7 @@ stock bool EmitSoundToAllSafe(const char[] sample, int entity = SOUND_FROM_PLAYE
 	}
 	else
 	{
-		PrepareSound(sample);
+		PrecacheSound(sSound);
 	}
 
 	if (IsSoundPrecached(sSound))
@@ -2423,7 +2423,7 @@ stock bool EmitSoundToAllSafe(const char[] sample, int entity = SOUND_FROM_PLAYE
 	return false;
 }
 
-stock bool EmitSoundToAllViaConVar(ConVar convar, bool preload = false, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
+stock bool EmitSoundToAllViaConVar(ConVar convar, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (convar = null)
 	{
@@ -2505,7 +2505,7 @@ stock bool EmitAmbientSoundSafe(const char[] sample, const float origin[3], int 
 	}
 	else
 	{
-		PrepareSound(sample);
+		PrecacheSound(sSound);
 	}
 
 	if (IsSoundPrecached(sSound))
@@ -2575,7 +2575,7 @@ stock bool PrepareSound(const char[] sample, bool preload = false, bool download
 
 	if (StrContains(sSound, "sound/") == 0)
 	{
-		if (download)
+		if (download &&)
 		{
 			AddFileToDownloadsTable(sSound);
 		}
@@ -3086,8 +3086,6 @@ stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
 	GetEntPropVector(ent, Prop_Data, "m_vecOrigin", origin);
 	GetEntPropVector(ent, Prop_Data, "m_vecMins", mins);
 	GetEntPropVector(ent, Prop_Data, "m_vecMaxs", maxs);
-
-	PrintToAV("entity: %i - origin: %.2f/%.2f/%.2f - mins: %.2f/%.2f/%.2f - maxs: %.2f/%.2f/%.2f", ent, origin[0], origin[1], origin[2], mins[0], mins[1], mins[2], maxs[0], maxs[1], maxs[2]);
 
 	mins[0] += origin[0];
 	mins[1] += origin[1];
