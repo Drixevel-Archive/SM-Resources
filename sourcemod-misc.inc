@@ -14,6 +14,12 @@
 //#error Can't compile include.
 //#endif
 
+//Because I'm too stupid at remembering how to do this properly.
+//Apply Bit: damagetype |= DMG_CRIT;
+//Apply Multi Bit: damagetype |= (DMG_CRIT | DMG_BURN);
+//Remove Bit: damagetype &= ~DMG_BURN;
+//Remove Multi Bit: damagetype &= ~(DMG_CRIT | DMG_BURN);
+
 #if defined _sourcemod_misc_included
 #endinput
 #endif
@@ -1380,6 +1386,11 @@ stock void TF2_ForceRoundWin(TFTeam team)
 	AcceptEntityInput(entity, "SetWinner");
 }
 
+stock int GetTotalAliveCount()
+{
+	return (GetTeamAliveClientCount(2) + GetTeamAliveClientCount(3));
+}
+
 stock int GetTeamAliveClientCount(int team)
 {
 	int amount;
@@ -2008,18 +2019,52 @@ stock void PushAllPlayersFromPoint(float point[3], float magnitude = 50.0, float
 	}
 }
 
-stock void SpeakResponseConcept(int client, const char[] concept)
+//context examples:
+///domation:revenge
+///domation:dominated
+//class examples:
+///victimclass:<classname> (ex. victimclass:scout)
+stock void SpeakResponseConcept(int client, const char[] concept, const char[] context = "", const char[] class = "")
 {
+	bool hascontext;
+
+	//For class specific context basically.
+	if (strlen(context) > 0)
+	{
+		SetVariantString(context);
+		AcceptEntityInput(client, "AddContext");
+
+		hascontext = true;
+	}
+
+	//dominations require you add more context to them for certain things.
+	if (strlen(class) > 0)
+	{
+		char sClass[64];
+		FormatEx(sClass, sizeof(sClass), "victimclass:%s", class);
+		SetVariantString(sClass);
+		AcceptEntityInput(client, "AddContext");
+
+		hascontext = true;
+	}
+
 	SetVariantString(concept);
 	AcceptEntityInput(client, "SpeakResponseConcept");
+
+	if (hascontext)
+	{
+		AcceptEntityInput(client, "ClearContext");
+	}
 }
 
-stock void SpeakResponseConceptDelayed(int client, const char[] concept, float delayed = 0.0)
+stock void SpeakResponseConceptDelayed(int client, const char[] concept, float delayed = 0.0, const char[] context = "", const char[] class = "")
 {
 	DataPack hPack;
 	CreateDataTimer(ClampCell(delayed, 0.0, 999999.0), Timer_DelayClientConcept28305820358023532, hPack, TIMER_FLAG_NO_MAPCHANGE);
 	WritePackCell(hPack, GetClientUserId(client));
 	WritePackString(hPack, concept);
+	WritePackString(hPack, context);
+	WritePackString(hPack, class);
 }
 
 public Action Timer_DelayClientConcept28305820358023532(Handle timer, any data)
@@ -2030,28 +2075,36 @@ public Action Timer_DelayClientConcept28305820358023532(Handle timer, any data)
 	char sConcept[256];
 	ReadPackString(data, sConcept, sizeof(sConcept));
 
+	char sContext[64];
+	ReadPackString(data, sContext, sizeof(sContext));
+
+	char sClass[64];
+	ReadPackString(data, sClass, sizeof(sClass));
+
 	if (IsPlayerIndex(client) && IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		SpeakResponseConcept(client, sConcept);
+		SpeakResponseConcept(client, sConcept, sContext, sClass);
 	}
 }
 
-stock void SpeakResponseConceptAll(const char[] concept)
+stock void SpeakResponseConceptAll(const char[] concept, const char[] context = "", const char[] class = "")
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && IsPlayerAlive(i))
 		{
-			SpeakResponseConcept(i, concept);
+			SpeakResponseConcept(i, concept, context, class);
 		}
 	}
 }
 
-stock void SpeakResponseConceptAllDelayed(const char[] concept, float delay = 0.0)
+stock void SpeakResponseConceptAllDelayed(const char[] concept, float delay = 0.0, const char[] context = "", const char[] class = "")
 {
 	DataPack hPack;
 	CreateDataTimer(ClampCell(delay, 0.0, 999999.0), Timer_DelayAllConcept28305820358023532, hPack, TIMER_FLAG_NO_MAPCHANGE);
 	WritePackString(hPack, concept);
+	WritePackString(hPack, context);
+	WritePackString(hPack, class);
 }
 
 public Action Timer_DelayAllConcept28305820358023532(Handle timer, any data)
@@ -2061,16 +2114,89 @@ public Action Timer_DelayAllConcept28305820358023532(Handle timer, any data)
 	char sConcept[256];
 	ReadPackString(data, sConcept, sizeof(sConcept));
 
-	SpeakResponseConceptAll(sConcept);
+	char sContext[64];
+	ReadPackString(data, sContext, sizeof(sContext));
+
+	char sClass[64];
+	ReadPackString(data, sClass, sizeof(sClass));
+
+	SpeakResponseConceptAll(sConcept, sContext, sClass);
 }
 
-stock void SQL_FetchClientName(int client, Handle database, char[] buffer, int& size)
+stock void SQL_FetchClientName(int client, Database database, char[] buffer, int size)
 {
 	char sName[MAX_NAME_LENGTH];
 	GetClientName(client, sName, sizeof(sName));
 
-	size = 2 * strlen(sName) + 1;
-	SQL_EscapeString(database, sName, buffer, size);
+	int size2 = 2 * strlen(sName) + 1;
+	char[] sEscapedName = new char[size2 + 1];
+	SQL_EscapeString(database, sName, sEscapedName, size2 + 1);
+
+	strcopy(buffer, size, sEscapedName);
+}
+
+stock bool GetGroundCoordinates(int entity, float buffer[3], float distance = 0.0, float offset[3] = {0.0, 0.0, 0.0})
+{
+	float vecOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
+
+	float vecLook[3] = {90.0, 0.0, 0.0};
+	Handle trace = TR_TraceRayEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite);
+
+	if (TR_DidHit(trace))
+	{
+		TR_GetEndPosition(buffer, trace);
+
+		if (distance > 0.0 && vecOrigin[2] - buffer[2] > distance)
+		{
+			buffer[0] += offset[0];
+			buffer[1] += offset[1];
+			buffer[2] += offset[2];
+
+			return true;
+		}
+
+		buffer[0] += offset[0];
+		buffer[1] += offset[1];
+		buffer[2] += offset[2];
+
+		return false;
+	}
+
+	delete trace;
+	return false;
+}
+
+stock bool GetCeilingCoordinates(int entity, float buffer[3], float distance = 0.0, float offset[3] = {0.0, 0.0, 0.0})
+{
+	float vecOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
+
+	float vecLook[3] = {-90.0, 0.0, 0.0};
+	Handle trace = TR_TraceRayEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite);
+
+	if (TR_DidHit(trace))
+	{
+		TR_GetEndPosition(buffer, trace);
+
+		if (distance > 0.0 && vecOrigin[2] - buffer[2] > distance)
+		{
+			buffer[0] += offset[0];
+			buffer[1] += offset[1];
+			buffer[2] += offset[2];
+
+			return true;
+		}
+
+		buffer[0] += offset[0];
+		buffer[1] += offset[1];
+		buffer[2] += offset[2];
+
+		return false;
+	}
+
+	delete trace;
+	return false;
 }
 
 /*---------------------------------------------------------*/
@@ -2611,8 +2737,8 @@ stock bool FakePrecacheSound(const char[] sound)
 
 stock bool RequiresFakePrecache()
 {
-	EngineVersion engine = GetEngineVersion();
-	return view_as<bool>(engine == Engine_CSGO || engine == Engine_DOTA);
+	EngineVersion engine2 = GetEngineVersion();
+	return view_as<bool>(engine2 == Engine_CSGO || engine2 == Engine_DOTA);
 }
 
 /*--------------------------------------------------------->*/
@@ -2668,10 +2794,20 @@ stock void TF2Attrib_RemoveByName_Weapons(int client, int weapon = -1, char[] at
 	}
 }
 
-stock void TF2Attrib_ApplyMoveSpeedBonus(int client, float value)
+stock float TF2Attrib_ApplyMoveSpeedBonus(int client, float value)
 {
+	Address addr = TF2Attrib_GetByName(client, "move speed bonus");
+	float old;
+
+	if (addr != Address_Null)
+	{
+		old = TF2Attrib_GetValue(addr);
+	}
+
 	TF2Attrib_SetByName(client, "move speed bonus", 1.0 + value);
 	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+
+	return old;
 }
 
 stock void TF2Attrib_RemoveMoveSpeedBonus(int client)
@@ -2680,15 +2816,25 @@ stock void TF2Attrib_RemoveMoveSpeedBonus(int client)
 	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
 }
 
-stock void TF2Attrib_ApplyMoveSpeedPenalty(int client, float value)
+stock float TF2Attrib_ApplyMoveSpeedPenalty(int client, float value)
 {
-	TF2Attrib_SetByName(client, "move speed bonus", 1.0 - value);
+	Address addr = TF2Attrib_GetByName(client, "move speed bonus");
+	float old;
+
+	if (addr != Address_Null)
+	{
+		old = TF2Attrib_GetValue(addr);
+	}
+
+	TF2Attrib_SetByName(client, "move speed penalty", 1.0 - value);
 	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+
+	return old;
 }
 
 stock void TF2Attrib_RemoveMoveSpeedPenalty(int client)
 {
-	TF2Attrib_RemoveByName(client, "move speed bonus");
+	TF2Attrib_RemoveByName(client, "move speed penalty");
 	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
 }
 
@@ -3079,11 +3225,51 @@ stock void Effect_DrawBeamBox(int[] clients, int numClients, const float bottomC
 	}
 }
 
+stock void Effect_DrawRangedBeamBox(float origin[3], const float bottomCorner[3], const float upperCorner[3], int modelIndex, int haloIndex, int startFrame = 0, int frameRate = 30, float life = 5.0, float width = 5.0, float endWidth = 5.0, int fadeLength = 2, float amplitude = 1.0, const color[4] =  { 255, 0, 0, 255 }, int speed = 0)
+{
+	float corners[8][3];
+
+	for (int i = 0; i < 4; i++)
+	{
+		CopyArrayToArray(bottomCorner, corners[i], 3);
+		CopyArrayToArray(upperCorner, corners[i + 4], 3);
+	}
+
+	corners[1][0] = upperCorner[0];
+	corners[2][0] = upperCorner[0];
+	corners[2][1] = upperCorner[1];
+	corners[3][1] = upperCorner[1];
+	corners[4][0] = bottomCorner[0];
+	corners[4][1] = bottomCorner[1];
+	corners[5][1] = bottomCorner[1];
+	corners[7][0] = bottomCorner[0];
+
+	for (int i = 0; i < 4; i++)
+	{
+		int j = (i == 3 ? 0 : i + 1);
+		TE_SetupBeamPoints(corners[i], corners[j], modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+		TE_SendToAllInRange(origin, RangeType_Audibility);
+	}
+
+	for (int i = 4; i < 8; i++)
+	{
+		int j = (i == 7 ? 4 : i + 1);
+		TE_SetupBeamPoints(corners[i], corners[j], modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+		TE_SendToAllInRange(origin, RangeType_Audibility);
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		TE_SetupBeamPoints(corners[i], corners[i + 4], modelIndex, haloIndex, startFrame, frameRate, life, width, endWidth, fadeLength, amplitude, color, speed);
+		TE_SendToAllInRange(origin, RangeType_Audibility);
+	}
+}
+
 stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
 {
 	float origin[3];
 
-	GetEntPropVector(ent, Prop_Data, "m_vecOrigin", origin);
+	GetEntPropVector(ent, Prop_Data, "m_vecAbsOrigin", origin);
 	GetEntPropVector(ent, Prop_Data, "m_vecMins", mins);
 	GetEntPropVector(ent, Prop_Data, "m_vecMaxs", maxs);
 
@@ -3094,6 +3280,38 @@ stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
 	maxs[0] += origin[0];
 	maxs[1] += origin[1];
 	maxs[2] += origin[2];
+}
+
+stock void CreateHudConVars(const char[] prefix, ConVar& position = null, ConVar& holdtime = null, ConVar& colors = null, ConVar& effect = null, ConVar& fxtime = null, ConVar& fades = null)
+{
+	char sName[512];
+
+	FormatEx(sName, sizeof(sName), "%sposition", prefix);
+	position = CreateConVar(sName, "-1.0/-1.0", "Position of this hud element.", FCVAR_NOTIFY);
+
+	FormatEx(sName, sizeof(sName), "%sholdtime", prefix);
+	holdtime = CreateConVar(sName, "0.0", "Holdtime for this hud element.", FCVAR_NOTIFY);
+
+	FormatEx(sName, sizeof(sName), "%scolor", prefix);
+	colors = CreateConVar(sName, "255, 255, 255, 255", "Color of this hud element.", FCVAR_NOTIFY);
+
+	FormatEx(sName, sizeof(sName), "%seffect", prefix);
+	effect = CreateConVar(sName, "0", "Effect for this hud element.", FCVAR_NOTIFY);
+
+	FormatEx(sName, sizeof(sName), "%sfxtime", prefix);
+	fxtime = CreateConVar(sName, "0.0", "Fxtime for this hud element.", FCVAR_NOTIFY);
+
+	FormatEx(sName, sizeof(sName), "%sfades", prefix);
+	fades = CreateConVar(sName, "-1.0/-1.0", "Fxtime for this hud element.", FCVAR_NOTIFY);
+}
+
+stock void SetHudTextParamsViaConVars(ConVar& position, ConVar& holdtime, ConVar& color, ConVar& effect, ConVar& fxtime, ConVar& fades)
+{
+	float vecPosition[2]; vecPosition = GetConVar2DVector(position);
+	int iColor[4]; iColor = GetConVarColor(color);
+	float fFades[2]; fFades = GetConVar2DVector(fades);
+
+	SetHudTextParams(vecPosition[0], vecPosition[1], GetConVarFloat(holdtime), iColor[0], iColor[1], iColor[2], iColor[3], GetConVarInt(effect), GetConVarFloat(fxtime), fFades[0], fFades[1]);
 }
 
 /*--------------------------------------------------------->*/
