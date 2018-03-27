@@ -2051,13 +2051,13 @@ stock bool TeleportToDestination(int client, const char[] name, bool keep_veloci
 	return false;
 }
 
-stock bool IsClientNearEntityViaName(int client, const char[] name, float distance = 1000.0)
+stock bool IsClientNearEntityViaName(int client, const char[] name, const char[] entity_name = "*", float distance = 1000.0)
 {
 	float vecClientOrigin[3];
 	GetClientAbsOrigin(client, vecClientOrigin);
 
 	int entity = -1; char buffer[256]; float vecOrigin[3];
-	while ((entity = FindEntityByClassname(entity, "info_teleport_destination")) != -1)
+	while ((entity = FindEntityByClassname(entity, entity_name)) != -1)
 	{
 		GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
 
