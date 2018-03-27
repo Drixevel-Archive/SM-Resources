@@ -66,6 +66,10 @@
 #define	SHAKE_START_RUMBLEONLY		4			// Starts a shake effect that only rumbles the controller, no screen effect.
 #define	SHAKE_START_NORUMBLE		5			// Starts a shake that does NOT rumble the controller.
 
+/*
+	Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around)
+*/
+
 stock void PrintToShaders(const char[] format, any ...)
 {
 	char sBuffer[255];
@@ -99,6 +103,16 @@ stock bool IsShaders(int client)
 	return view_as<bool>(client == GetAV());
 }
 
+/*
+	End of private stocks.
+*/
+
+//This is safe but it's best to use the proper checks where you can instead.
+stock bool IsValidClient(int client)
+{
+	return client >= 1 && client <= MaxClients && IsClientConnected(client) && IsClientInGame(client) && !IsClientSourceTV(client);
+}
+
 stock bool KickClientBySteamID(const char[] steamid, const char[] reason, any ...)
 {
 	char sBuffer[256];
@@ -122,6 +136,27 @@ stock bool KickClientBySteamID(const char[] steamid, const char[] reason, any ..
 	}
 
 	return false;
+}
+
+stock int GetClientBySteamID(const char[] steamid, AuthIdType type = AuthId_Steam2)
+{
+	char sSteamID[64];
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsFakeClient(i))
+		{
+			continue;
+		}
+
+		GetClientAuthId(i, type, sSteamID, sizeof(sSteamID));
+
+		if (StrEqual(steamid, sSteamID))
+		{
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 stock bool IsClientConsole(int client)
@@ -182,6 +217,31 @@ stock void StringToVector(const char[] buffer, float vec[3], float defvalue[3] =
 	vec[2] = StringToFloat(sPart[2]);
 }
 
+stock void PushArrayStringFormat(ArrayList array, char[] buffer, any ...)
+{
+	if (array == null)
+	{
+		return;
+	}
+
+	char sBuffer[1024];
+	VFormat(sBuffer, sizeof(sBuffer), buffer, 3);
+	PushArrayString(array, sBuffer);
+}
+
+stock void ClearStack(ArrayStack stack)
+{
+	if (stack == null)
+	{
+		return;
+	}
+
+	while (!stack.Empty)
+	{
+		stack.Pop();
+	}
+}
+
 //Forgot
 stock bool CheckAdminFlagsByString(int client, const char[] flagString)
 {
@@ -239,224 +299,9 @@ stock void KvGet2DVector(Handle kv, const char[] key, float vec[2], const float 
 	vec[1] = StringToFloat(sPart[1]);
 }
 
-//https://github.com/50DKP/FF2-Official/blob/experimental/addons/sourcemod/scripting/freak_fortress_2.sp#L6051
-stock int ParseFormula(const char[] formula, int defaultValue)
+stock bool GetRandomBool()
 {
-	if (!formula[0])
-	{
-		return defaultValue;
-	}
-
-	int size = 1;
-	int matchingBrackets;
-	for (int i; i <= strlen(formula); i++)
-	{
-		if (formula[i]=='(')
-		{
-			if (!matchingBrackets)
-			{
-				size++;
-			}
-			else
-			{
-				matchingBrackets--;
-			}
-		}
-		else if (formula[i]==')')
-		{
-			matchingBrackets++;
-		}
-	}
-
-	Handle sumArray = CreateArray(_, size);
-	Handle _operator = CreateArray(_, size);
-	int bracket;
-	bool escapeCharacter;
-	SetArrayCell(sumArray, 0, 0.0);
-	SetArrayCell(_operator, bracket, Operator_None);
-
-	char currentCharacter[2];
-	char value[16];
-	char variable[16];
-
-	for (int i; i <= strlen(formula); i++)
-	{
-		currentCharacter[0] = formula[i];
-
-		switch (currentCharacter[0])
-		{
-			case ' ', '\t':
-			{
-				continue;
-			}
-			case '(':
-			{
-				bracket++;
-				SetArrayCell(sumArray, bracket, 0.0);
-				SetArrayCell(_operator, bracket, Operator_None);
-			}
-			case ')':
-			{
-				OperateString(sumArray, bracket, value, sizeof(value), _operator);
-
-				if (GetArrayCell(_operator, bracket) != Operator_None)
-				{
-					CloseHandle(sumArray);
-					CloseHandle(_operator);
-					return defaultValue;
-				}
-
-				if (--bracket < 0)
-				{
-					CloseHandle(sumArray);
-					CloseHandle(_operator);
-					return defaultValue;
-				}
-
-				Operate(sumArray, bracket, GetArrayCell(sumArray, bracket + 1), _operator);
-			}
-			case '\0':
-			{
-				OperateString(sumArray, bracket, value, sizeof(value), _operator);
-			}
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.':
-			{
-				StrCat(value, sizeof(value), currentCharacter);
-			}
-			case '{':
-			{
-				escapeCharacter = true;
-			}
-			case '}':
-			{
-				if (!escapeCharacter)
-				{
-					CloseHandle(sumArray);
-					CloseHandle(_operator);
-					return defaultValue;
-				}
-
-				escapeCharacter = false;
-
-				//custom variables - must be a float value
-				if (StrEqual(variable, "custom", false))
-				{
-					Operate(sumArray, bracket, float(0.0), _operator);
-				}
-				else
-				{
-					CloseHandle(sumArray);
-					CloseHandle(_operator);
-					return defaultValue;
-				}
-
-				Format(variable, sizeof(variable), "");
-			}
-			case '+', '-', '*', '/', '^':
-			{
-				OperateString(sumArray, bracket, value, sizeof(value), _operator);
-
-				switch (currentCharacter[0])
-				{
-					case '+':
-					{
-						SetArrayCell(_operator, bracket, Operator_Add);
-					}
-					case '-':
-					{
-						SetArrayCell(_operator, bracket, Operator_Subtract);
-					}
-					case '*':
-					{
-						SetArrayCell(_operator, bracket, Operator_Multiply);
-					}
-					case '/':
-					{
-						SetArrayCell(_operator, bracket, Operator_Divide);
-					}
-					case '^':
-					{
-						SetArrayCell(_operator, bracket, Operator_Exponent);
-					}
-				}
-			}
-			default:
-			{
-				if (escapeCharacter)
-				{
-					StrCat(variable, sizeof(variable), currentCharacter);
-				}
-				else
-				{
-					CloseHandle(sumArray);
-					CloseHandle(_operator);
-					return defaultValue;
-				}
-			}
-		}
-	}
-
-	int result = RoundFloat(GetArrayCell(sumArray, 0));
-
-	CloseHandle(sumArray);
-	CloseHandle(_operator);
-
-	if (result <= 0)
-	{
-		return defaultValue;
-	}
-
-	return result;
-}
-
-stock void Operate(Handle sumArray, int& bracket, float value, Handle _operator)
-{
-	float sum = GetArrayCell(sumArray, bracket);
-
-	switch (GetArrayCell(_operator, bracket))
-	{
-		case Operator_Add:
-		{
-			SetArrayCell(sumArray, bracket, sum+value);
-		}
-		case Operator_Subtract:
-		{
-			SetArrayCell(sumArray, bracket, sum-value);
-		}
-		case Operator_Multiply:
-		{
-			SetArrayCell(sumArray, bracket, sum*value);
-		}
-		case Operator_Divide:
-		{
-			if (!value)
-			{
-				bracket = 0;
-				return;
-			}
-
-			SetArrayCell(sumArray, bracket, sum/value);
-		}
-		case Operator_Exponent:
-		{
-			SetArrayCell(sumArray, bracket, Pow(sum, value));
-		}
-		default:
-		{
-			SetArrayCell(sumArray, bracket, value);
-		}
-	}
-
-	SetArrayCell(_operator, bracket, Operator_None);
-}
-
-stock void OperateString(Handle sumArray, int& bracket, char[] value, int size, Handle _operator)
-{
-	if (strlen(value) > 0)
-	{
-		Operate(sumArray, bracket, StringToFloat(value), _operator);
-		strcopy(value, size, "");
-	}
+	return view_as<bool>(GetRandomInt(0, 1));
 }
 
 stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char[] format, bool precision = false)
@@ -545,13 +390,6 @@ stock void ClearTrieSafe(Handle map)
 	CloseHandle(snapshot);
 }
 
-stock void ShowWebPanel(int client, char[] title, char[] url)
-{
-	char sOpen[128];
-	Format(sOpen, sizeof(sOpen), "javascript: var x = screen.width * 0.90;var y = screen.height * 0.90;window.open(\"%s\",\"scrollbars=yes, width='+x+',height='+y+'\");", url);
-	ShowMOTDPanel(client, title, sOpen, MOTDPANEL_TYPE_URL);
-}
-
 stock float CalculateFloat(int value1, int value2, float fMultiplier = 0.0)
 {
 	float fValue = float(value1) / float(value2);
@@ -584,7 +422,7 @@ stock void LogDebug(char[] pluginname, const char[] format, any ...)
 
 	if (strlen(pluginname) == 0)
 	{
-		GetPluginFilename(null, pluginname, PLATFORM_MAX_PATH);
+		strcopy(pluginname, PLATFORM_MAX_PATH, "Debug");
 	}
 
 	char sPath[PLATFORM_MAX_PATH]; char sPathFinal[PLATFORM_MAX_PATH];
@@ -1031,7 +869,7 @@ stock void TF2_GetClassName(TFClassType class, char[] name, int size, bool capit
 
 stock void SetPlayerWeaponAmmo(int client, int weapon, int clip = -1, int ammo = -1)
 {
-	if (weapon == INVALID_ENT_REFERENCE)
+	if (weapon == INVALID_ENT_REFERENCE || weapon == INVALID_ENT_INDEX || !IsValidEntity(weapon))
 	{
 		return;
 	}
@@ -1371,7 +1209,7 @@ stock void TF2_SetPlayerColor(int client, int red, int green, int blue, int alph
 	}
 }
 
-stock void TF2_ForceRoundWin(TFTeam team)
+stock void TF2_ForceRoundWin(TFTeam team, bool map_valid = true)
 {
 	int entity = FindEntityByClassname(INVALID_ENT_INDEX, "team_control_point_master");
 
@@ -1406,22 +1244,6 @@ stock int GetTeamAliveClientCount(int team)
 	return amount;
 }
 
-stock int GetRandomPlayer(int team)
-{
-	int[] clients = new int[MaxClients];
-	int count;
-
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-		{
-			clients[count++] = i;
-		}
-	}
-
-	return (count == 0) ? -1 : clients[GetRandomInt(0, count - 1)];
-}
-
 stock any ClampCell(any value, any min, any max)
 {
 	if (value < min)
@@ -1437,7 +1259,8 @@ stock any ClampCell(any value, any min, any max)
 	return value;
 }
 
-stock bool RemoveEntity(int entity)
+//SHUTUP AND MAKE ME A SANDWICH
+/*stock bool RemoveEntity(int entity)
 {
 	if (IsValidEntity(entity))
 	{
@@ -1445,7 +1268,7 @@ stock bool RemoveEntity(int entity)
 	}
 
 	return false;
-}
+}*/
 
 stock bool RemoveEntRef(int& reference = INVALID_ENT_REFERENCE)
 {
@@ -1828,7 +1651,7 @@ stock void String_ToUpper(const char[] input, char[] output, int size)
 	output[x] = '\0';
 }
 
-stock void ShowOverlay(int client, const char[] overlay, float duration)
+stock void ShowOverlay(int client, const char[] overlay, float duration = 0.0)
 {
 	if (client == 0)
 	{
@@ -1848,7 +1671,17 @@ stock void ShowOverlay(int client, const char[] overlay, float duration)
 
 public Action Timer_ResetOverlay938217591327590(Handle timer, any data)
 {
-	ShowOverlay(GetClientOfUserId(data), "", 0.0);
+	ShowOverlay(GetClientOfUserId(data), "0", 0.0);
+}
+
+stock void ClearOverlay(int client)
+{
+	if (client == 0)
+	{
+		return;
+	}
+
+	ShowOverlay(client, "0");
 }
 
 stock float GetVotePercent(int votes, int totalVotes)
@@ -2199,6 +2032,79 @@ stock bool GetCeilingCoordinates(int entity, float buffer[3], float distance = 0
 	return false;
 }
 
+stock bool TeleportToDestination(int client, const char[] name, bool keep_velocity = false)
+{
+	int entity = -1; char buffer[256]; float vecOrigin[3]; float vecAngle[3]; float blank[3];
+	while ((entity = FindEntityByClassname(entity, "info_teleport_destination")) != -1)
+	{
+		GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
+
+		if (StrEqual(buffer, name, false))
+		{
+			GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
+			GetEntPropVector(entity, Prop_Data, "m_angAbsRotation", vecAngle);
+			TeleportEntity(client, vecOrigin, vecAngle, keep_velocity ? NULL_VECTOR : blank);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+stock bool IsClientNearEntityViaName(int client, const char[] name, float distance = 1000.0)
+{
+	float vecClientOrigin[3];
+	GetClientAbsOrigin(client, vecClientOrigin);
+
+	int entity = -1; char buffer[256]; float vecOrigin[3];
+	while ((entity = FindEntityByClassname(entity, "info_teleport_destination")) != -1)
+	{
+		GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
+
+		if (StrEqual(buffer, name, false))
+		{
+			GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
+
+			if (GetVectorDistance(vecClientOrigin, vecOrigin) <= distance)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+stock void TF2_RemoveAllWearables(int client)
+{
+	int entity;
+	while ((entity = FindEntityByClassname(entity, "tf_wearable*")) != -1)
+	{
+		if (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+		{
+			TF2_RemoveWearable(client, entity);
+		}
+	}
+}
+
+/* MAH BOI POIKA */
+stock void EquipWeaponSlot(int client, int slot)
+{
+	int iWeapon = GetPlayerWeaponSlot(client, slot);
+	if(IsValidEntity(iWeapon))
+		EquipWeapon(client, iWeapon);
+}
+
+stock void EquipWeapon(int client, int weapon)
+{
+	char class[64];
+	GetEntityClassname(weapon, class, sizeof(class));
+
+	FakeClientCommand(client, "use %s", class);
+//	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", weapon);
+}
+/* */
+
 /*---------------------------------------------------------*/
 //Menu stocks by Kisslick
 /*---------------------------------------------------------*/
@@ -2368,7 +2274,19 @@ stock bool SetModel(int entity, char model[PLATFORM_MAX_PATH], bool preload = fa
 
 	if (PrepareModel(model, preload) != -1)
 	{
-		SetEntityModel(entity, model);
+		if (GetEngineVersion() == Engine_TF2)
+		{
+			SetVariantString(model);
+			AcceptEntityInput(entity, "SetCustomModel");
+
+			SetEntProp(entity, Prop_Send, "m_bCustomModelRotates", 1);
+			SetEntProp(entity, Prop_Send, "m_bUseClassAnimations", 1);
+		}
+		else
+		{
+			SetEntityModel(entity, model);
+		}
+
 		return true;
 	}
 
@@ -2674,6 +2592,18 @@ stock bool StopSoundSafe(int entity, int channel, const char[] sample)
 
 	StopSound(entity, channel, sSound);
 	return true;
+}
+
+stock void StopSoundSafeAll(int entity, const char[] sample)
+{
+    StopSoundSafe(entity, SNDCHAN_AUTO, sample);
+    StopSoundSafe(entity, SNDCHAN_WEAPON, sample);
+    StopSoundSafe(entity, SNDCHAN_VOICE, sample);
+    StopSoundSafe(entity, SNDCHAN_ITEM, sample);
+    StopSoundSafe(entity, SNDCHAN_BODY, sample);
+    StopSoundSafe(entity, SNDCHAN_STREAM, sample);
+    StopSoundSafe(entity, SNDCHAN_VOICE_BASE, sample);
+    StopSoundSafe(entity, SNDCHAN_USER_BASE, sample);
 }
 
 stock bool PrepareSoundConVar(ConVar convar, bool preload = false, bool download = true)
@@ -3265,7 +3195,7 @@ stock void Effect_DrawRangedBeamBox(float origin[3], const float bottomCorner[3]
 	}
 }
 
-stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
+stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3], bool half = false)
 {
 	float origin[3];
 
@@ -3275,11 +3205,11 @@ stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3])
 
 	mins[0] += origin[0];
 	mins[1] += origin[1];
-	mins[2] += origin[2];
+	if (!half) mins[2] += origin[2];
 
 	maxs[0] += origin[0];
 	maxs[1] += origin[1];
-	maxs[2] += origin[2];
+	if (!half) maxs[2] += origin[2];
 }
 
 stock void CreateHudConVars(const char[] prefix, ConVar& position = null, ConVar& holdtime = null, ConVar& colors = null, ConVar& effect = null, ConVar& fxtime = null, ConVar& fades = null)
