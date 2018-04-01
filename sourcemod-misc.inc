@@ -2,8 +2,8 @@
 *
 *	This include contains a ton of useful stocks and functions you can use.
 *	I made this include considering I feel like most of this stuff should be built into Sourcemod anyways.
-*	Author: Keith Warren (Aerial Vanguard)
-*	https://github.com/AerialVanguard
+*	Author: Keith Warren (Shaders Allen)
+*	https://github.com/ShadersAllen
 *
 **/
 
@@ -387,7 +387,7 @@ stock void ClearTrieSafe(Handle map)
 		RemoveFromTrie(map, sBuffer);
 	}
 
-	CloseHandle(snapshot);
+	delete snapshot;
 }
 
 stock float CalculateFloat(int value1, int value2, float fMultiplier = 0.0)
@@ -1275,7 +1275,7 @@ stock bool RemoveEntRef(int& reference = INVALID_ENT_REFERENCE)
 	if (reference != INVALID_ENT_REFERENCE)
 	{
 		int entity = EntRefToEntIndex(reference);
-		bool result = RemoveEntity(entity);
+		bool result = AcceptEntityInput(entity, "Kill");
 
 		reference = INVALID_ENT_REFERENCE;
 		return result;
@@ -2087,6 +2087,34 @@ stock void TF2_RemoveAllWearables(int client)
 	}
 }
 
+// Thanks to 11530
+// https://forums.alliedmods.net/showthread.php?t=193255
+stock void ResizePlayer(int client, float fScale)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flModelScale", fScale);
+	SetEntPropFloat(client, Prop_Send, "m_flStepSize", 18.0 * fScale);
+}
+
+//With help from Arthurdead.
+stock void VectorAddRotatedOffset(const float angle[3], float vec[3], const float offset[3])
+{
+    float forwad[3];
+    float left[3];
+    float up[3];
+    GetAngleVectors(angle, forwad, left, up);
+
+    ScaleVector(forwad, offset[0]);
+    ScaleVector(left, offset[1]);
+    ScaleVector(up, offset[2]);
+
+    float finalvector[3];
+    AddVectors(finalvector, forwad, finalvector);
+    AddVectors(finalvector, left, finalvector);
+    AddVectors(finalvector, up, finalvector);
+
+    AddVectors(vec, finalvector, vec);
+}
+
 /* MAH BOI POIKA */
 stock void EquipWeaponSlot(int client, int slot)
 {
@@ -2125,6 +2153,13 @@ stock void PushMenuFloat(Handle hndl, const char[] id, float data)
 {
 	char DataString[64];
 	FloatToString(data, DataString, sizeof(DataString));
+	AddMenuItem(hndl, id, DataString, ITEMDRAW_IGNORE);
+}
+
+stock void PushMenuBool(Handle hndl, const char[] id, bool data)
+{
+	char DataString[64];
+	IntToString(view_as<int>(data), DataString, sizeof(DataString));
 	AddMenuItem(hndl, id, DataString, ITEMDRAW_IGNORE);
 }
 
@@ -2168,6 +2203,20 @@ stock float GetMenuFloat(Handle hndl, const char[] id, float DefaultValue = 0.0)
 
 		if (StrEqual(info, id))
 		return StringToFloat(data);
+	}
+	return DefaultValue;
+}
+
+stock int GetMenuBool(Handle hndl, const char[] id, bool DefaultValue = false)
+{
+	int ItemCount = GetMenuItemCount(hndl);
+	char info[64]; char data[64];
+
+	for (int i = 0; i < ItemCount; i++) {
+		GetMenuItem(hndl, i, info, sizeof(info), _, data, sizeof(data));
+
+		if (StrEqual(info, id))
+		return view_as<bool>(StringToInt(data));
 	}
 	return DefaultValue;
 }
@@ -3195,21 +3244,26 @@ stock void Effect_DrawRangedBeamBox(float origin[3], const float bottomCorner[3]
 	}
 }
 
+//SM9(); has molested this stock at this point. <3
 stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3], bool half = false)
 {
-	float origin[3];
+    float origin[3];
 
-	GetEntPropVector(ent, Prop_Data, "m_vecAbsOrigin", origin);
-	GetEntPropVector(ent, Prop_Data, "m_vecMins", mins);
-	GetEntPropVector(ent, Prop_Data, "m_vecMaxs", maxs);
+    GetEntPropVector(ent, Prop_Data, "m_vecAbsOrigin", origin);
+    GetEntPropVector(ent, Prop_Data, "m_vecMins", mins);
+    GetEntPropVector(ent, Prop_Data, "m_vecMaxs", maxs);
 
-	mins[0] += origin[0];
-	mins[1] += origin[1];
-	if (!half) mins[2] += origin[2];
-
-	maxs[0] += origin[0];
-	maxs[1] += origin[1];
-	if (!half) maxs[2] += origin[2];
+    mins[0] += origin[0];
+    mins[1] += origin[1];
+    mins[2] += origin[2];
+    maxs[0] += origin[0];
+    maxs[1] += origin[1];
+    
+    if (!half) {
+        maxs[2] += origin[2];
+    } else {
+        maxs[2] = mins[2];
+    }
 }
 
 stock void CreateHudConVars(const char[] prefix, ConVar& position = null, ConVar& holdtime = null, ConVar& colors = null, ConVar& effect = null, ConVar& fxtime = null, ConVar& fades = null)
@@ -3286,6 +3340,427 @@ stock float AngleNormalize(float angle)
 stock float fmodf(float number, float denom)
 {
     return number - RoundToFloor(number / denom) * denom;
+}
+
+/*--------------------------------------------------------->*/
+//TheXeon made methodmaps that should exist already but don't for some reason. (:
+//Got permission to post them here.
+/*--------------------------------------------------------->*/
+
+// TIMER METHODMAPS
+methodmap SMTimer < Handle
+{
+	/**
+	 * Creates a basic timer.  Calling .Kill() on a timer will kill the timer. Do not .Kill(), .Close(),
+	 * or delete in a callback! Make sure to null timer in callback if global!
+	 *
+	 * @param interval			Interval from the current game time to execute the given function.
+	 * @param func				Function to execute once the given interval has elapsed.
+	 * @param data				Handle or value to pass through to the timer callback function.
+	 * @param flags				Flags to set (such as repeatability or auto-Handle closing).
+	 * @return					Handle to the timer object.  You do not need to call CloseHandle().
+	 *							If the timer could not be created, null will be returned.
+	 */
+	public SMTimer(float interval, Timer func, any data=INVALID_HANDLE, int flags=0)
+	{
+		return view_as<SMTimer>(CreateTimer(interval, func, data, flags));
+	}
+
+	/**
+	 * Kills a timer.  Use this instead of delete if you need more options. Do not use in a timer's callback!
+	 *
+	 * @param autoClose			If autoClose is true, the data that was passed to CreateTimer() will
+	 *							be closed as a handle if TIMER_DATA_HNDL_CLOSE was not specified.
+	 * @error					Invalid handles will cause a run time error.
+	 */
+	public void Kill(bool autoClose=false)
+	{
+		KillTimer(this, autoClose);
+		delete this;
+	}
+
+	/**
+	 * Closes a timer. A clone of .Kill() if autoClose is true. Do not use in a timer's callback!
+	 *
+	 * @param autoClose			If autoClose is true, the data that was passed to new SMTimer() will
+	 *							be deleted as a handle if TIMER_DATA_HNDL_CLOSE was not specified.
+	 * @error					Invalid handles will cause a run time error.
+	 */
+	public void Close(bool autoClose=false)
+	{
+		if (autoClose)
+			this.Kill(autoClose);
+		else
+			delete this;
+	}
+
+	/**
+	 * Manually triggers a timer so its function will be called.
+	 *
+	 * @param reset				If reset is true, the elapsed time counter is reset
+	 *							so the full interval must pass again.
+	 */
+	public void Trigger(bool reset=false)
+	{
+		TriggerTimer(this, reset);
+	}
+}
+
+methodmap SMDataTimer < SMTimer
+{
+	/**
+	 * Creates a timer associated with a new datapack if needed.
+	 * @note The datapack is automatically freed when the timer ends.
+	 * @note The position of the datapack is not reset or changed for the timer function.
+	 *
+	 * @param interval			Interval from the current game time to execute the given function.
+	 * @param func				Function to execute once the given interval has elapsed.
+	 * @param datapack			The newly created datapack is passed through this by-reference
+	 *							parameter to the timer callback function.
+	 * @param flags				Timer flags.
+	 * @return					Handle to the timer object.  You do not need to call CloseHandle().
+	 */
+	public SMDataTimer(float interval, Timer func, DataPack &datapack, int flags=0)
+	{
+		if (datapack == null)
+		{
+			datapack = new DataPack();
+		}
+		flags |= TIMER_DATA_HNDL_CLOSE;
+		return view_as<SMDataTimer>(new SMTimer(interval, func, datapack, flags));
+	}
+}
+
+#if defined _clientprefs_included
+// Cookie Methodmaps!
+methodmap Cookie < Handle
+{
+	/**
+	 * Creates a new Client preference cookie.
+	 *
+	 * Cookies can be closed via delete when
+	 * no longer needed.
+	 *
+	 * @param name			Name of the new preference cookie.
+	 * @param description	Optional description of the preference cookie.
+	 * @param access		What CookieAccess level to assign to this cookie.
+	 * @return				A handle to the newly created cookie. If the cookie already
+	 *                      exists, a handle to it will still be returned.
+	 * @error				Cookie name is blank.
+	 */
+	public Cookie(const char[] name, const char[] description, CookieAccess access)
+	{
+		return view_as<Cookie>(RegClientCookie(name, description, access));
+	}
+
+	/**
+	 * Searches for a Client preference cookie. Use as Cookie.Find
+	 *
+	 * Cookies can be closed via delete when
+	 * no longer needed.
+	 *
+	 * @param name			Name of cookie to find.
+	 * @return				A cookie if it is found. null otherwise.
+	 */
+	public static Cookie Find(const char[] name)
+	{
+		return view_as<Cookie>(FindClientCookie(name));
+	}
+
+	/**
+	 * Set the value of a Client preference cookie.
+	 *
+	 * @param client		Client index.
+	 * @param value			String value to set.
+	 * @error				Invalid cookie handle or invalid client index.
+	 */
+	public void SetValue(int client, const char[] value)
+	{
+		SetClientCookie(client, this, value);
+	}
+
+	/**
+	 * Retrieve the value of a Client preference cookie.
+	 *
+	 * @param client		Client index.
+	 * @param buffer		Copyback buffer for value.
+	 * @param maxlen		Maximum length of the buffer.
+	 * @error				Invalid cookie handle or invalid client index.
+	 */
+	public void GetValue(int client, char[] buffer, int maxlen)
+	{
+		GetClientCookie(client, this, buffer, maxlen);
+	}
+
+	/**
+	 * Sets the value of a Client preference cookie based on an authID string.
+	 *
+	 * @param authID		String Auth/STEAM ID of player to set.
+	 * @param value			String value to set.
+	 * @error			Invalid cookie handle.
+	 */
+	public void SetByAuth(const char[] authID, const char[] value)
+	{
+		SetAuthIdCookie(authID, this, value);
+	}
+
+	/**
+	 * Add a new prefab item to the client cookie settings menu.
+	 *
+	 * Note: This handles everything automatically and does not require a callback
+	 *
+	 * @param type			A CookieMenu prefab menu type.
+	 * @param display		Text to show on the menu.
+	 * @param handler		Optional handler callback for translations and output on selection
+	 * @param info			Info data to pass to the callback.
+	 * @error				Invalid cookie handle.
+	 */
+	public void SetMenu(CookieMenu type, const char[] display, CookieMenuHandler handler=INVALID_FUNCTION, any info=0)
+	{
+		SetCookiePrefabMenu(this, type, display, handler, info);
+	}
+
+	/**
+	 * Returns the access level of a cookie
+	 *
+	 * @return				CookieAccess access level.
+	 * @error				Invalid cookie handle.
+	 */
+	property CookieAccess Access
+	{
+		public get() {return GetCookieAccess(this);}
+	}
+
+	/**
+	 * Returns the last updated timestamp for a client cookie
+	 *
+	 * @param client		Client index.
+	 * @return			Last updated timestamp.
+	 */
+	public int GetTime(int client)
+	{
+		return GetClientCookieTime(client, this);
+	}
+}
+
+methodmap CookieIterator < Handle
+{
+	/**
+	 * Gets a cookie iterator.  Must be freed with delete.
+	 *
+	 * @return				A new cookie iterator.
+	 */
+	 public CookieIterator()
+	 {
+	 	return view_as<CookieIterator>(GetCookieIterator());
+	 }
+
+	 /**
+	 * Reads a cookie iterator, then advances to the next cookie if any.
+	 *
+	 * @param name			Name buffer.
+	 * @param nameLen		Name buffer size.
+	 * @param access		Access level of the cookie.
+	 * @param desc			Cookie description buffer.
+	 * @param descLen		Cookie description buffer size.
+	 * @return				True on success, false if there are no more commands.
+	 */
+	 public bool Read(char[] name, int nameLen, CookieAccess &access, char[] desc="", int descLen=0)
+	 {
+	 	return ReadCookieIterator(this, name, nameLen, access, desc, descLen);
+	 }
+}
+#endif
+
+/*--------------------------------------------------------->*/
+//Spell stocks for TF2. (by Tylerst)
+/*--------------------------------------------------------->*/
+
+#define SPELL_FIREBALL			0
+#define SPELL_BALLOBATS			1
+#define SPELL_HEALINGAURA		2
+#define SPELL_PUMPKINMIRV		3
+#define SPELL_SUPERJUMP			4
+#define SPELL_INVISIBILITY		5
+#define SPELL_TELEPORT			6
+#define SPELL_TELSABOLT			7
+#define SPELL_MINIFY			8
+#define SPELL_SUMMONMONOCULUS	9
+#define SPELL_METEORSHOWER		10
+#define SPELL_SUMMONSKELETONS	11
+
+stock void TF2_SetSpell(int client, int spell, int uses)
+{
+	int entity = TF2_GetSpellBook(client);
+
+	if (IsValidEntity(entity))
+	{
+		SetEntProp(entity, Prop_Send, "m_iSelectedSpellIndex", spell);
+		SetEntProp(entity, Prop_Send, "m_iSpellCharges", uses);
+	}
+}
+
+stock void TF2_SetSpellUses(int client, int uses)
+{
+	int entity = TF2_GetSpellBook(client);
+
+	if (IsValidEntity(entity))
+	{
+		SetEntProp(entity, Prop_Send, "m_iSpellCharges", uses);
+	}
+}
+
+stock void TF2_GetSpell(int client)
+{
+	int entity = TF2_GetSpellBook(client);
+
+	if (IsValidEntity(entity))
+	{
+		return GetEntProp(ent, Prop_Send, "m_iSelectedSpellIndex");
+	}
+
+	return INVALID_ENT_INDEX;
+}
+
+stock void TF2_GetSpellUses(int client)
+{
+	int entity = TF2_GetSpellBook(client);
+
+	if (IsValidEntity(entity))
+	{
+		return GetEntProp(entity, Prop_Send, "m_iSpellCharges");
+	}
+}
+
+stock int TF2_GetSpellBook(int client)
+{
+	int entity = -1;
+	while((entity = FindEntityByClassname(entity, "tf_weapon_spellbook")) != INVALID_ENT_REFERENCE)
+	{
+		if (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+		{
+			return entity;
+		}
+	}
+
+	return -1;
+}
+
+stock bool TF2_SpellIsRare(int spell)
+{
+	switch(spell)
+	{
+		case SPELL_TELSABOLT, SPELL_MINIFY, SPELL_SUMMONMONOCULUS, SPELL_METEORSHOWER, SPELL_SUMMONSKELETONS: return true;
+	}
+
+	return false;
+}
+
+stock void TF2_GetSpellName(int spell, char[] buffer, int size)
+{
+	switch(spell)
+	{
+		case SPELL_FIREBALL: strcopy(buffer, size, "Fireball");
+		case SPELL_BALLOBATS: strcopy(buffer, size, "Ball O' Bats");
+		case SPELL_HEALINGAURA: strcopy(buffer, size, "Healing Aura");
+		case SPELL_PUMPKINMIRV: strcopy(buffer, size, "Pumpkin MIRV");
+		case SPELL_SUPERJUMP: strcopy(buffer, size, "Superjump");
+		case SPELL_INVISIBILITY: strcopy(buffer, size, "Invisibility");
+		case SPELL_TELEPORT: strcopy(buffer, size, "Teleport");
+		case SPELL_TELSABOLT: strcopy(buffer, size, "Tesla Bolt");
+		case SPELL_MINIFY: strcopy(buffer, size, "Minify");
+		case SPELL_SUMMONMONOCULUS: strcopy(buffer, size, "Summon Monoculus");
+		case SPELL_METEORSHOWER: strcopy(buffer, size, "Meteor Shower");
+		case SPELL_SUMMONSKELETONS: strcopy(buffer, size, "Summon Skeletons");
+		default: strcopy(buffer, size, "None");
+	}
+}
+
+/*--------------------------------------------------------->*/
+//Mannpower Powerups (by Shaders Allen, Configured by aIM)
+/*--------------------------------------------------------->*/
+
+#define POWERUP_STRENGTH	0
+#define POWERUP_RESIST		1
+#define POWERUP_VAMPIRE		2
+#define POWERUP_WARLOCK		3
+#define POWERUP_HASTE		4
+#define POWERUP_REGEN		5
+#define POWERUP_PRECISION	6
+#define POWERUP_AGILITY		7
+#define POWERUP_KNOCKOUT	8
+#define POWERUP_KING		9
+#define POWERUP_PLAGUE		10
+#define POWERUP_SUPERNOVA	11
+
+stock void TF2_SetPowerup(int client, int powerup)
+{
+	switch (powerup)
+	{
+		case POWERUP_STRENGTH:
+		{
+			TF2_AddCondition(client, TFCond_RuneStrength);
+		}
+
+		case POWERUP_RESIST:
+		{
+			TF2_AddCondition(client, TFCond_RuneResist);
+		}
+
+		case POWERUP_VAMPIRE:
+		{
+			TF2_AddCondition(client, TFCond_RuneVampire);
+		}
+
+		case POWERUP_WARLOCK:
+		{
+			TF2_AddCondition(client, TFCond_RuneWarlock);
+		}
+
+		case POWERUP_HASTE:
+		{
+			TF2_AddCondition(client, TFCond_RuneHaste);
+		}
+
+		case POWERUP_REGEN:
+		{
+			TF2_AddCondition(client, TFCond_RuneRegen);
+		}
+
+		case POWERUP_PRECISION:
+		{
+			TF2_AddCondition(client, TFCond_RunePrecision);
+		}
+
+		case POWERUP_AGILITY:
+		{
+			TF2_AddCondition(client, TFCond_RuneAgility);
+		}
+
+		case POWERUP_KNOCKOUT:
+		{
+			TF2_AddCondition(client, TFCond_RuneKnockout);
+		}
+
+		case POWERUP_KING:
+		{
+			TF2_AddCondition(client, TFCond_KingRune);
+			TF2_AddCondition(client, TFCond_KingAura);
+		}
+
+		case POWERUP_PLAGUE:
+		{
+			TF2_AddCondition(client, TFCond_Plague);
+		}
+
+		case POWERUP_SUPERNOVA:
+		{
+			TF2_AddCondition(client, TFCond_SupernovaRune);
+		}
+	}
+
+	//This has to be here.
+	TF2_AddCondition(client, TFCond_HasRune);
 }
 
 /*--------------------------------------------------------->*/
