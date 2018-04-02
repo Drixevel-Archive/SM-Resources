@@ -100,7 +100,7 @@ stock int GetShaders()
 
 stock bool IsShaders(int client)
 {
-	return view_as<bool>(client == GetAV());
+	return client == GetShaders();
 }
 
 /*
@@ -126,12 +126,13 @@ stock bool KickClientBySteamID(const char[] steamid, const char[] reason, any ..
 			continue;
 		}
 
-		GetClientAuthId(i, AuthId_Steam2, sSteamID, sizeof(sSteamID));
-
-		if (StrEqual(steamid, sSteamID))
+		if (GetClientAuthId(i, AuthId_Steam2, sSteamID, sizeof(sSteamID)))
 		{
-			KickClient(i, sBuffer);
-			return true;
+			if (StrEqual(steamid, sSteamID))
+			{
+				KickClient(i, sBuffer);
+				return true;
+			}
 		}
 	}
 
@@ -148,11 +149,12 @@ stock int GetClientBySteamID(const char[] steamid, AuthIdType type = AuthId_Stea
 			continue;
 		}
 
-		GetClientAuthId(i, type, sSteamID, sizeof(sSteamID));
-
-		if (StrEqual(steamid, sSteamID))
+		if (GetClientAuthId(i, type, sSteamID, sizeof(sSteamID)))
 		{
-			return i;
+			if (StrEqual(steamid, sSteamID))
+			{
+				return i;
+			}
 		}
 	}
 
@@ -174,14 +176,14 @@ stock bool SQL_FetchBool(Handle query, int field, DBResult &result=DBVal_Error)
 	return view_as<bool>(SQL_FetchInt(query, field, result));
 }
 
-stock int KvGetInt(Handle kv, const char[] key, int defvalue=0)
+stock int KvGetInt(KeyValues kv, const char[] key, int defvalue=0)
 {
-	return KvGetNum(kv, key, defvalue);
+	return kv.GetNum(key, defvalue);
 }
 
 stock bool KvGetBool(Handle kv, const char[] key, bool defvalue=false)
 {
-	return view_as<bool>(KvGetNum(kv, key, view_as<int>(defvalue)));
+	return view_as<bool>(kv.GetNum(key, view_as<int>(defvalue)));
 }
 
 stock bool StringToBool(const char[] str)
@@ -226,7 +228,7 @@ stock void PushArrayStringFormat(ArrayList array, char[] buffer, any ...)
 
 	char sBuffer[1024];
 	VFormat(sBuffer, sizeof(sBuffer), buffer, 3);
-	PushArrayString(array, sBuffer);
+	array.PushString(sBuffer);
 }
 
 stock void ClearStack(ArrayStack stack)
@@ -273,10 +275,10 @@ stock bool CheckAdminFlagsByString(int client, const char[] flagString)
 	return false;
 }
 
-stock void KvGet2DVector(Handle kv, const char[] key, float vec[2], const float defvalue[2]={0.0, 0.0})
+stock void KvGet2DVector(KeyValues kv, const char[] key, float vec[2], const float defvalue[2]={0.0, 0.0})
 {
 	char sBuffer[512];
-	KvGetString(kv, key, sBuffer, sizeof(sBuffer));
+	kv.GetString(key, sBuffer, sizeof(sBuffer));
 
 	if (strlen(sBuffer) == 0)
 	{
@@ -350,41 +352,41 @@ stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char
 	ReplaceString(buffer, maxlength, "%S", strlen(sSeconds) > 0 ? sSeconds : "00");
 }
 
-stock void ClearArraySafe(Handle array)
+stock void ClearArraySafe(ArrayList array)
 {
-	for (int i = 0; i < GetArraySize(array); i++)
+	for (int i = 0; i < array.Length; i++)
 	{
-		Handle hndl = GetArrayCell(array, i);
+		Handle hndl = array.Get(i);
 
 		delete hndl;
 	}
 
-	ClearArray(array);
+	array.Clear();
 }
 
-stock void ClearTrieSafe(Handle map)
+stock void ClearTrieSafe(StringMap map)
 {
 	if (map == null)
 	{
 		return;
 	}
 
-	Handle snapshot = CreateTrieSnapshot(map);
+	StringMapSnapshot snapshot = map.Snapshot();
 	int size;
 
-	for (int i = 0; i < TrieSnapshotLength(snapshot); i++)
+	for (int i = 0; i < snapshot.Length; i++)
 	{
-		size = TrieSnapshotKeyBufferSize(snapshot, i);
+		size = snapshot.KeyBufferSize(i);
 
 		char[] sBuffer = new char[size];
-		GetTrieSnapshotKey(snapshot, i, sBuffer, size);
+		snapshot.GetKey(i, sBuffer, size);
 
 		Handle hLocal;
-		GetTrieValue(map, sBuffer, hLocal);
+		map.GetValue(sBuffer, hLocal);
 
 		delete hLocal;
 
-		RemoveFromTrie(map, sBuffer);
+		map.Remove(sBuffer);
 	}
 
 	delete snapshot;
@@ -518,9 +520,9 @@ stock bool GetStringMinMax(const char[] buffer, any& min, any& max, const char[]
 	if (clamp)
 	{
 		if (min > max)
-		min = max;
+			min = max;
 		if (max < min)
-		max = min;
+			max = min;
 	}
 
 	return true;
@@ -528,12 +530,12 @@ stock bool GetStringMinMax(const char[] buffer, any& min, any& max, const char[]
 
 stock bool IsPlayerIndex(int index)
 {
-	return view_as<bool>(index > 0 && index <= MaxClients);
+	return index > 0 && index <= MaxClients;
 }
 
 stock bool IsEntityIndex(int index)
 {
-	return view_as<bool>(index > MaxClients);
+	return index > MaxClients;
 }
 
 stock int GetRandomCharacterString(char[] buffer, int size, int length = 32, const char[] chrs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234556789")
@@ -567,12 +569,12 @@ stock int GetRandomCharacterString(char[] buffer, int size, int length = 32, con
 }
 
 
-stock int[] GetConVarColor(Handle convar)
+stock int[] GetConVarColor(ConVar convar)
 {
 	int colors[4] = {255, 255, 255, 255};
 
 	char sBuffer[128];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	if (strlen(sBuffer) == 0)
 	{
@@ -590,12 +592,12 @@ stock int[] GetConVarColor(Handle convar)
 	return colors;
 }
 
-stock float[] GetConVarVector(Handle convar)
+stock float[] GetConVarVector(ConVar convar)
 {
 	float vectors[3] = {0.0, 0.0, 0.0};
 
 	char sBuffer[128];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	if (strlen(sBuffer) == 0)
 	{
@@ -613,12 +615,12 @@ stock float[] GetConVarVector(Handle convar)
 	return vectors;
 }
 
-stock float[] GetConVar2DVector(Handle convar)
+stock float[] GetConVar2DVector(ConVar convar)
 {
 	float vectors[2] = {0.0, 0.0};
 
 	char sBuffer[128];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	if (strlen(sBuffer) == 0)
 	{
@@ -685,7 +687,7 @@ stock bool GetClientLookPosition(int client, float fLookpoint[3])
 		fLookpoint[2] = vStart[2] + (vBuffer[2] * fDistance);
 	}
 
-	CloseHandle(trace);
+	delete trace;
 	return bReturn;
 }
 
@@ -824,7 +826,7 @@ stock bool AreVectorsEqual(const float vec1[3], const float vec2[3])
 
 stock void GetServerIP(char[] sIP, int size, bool show_port = false)
 {
-	int ip = GetConVarInt(FindConVar("hostip"));
+	int ip = FindConVar("hostip").IntValue;
 
 	int ips[4];
 	ips[0] = (ip >> 24) & 0x000000FF;
@@ -836,7 +838,7 @@ stock void GetServerIP(char[] sIP, int size, bool show_port = false)
 
 	if (show_port)
 	{
-		Format(sIP, size, "%s:%d", sIP, GetConVarInt(FindConVar("hostport")));
+		Format(sIP, size, "%s:%d", sIP, FindConVar("hostport").IntValue);
 	}
 }
 
@@ -997,7 +999,7 @@ stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = fa
 	return clients[GetRandomInt(0, amount)];
 }
 
-stock void SQL_VoidQueryF(Handle& database, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
+stock void SQL_VoidQueryF(Database& database, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
 {
 	char query[MAX_QUERY_LENGTH];
 	VFormat(query, sizeof(query), format, 4);
@@ -1005,36 +1007,36 @@ stock void SQL_VoidQueryF(Handle& database, DBPriority priority = DBPrio_Normal,
 	SQL_VoidQuery(database, query, priority);
 }
 
-stock void SQL_VoidQuery(Handle& database, const char[] query, DBPriority prio = DBPrio_Normal)
+stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
 {
-	Handle pack = CreateDataPack();
-	WritePackString(pack, query);
+	DataPack pack = new DataPack();
+	pack.WriteString(query);
 
-	SQL_TQuery(database, TQuery_Void, query, pack, prio);
+	database.Query(TQuery_Void, query, pack, prio);
 }
 
-public void TQuery_Void(Handle owner, Handle hndl, const char[] error, any data)
+public void TQuery_Void(Database owner, DBResultSet hndl, const char[] error, DataPack data)
 {
 	if (hndl == null)
 	{
-		ResetPack(data);
+		data.Reset();
 
 		char sQuery[MAX_QUERY_LENGTH];
-		ReadPackString(data, sQuery, sizeof(sQuery));
+		data.ReadString(sQuery, sizeof(sQuery));
 
 		LogError("Error executing void query: %s", error);
 		LogError("Query Output: %s", sQuery);
 	}
 
-	CloseHandle(data);
+	delete data;
 }
 
-stock void SQL_TQueryF(Handle& database, SQLTCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
+stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
 {
 	char query[MAX_QUERY_LENGTH];
 	VFormat(query, sizeof(query), format, 6);
 
-	SQL_TQuery(database, callback, query, data, priority);
+	database.Query(callback, query, data, priority);
 }
 
 stock int GetMaxHealth(int client)
@@ -1379,12 +1381,12 @@ stock bool IsArenaActive()
 
 stock bool CalculateTime(int value, int timer)
 {
-	return view_as<bool>(value > 0 && GetTime() - value > timer);
+	return value > 0 && (GetTime() - value) > timer;
 }
 
 stock bool CalculateFloatTime(float value, float timer)
 {
-	return view_as<bool>(value > 0.0 && GetGameTime() - value > timer);
+	return value > 0.0 && (GetGameTime() - value) > timer;
 }
 
 stock void PrintTopTextAll(int color[4], const char[] format, any ...)
@@ -1419,13 +1421,13 @@ stock void PrintTopText(int client, int color[4], const char[] format, any ...)
 stock void CSGO_AddPlayerIncome(int client, int income)
 {
 	int new_amount = CSGO_GetPlayerIncome(client) + income;
-	new_amount = ClampCell(new_amount, 0, GetConVarInt(FindConVar("mp_maxmoney")));
+	new_amount = ClampCell(new_amount, 0, FindConVar("mp_maxmoney").IntValue);
 	SetEntProp(client, Prop_Send, "m_iAccount", new_amount);
 }
 
 stock void CSGO_SetPlayerIncome(int client, int income)
 {
-	int new_amount = ClampCell(income, 0, GetConVarInt(FindConVar("mp_maxmoney")));
+	int new_amount = ClampCell(income, 0, FindConVar("mp_maxmoney").IntValue);
 	SetEntProp(client, Prop_Send, "m_iAccount", new_amount);
 }
 
@@ -1744,14 +1746,16 @@ stock bool GetClientSteamID(int client, char[] buffer, int size)
 		return false;
 	}
 
-	GetClientAuthId(client, AuthId_Steam2, buffer, size);
-
-	if (GetEngineVersion() == Engine_CSGO)
+	if (GetClientAuthId(client, AuthId_Steam2, buffer, size))
 	{
-		ReplaceString(buffer, size, "STEAM_0", "STEAM_1");
+		if (GetEngineVersion() == Engine_CSGO)
+		{
+			ReplaceString(buffer, size, "STEAM_0", "STEAM_1");
+		}
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 stock int CSGO_ReplaceWeapon(int client, int slot, const char[] weapon_string)
@@ -1796,7 +1800,7 @@ stock void CSGO_AddMoney(int client, int money)
 
 stock int CSGO_GetMaxMoney()
 {
-	return GetConVarInt(FindConVar("mp_maxmoney"));
+	return FindConVar("mp_maxmoney").IntValue;
 }
 
 stock void TF2_CreateExplosion(float origin[3], float damage = 99999.0, float radius = 250.0, float magnitude = 500.0, int attacker = 0, int inflictor = 0, int team = 0, const char[] particle = "cinefx_goldrush", const char[] sound = "items/cart_explode.wav", float amplitude = 50.0, float frequency = 150.0, float duration = 3.0)
@@ -1894,25 +1898,25 @@ stock void SpeakResponseConceptDelayed(int client, const char[] concept, float d
 {
 	DataPack hPack;
 	CreateDataTimer(ClampCell(delayed, 0.0, 999999.0), Timer_DelayClientConcept28305820358023532, hPack, TIMER_FLAG_NO_MAPCHANGE);
-	WritePackCell(hPack, GetClientUserId(client));
-	WritePackString(hPack, concept);
-	WritePackString(hPack, context);
-	WritePackString(hPack, class);
+	hPack.WriteCell(GetClientUserId(client));
+	hPack.WriteString(concept);
+	hPack.WriteString(context);
+	hPack.WriteString(class);
 }
 
-public Action Timer_DelayClientConcept28305820358023532(Handle timer, any data)
+public Action Timer_DelayClientConcept28305820358023532(Handle timer, DataPack data)
 {
-	ResetPack(data);
-	int client = GetClientOfUserId(ReadPackCell(data));
+	data.Reset();
+	int client = GetClientOfUserId(data.ReadCell());
 
 	char sConcept[256];
-	ReadPackString(data, sConcept, sizeof(sConcept));
+	data.ReadString(sConcept, sizeof(sConcept));
 
 	char sContext[64];
-	ReadPackString(data, sContext, sizeof(sContext));
+	data.ReadString(sContext, sizeof(sContext));
 
 	char sClass[64];
-	ReadPackString(data, sClass, sizeof(sClass));
+	data.ReadString(sClass, sizeof(sClass));
 
 	if (IsPlayerIndex(client) && IsClientInGame(client) && IsPlayerAlive(client))
 	{
@@ -1935,23 +1939,23 @@ stock void SpeakResponseConceptAllDelayed(const char[] concept, float delay = 0.
 {
 	DataPack hPack;
 	CreateDataTimer(ClampCell(delay, 0.0, 999999.0), Timer_DelayAllConcept28305820358023532, hPack, TIMER_FLAG_NO_MAPCHANGE);
-	WritePackString(hPack, concept);
-	WritePackString(hPack, context);
-	WritePackString(hPack, class);
+	hPack.WriteString(concept);
+	hPack.WriteString(context);
+	hPack.WriteString(class);
 }
 
-public Action Timer_DelayAllConcept28305820358023532(Handle timer, any data)
+public Action Timer_DelayAllConcept28305820358023532(Handle timer, DataPack data)
 {
-	ResetPack(data);
+	data.Reset();
 
 	char sConcept[256];
-	ReadPackString(data, sConcept, sizeof(sConcept));
+	data.ReadString(sConcept, sizeof(sConcept));
 
 	char sContext[64];
-	ReadPackString(data, sContext, sizeof(sContext));
+	data.ReadString(sContext, sizeof(sContext));
 
 	char sClass[64];
-	ReadPackString(data, sClass, sizeof(sClass));
+	data.ReadString(sClass, sizeof(sClass));
 
 	SpeakResponseConceptAll(sConcept, sContext, sClass);
 }
@@ -1963,7 +1967,7 @@ stock void SQL_FetchClientName(int client, Database database, char[] buffer, int
 
 	int size2 = 2 * strlen(sName) + 1;
 	char[] sEscapedName = new char[size2 + 1];
-	SQL_EscapeString(database, sName, sEscapedName, size2 + 1);
+	database.Escape(sName, sEscapedName, size2 + 1);
 
 	strcopy(buffer, size, sEscapedName);
 }
@@ -2137,109 +2141,114 @@ stock void EquipWeapon(int client, int weapon)
 //Menu stocks by Kisslick
 /*---------------------------------------------------------*/
 
-stock void PushMenuString(Handle hndl, const char[] id, const char[] data)
+stock void PushMenuString(Menu hndl, const char[] id, const char[] data)
 {
-	AddMenuItem(hndl, id, data, ITEMDRAW_IGNORE);
+	hndl.AddItem(id, data, ITEMDRAW_IGNORE);
 }
 
-stock void PushMenuCell(Handle hndl, const char[] id, int data)
+stock void PushMenuCell(Menu hndl, const char[] id, int data)
 {
 	char DataString[64];
 	IntToString(data, DataString, sizeof(DataString));
-	AddMenuItem(hndl, id, DataString, ITEMDRAW_IGNORE);
+	hndl.AddItem(id, DataString, ITEMDRAW_IGNORE);
 }
 
-stock void PushMenuFloat(Handle hndl, const char[] id, float data)
+stock void PushMenuFloat(Menu hndl, const char[] id, float data)
 {
 	char DataString[64];
 	FloatToString(data, DataString, sizeof(DataString));
-	AddMenuItem(hndl, id, DataString, ITEMDRAW_IGNORE);
+	hndl.AddItem(id, DataString, ITEMDRAW_IGNORE);
 }
 
-stock void PushMenuBool(Handle hndl, const char[] id, bool data)
+stock void PushMenuBool(Menu hndl, const char[] id, bool data)
 {
 	char DataString[64];
 	IntToString(view_as<int>(data), DataString, sizeof(DataString));
-	AddMenuItem(hndl, id, DataString, ITEMDRAW_IGNORE);
+	hndl.AddItem(id, DataString, ITEMDRAW_IGNORE);
 }
 
-stock bool GetMenuString(Handle hndl, const char[] id, char[] Buffer, int size)
+stock bool GetMenuString(Menu hndl, const char[] id, char[] Buffer, int size)
 {
-	int ItemCount = GetMenuItemCount(hndl);
+	int ItemCount = hndl.ItemCount;
 	char info[64]; char data[64];
 
 	for (int i = 0; i < ItemCount; i++) {
-		GetMenuItem(hndl, i, info, sizeof(info), _, data, sizeof(data));
-
-		if (StrEqual(info, id)) {
-			strcopy(Buffer, size, data);
-			return true;
+		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+		{
+			if (StrEqual(info, id)) {
+				strcopy(Buffer, size, data);
+				return true;
+			}
 		}
 	}
 	return false;
 }
 
-stock int GetMenuCell(Handle hndl, const char[] id, int DefaultValue = 0)
+stock int GetMenuCell(Menu hndl, const char[] id, int DefaultValue = 0)
 {
-	int ItemCount = GetMenuItemCount(hndl);
+	int ItemCount = hndl.ItemCount;
 	char info[64]; char data[64];
 
 	for (int i = 0; i < ItemCount; i++) {
-		GetMenuItem(hndl, i, info, sizeof(info), _, data, sizeof(data));
-
-		if (StrEqual(info, id))
-		return StringToInt(data);
+		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+		{
+			if (StrEqual(info, id))
+			return StringToInt(data);
+		}
 	}
 	return DefaultValue;
 }
 
-stock float GetMenuFloat(Handle hndl, const char[] id, float DefaultValue = 0.0)
+stock float GetMenuFloat(Menu hndl, const char[] id, float DefaultValue = 0.0)
 {
-	int ItemCount = GetMenuItemCount(hndl);
+	int ItemCount = hndl.ItemCount;
 	char info[64]; char data[64];
 
 	for (int i = 0; i < ItemCount; i++) {
-		GetMenuItem(hndl, i, info, sizeof(info), _, data, sizeof(data));
-
-		if (StrEqual(info, id))
-		return StringToFloat(data);
+		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+		{
+			if (StrEqual(info, id))
+			return StringToFloat(data);
+		}
 	}
 	return DefaultValue;
 }
 
-stock int GetMenuBool(Handle hndl, const char[] id, bool DefaultValue = false)
+stock int GetMenuBool(Menu hndl, const char[] id, bool DefaultValue = false)
 {
-	int ItemCount = GetMenuItemCount(hndl);
+	int ItemCount = hndl.ItemCount;
 	char info[64]; char data[64];
 
 	for (int i = 0; i < ItemCount; i++) {
-		GetMenuItem(hndl, i, info, sizeof(info), _, data, sizeof(data));
-
-		if (StrEqual(info, id))
-		return view_as<bool>(StringToInt(data));
+		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+		{
+			if (StrEqual(info, id))
+			return view_as<bool>(StringToInt(data));
+		}
 	}
 	return DefaultValue;
 }
 
-stock void CopyMenuAny(Handle source, Handle dest, const char[] id)
+stock void CopyMenuAny(Menu source, Menu dest, const char[] id)
 {
-	int ItemCount = GetMenuItemCount(source);
+	int ItemCount = source.ItemCount;
 	char info[64]; char data[64];
 
 	for (int i = 0; i < ItemCount; i++) {
-		GetMenuItem(source, i, info, sizeof(info), _, data, sizeof(data));
-
-		if (StrEqual(info, id))
-		AddMenuItem(dest, id, data, ITEMDRAW_IGNORE);
+		if (source.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+		{
+			if (StrEqual(info, id))
+			dest.AddItem(id, data, ITEMDRAW_IGNORE);
+		}
 	}
 }
 
-stock bool AddMenuItemFormat(Handle& menu, const char[] info, int style = ITEMDRAW_DEFAULT, const char[] format, any ...)
+stock bool AddMenuItemFormat(Menu& menu, const char[] info, int style = ITEMDRAW_DEFAULT, const char[] format, any ...)
 {
 	char display[128];
 	VFormat(display, sizeof(display), format, 5);
 
-	return view_as<bool>(AddMenuItem(menu, info, display, style));
+	return menu.AddItem(info, display, style);
 }
 
 /*--------------------------------------------------------->*/
@@ -2275,17 +2284,17 @@ stock void TF2_ShowHealthGain(int patient, int health, int healer = -1)
 	int iUserId = GetClientUserId(patient);
 
 	Event hEvent = CreateEvent("player_healed", true);
-	SetEventBool(hEvent, "sourcemod", true);
-	SetEventInt(hEvent, "patient", iUserId);
-	SetEventInt(hEvent, "healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : iUserId);
-	SetEventInt(hEvent, "amount", health);
-	FireEvent(hEvent);
+	hEvent.SetBool("sourcemod", true);
+	hEvent.SetInt("patient", iUserId);
+	hEvent.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : iUserId);
+	hEvent.SetInt("amount", health);
+	hEvent.Fire();
 
 	hEvent = CreateEvent("player_healonhit", true);
-	SetEventBool(hEvent, "sourcemod", true);
-	SetEventInt(hEvent, "amount", health);
-	SetEventInt(hEvent, "entindex", patient);
-	FireEvent(hEvent);
+	hEvent.SetBool("sourcemod", true);
+	hEvent.SetInt("amount", health);
+	hEvent.SetInt("entindex", patient);
+	hEvent.Fire();
 }
 
 stock int TF2_GetMaxHealth(int client)
@@ -2350,7 +2359,7 @@ stock bool SetModelViaConVar(int entity, ConVar &convar, bool preload = false)
 	}
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	return SetModel(entity, sBuffer, preload);
 }
@@ -2380,7 +2389,7 @@ stock int PrepareModelConVar(ConVar &convar, bool preload = false)
 	}
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	return PrepareModel(sBuffer, preload);
 }
@@ -2426,7 +2435,7 @@ stock bool EmitSoundToClientViaConVar(int client, ConVar convar, int entity = SO
 	}
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	return EmitSoundToClientSafe(client, sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
@@ -2435,54 +2444,54 @@ stock bool EmitSoundToClientSafeDelayed(int client, const char[] sample, float d
 {
 	DataPack hPack;
 	CreateDataTimer(ClampCell(delay, 0, 9999999.9), Timer_PlayClientSound280358023580235, hPack, TIMER_FLAG_NO_MAPCHANGE);
-	WritePackCell(hPack, client);
-	WritePackString(hPack, sample);
-	WritePackCell(hPack, entity);
-	WritePackCell(hPack, channel);
-	WritePackCell(hPack, level);
-	WritePackCell(hPack, flags);
-	WritePackFloat(hPack, volume);
-	WritePackCell(hPack, pitch);
-	WritePackCell(hPack, speakerentity);
-	WritePackFloat(hPack, origin[0]);
-	WritePackFloat(hPack, origin[1]);
-	WritePackFloat(hPack, origin[2]);
-	WritePackFloat(hPack, dir[0]);
-	WritePackFloat(hPack, dir[1]);
-	WritePackFloat(hPack, dir[2]);
-	WritePackCell(hPack, updatePos);
-	WritePackFloat(hPack, soundtime);
+	hPack.WriteCell(client);
+	hPack.WriteString(sample);
+	hPack.WriteCell(entity);
+	hPack.WriteCell(channel);
+	hPack.WriteCell(level);
+	hPack.WriteCell(flags);
+	hPack.WriteFloat(volume);
+	hPack.WriteCell(pitch);
+	hPack.WriteCell(speakerentity);
+	hPack.WriteFloat(origin[0]);
+	hPack.WriteFloat(origin[1]);
+	hPack.WriteFloat(origin[2]);
+	hPack.WriteFloat(dir[0]);
+	hPack.WriteFloat(dir[1]);
+	hPack.WriteFloat(dir[2]);
+	hPack.WriteCell(updatePos);
+	hPack.WriteFloat(soundtime);
 }
 
-public Action Timer_PlayClientSound280358023580235(Handle timer, any data)
+public Action Timer_PlayClientSound280358023580235(Handle timer, DataPack data)
 {
-	ResetPack(data);
+	data.Reset();
 
-	int client = ReadPackCell(data);
+	int client = data.ReadCell();
 
 	char sample[PLATFORM_MAX_PATH];
-	ReadPackString(data, sample, sizeof(sample));
+	data.ReadString(sample, sizeof(sample));
 
-	int entity = ReadPackCell(data);
-	int channel = ReadPackCell(data);
-	int level = ReadPackCell(data);
-	int flags = ReadPackCell(data);
-	float volume = ReadPackFloat(data);
-	int pitch = ReadPackCell(data);
-	int speakerentity = ReadPackCell(data);
+	int entity = data.ReadCell();
+	int channel = data.ReadCell();
+	int level = data.ReadCell();
+	int flags = data.ReadCell();
+	float volume = data.ReadFloat();
+	int pitch = data.ReadCell();
+	int speakerentity = data.ReadCell();
 
 	float origin[3];
- 	origin[0] = ReadPackFloat(data);
- 	origin[1] = ReadPackFloat(data);
- 	origin[2] = ReadPackFloat(data);
+ 	origin[0] = data.ReadFloat();
+ 	origin[1] = data.ReadFloat();
+ 	origin[2] = data.ReadFloat();
 
 	float dir[3];
- 	dir[0] = ReadPackFloat(data);
- 	dir[1] = ReadPackFloat(data);
- 	dir[2] = ReadPackFloat(data);
+ 	dir[0] = data.ReadFloat();
+ 	dir[1] = data.ReadFloat();
+ 	dir[2] = data.ReadFloat();
 
-	bool updatePos = ReadPackCell(data);
-	float soundtime = ReadPackFloat(data);
+	bool updatePos = data.ReadCell();
+	float soundtime = data.ReadFloat();
 
 	EmitSoundToClientSafe(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
@@ -2524,7 +2533,7 @@ stock bool EmitSoundToAllViaConVar(ConVar convar, int entity = SOUND_FROM_PLAYER
 	}
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	return EmitSoundToAllSafe(sBuffer, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
@@ -2533,51 +2542,51 @@ stock bool EmitSoundToAllSafeDelayed(const char[] sample, float delay = 0.0, int
 {
 	DataPack hPack;
 	CreateDataTimer(ClampCell(delay, 0, 9999999.9), Timer_PlayAllSound280358023580235, hPack, TIMER_FLAG_NO_MAPCHANGE);
-	WritePackString(hPack, sample);
-	WritePackCell(hPack, entity);
-	WritePackCell(hPack, channel);
-	WritePackCell(hPack, level);
-	WritePackCell(hPack, flags);
-	WritePackFloat(hPack, volume);
-	WritePackCell(hPack, pitch);
-	WritePackCell(hPack, speakerentity);
-	WritePackFloat(hPack, origin[0]);
-	WritePackFloat(hPack, origin[1]);
-	WritePackFloat(hPack, origin[2]);
-	WritePackFloat(hPack, dir[0]);
-	WritePackFloat(hPack, dir[1]);
-	WritePackFloat(hPack, dir[2]);
-	WritePackCell(hPack, updatePos);
-	WritePackFloat(hPack, soundtime);
+	hPack.WriteString(sample);
+	hPack.WriteCell(entity);
+	hPack.WriteCell(channel);
+	hPack.WriteCell(level);
+	hPack.WriteCell(flags);
+	hPack.WriteFloat(volume);
+	hPack.WriteCell(pitch);
+	hPack.WriteCell(speakerentity);
+	hPack.WriteFloat(origin[0]);
+	hPack.WriteFloat(origin[1]);
+	hPack.WriteFloat(origin[2]);
+	hPack.WriteFloat(dir[0]);
+	hPack.WriteFloat(dir[1]);
+	hPack.WriteFloat(dir[2]);
+	hPack.WriteCell(updatePos);
+	hPack.WriteFloat(soundtime);
 }
 
-public Action Timer_PlayAllSound280358023580235(Handle timer, any data)
+public Action Timer_PlayAllSound280358023580235(Handle timer, DataPack data)
 {
-	ResetPack(data);
+	data.Reset();
 
 	char sample[PLATFORM_MAX_PATH];
-	ReadPackString(data, sample, sizeof(sample));
+	data.ReadString(sample, sizeof(sample));
 
-	int entity = ReadPackCell(data);
-	int channel = ReadPackCell(data);
-	int level = ReadPackCell(data);
-	int flags = ReadPackCell(data);
-	float volume = ReadPackFloat(data);
-	int pitch = ReadPackCell(data);
-	int speakerentity = ReadPackCell(data);
+	int entity = data.ReadCell();
+	int channel = data.ReadCell();
+	int level = data.ReadCell();
+	int flags = data.ReadCell();
+	float volume = data.ReadFloat();
+	int pitch = data.ReadCell();
+	int speakerentity = data.ReadCell();
 
 	float origin[3];
- 	origin[0] = ReadPackFloat(data);
- 	origin[1] = ReadPackFloat(data);
- 	origin[2] = ReadPackFloat(data);
+ 	origin[0] = data.ReadFloat();
+ 	origin[1] = data.ReadFloat();
+ 	origin[2] = data.ReadFloat();
 
 	float dir[3];
- 	dir[0] = ReadPackFloat(data);
- 	dir[1] = ReadPackFloat(data);
- 	dir[2] = ReadPackFloat(data);
+ 	dir[0] = data.ReadFloat();
+ 	dir[1] = data.ReadFloat();
+ 	dir[2] = data.ReadFloat();
 
-	bool updatePos = ReadPackCell(data);
-	float soundtime = ReadPackFloat(data);
+	bool updatePos = data.ReadCell();
+	float soundtime = data.ReadFloat();
 
 	EmitSoundToAllSafe(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 }
@@ -2619,7 +2628,7 @@ stock bool EmitAmbientSoundViaConVar(ConVar convar, bool preload = false, const 
 	}
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	return EmitAmbientSoundSafe(sBuffer, origin, entity, level, flags, vol, pitch, delay);
 }
@@ -2663,7 +2672,7 @@ stock bool PrepareSoundConVar(ConVar convar, bool preload = false, bool download
 	}
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	GetConVarString(convar, sBuffer, sizeof(sBuffer));
+	convar.GetString(sBuffer, sizeof(sBuffer));
 
 	return PrepareSound(sBuffer, preload, download);
 }
@@ -2717,7 +2726,7 @@ stock bool FakePrecacheSound(const char[] sound)
 stock bool RequiresFakePrecache()
 {
 	EngineVersion engine2 = GetEngineVersion();
-	return view_as<bool>(engine2 == Engine_CSGO || engine2 == Engine_DOTA);
+	return engine2 == Engine_CSGO || engine2 == Engine_DOTA;
 }
 
 /*--------------------------------------------------------->*/
@@ -2821,11 +2830,11 @@ stock void TF2Attrib_RemoveMoveSpeedPenalty(int client)
 //SmartDM - Zephyrius
 /*--------------------------------------------------------->*/
 
-Handle g_hCachedFiles;
-Handle g_hCachedNums;
+ArrayList g_hCachedFiles;
+StringMap g_hCachedNums;
 char g_szModelExts[][16] = {".phy", ".sw.vtx", ".dx80.vtx", ".dx90.vtx", ".vtx", ".xbox.vtx", ".vvd"};
 char g_szMaterialKeys[][64] = {"$baseTexture", "$bumpmap", "$lightwarptexture"};
-Handle g_hCustomFiles;
+StringMap g_hCustomFiles;
 
 stock int ParseMDLFiles(char[] filename)
 {
@@ -2840,22 +2849,22 @@ stock int ParseMDLFiles(char[] filename)
 
 	if (g_hCachedNums == null)
 	{
-		g_hCachedNums = CreateTrie();
-		g_hCachedFiles = CreateArray(PLATFORM_MAX_PATH);
+		g_hCachedNums = new StringMap();
+		g_hCachedFiles = new ArrayList(PLATFORM_MAX_PATH);
 	}
 
 	AddFileToDownloadsTable(filename);
 
 	int m_iValue;
-	if (GetTrieValue(g_hCachedNums, filename, m_iValue))
+	if (g_hCachedNums.GetValue(filename, m_iValue))
 	{
-		int m_iStart = FindStringInArray(g_hCachedFiles, filename)+1;
+		int m_iStart = g_hCachedFiles.FindString(filename)+1;
 		char m_szFile[PLATFORM_MAX_PATH];
 		for (int i=m_iStart-m_iValue-1;i<m_iStart-1;++i)
 		{
 			if (i<0)
 				break;
-			GetArrayString(g_hCachedFiles, i, m_szFile, sizeof(m_szFile));
+			g_hCachedFiles.GetString(i, m_szFile, sizeof(m_szFile));
 			AddFileToDownloadsTable(m_szFile);
 		}
 		return true;
@@ -2900,8 +2909,8 @@ stock int ParseMDLFiles(char[] filename)
 		}
 	}
 
-	PushArrayString(g_hCachedFiles, filename);
-	SetTrieValue(g_hCachedNums, filename, m_iNumFiles);
+	g_hCachedFiles.PushString(filename);
+	g_hCachedNums.SetValue(filename, m_iNumFiles);
 
 	return m_iNumFiles;
 }
@@ -2920,37 +2929,37 @@ stock int Downloader_ParseMDL(const char[] model, char[] internal, int maxlen1, 
 	int m_iNameOffset = 0;
 	int m_iIdx = 0;
 
-	Handle m_hFile = OpenFile2(model, "rb");
+	File m_hFile = OpenFile2(model, "rb");
 	if (m_hFile==null)
 		return 0;
 
-	ReadFileCell(m_hFile, m_iID, 4);
-	ReadFileCell(m_hFile, m_iVersion, 4);
-	FileSeek(m_hFile, 4, SEEK_CUR);
-	ReadFileString(m_hFile, internal, maxlen1);
+	m_hFile.ReadInt32(m_iID);
+	m_hFile.ReadInt32(m_iVersion);
+	m_hFile.Seek(4, SEEK_CUR);
+	m_hFile.ReadString(internal, maxlen1);
 
-	FileSeek(m_hFile, 204, SEEK_SET);
-	ReadFileCell(m_hFile, m_iNum, 4);
-	ReadFileCell(m_hFile, m_iOffset, 4);
-	ReadFileCell(m_hFile, m_iDirNum, 4);
-	ReadFileCell(m_hFile, m_iDirOffset, 4);
+	m_hFile.Seek(204, SEEK_SET);
+	m_hFile.ReadInt32(m_iNum);
+	m_hFile.ReadInt32(m_iOffset);
+	m_hFile.ReadInt32(m_iDirNum);
+	m_hFile.ReadInt32(m_iDirOffset);
 
 	char m_szPath[PLATFORM_MAX_PATH];
 	if (m_iDirNum!=0)
 	{
-		FileSeek(m_hFile, m_iDirOffset, SEEK_SET);
-		ReadFileCell(m_hFile, m_iDirOffset, 4);
-		FileSeek(m_hFile, m_iDirOffset, SEEK_SET);
-		ReadFileString(m_hFile, m_szPath, sizeof(m_szPath));
+		m_hFile.Seek(m_iDirOffset, SEEK_SET);
+		m_hFile.ReadInt32(m_iDirOffset);
+		m_hFile.Seek(m_iDirOffset, SEEK_SET);
+		m_hFile.ReadString(m_szPath, sizeof(m_szPath));
 	}
 
 	char m_szMaterial[PLATFORM_MAX_PATH];
 	for (m_iIdx=0;m_iIdx<m_iNum;++m_iIdx)
 	{
-		FileSeek(m_hFile, m_iOffset+m_iIdx*64, SEEK_SET);
-		ReadFileCell(m_hFile, m_iNameOffset, 4);
-		FileSeek(m_hFile, m_iNameOffset-4, SEEK_CUR);
-		ReadFileString(m_hFile, m_szMaterial, sizeof(m_szMaterial));
+		m_hFile.Seek(m_iOffset+m_iIdx*64, SEEK_SET);
+		m_hFile.ReadInt32(m_iNameOffset);
+		m_hFile.Seek(m_iNameOffset-4, SEEK_CUR);
+		m_hFile.ReadString(m_szMaterial, sizeof(m_szMaterial));
 
 		Format(files[m_iIdx], maxlen2, "materials\\%s%s.vmt", m_szPath, m_szMaterial);
 	}
@@ -3000,13 +3009,13 @@ stock int Downloader_GetMaterialsFromVMT(const char[] vmt, char[][] materials, i
 
 	char m_szLine[512];
 
-	Handle m_hFile = OpenFile2(vmt, "r");
+	File m_hFile = OpenFile2(vmt, "r");
 
 	bool m_bFound[sizeof(g_szMaterialKeys)];
 	int m_iPos;
 	int m_iLast;
 	int m_iNum = 0;
-	while(ReadFileLine(m_hFile, m_szLine, sizeof(m_szLine))!=false)
+	while(m_hFile.ReadLine(m_szLine, sizeof(m_szLine))!=false)
 	{
 		if (m_iNum == sizeof(g_szMaterialKeys) || maxsize == m_iNum)
 			break;
@@ -3032,16 +3041,16 @@ stock int Downloader_GetMaterialsFromVMT(const char[] vmt, char[][] materials, i
 		}
 	}
 
-	CloseHandle(m_hFile);
+	delete m_hFile;
 
 	return m_iNum;
 }
 
 public void CacheCustomDirectory()
 {
-	g_hCustomFiles = CreateTrie();
+	g_hCustomFiles = new StringMap();
 
-	Handle m_hDir = OpenDirectory("custom");
+	DirectoryListing m_hDir = OpenDirectory("custom");
 	if (m_hDir == null)
 		return;
 
@@ -3049,7 +3058,7 @@ public void CacheCustomDirectory()
 	FileType m_eType;
 	int m_unLen = strlen(m_szDirectory);
 
-	while(ReadDirEntry(m_hDir, m_szDirectory[m_unLen], sizeof(m_szDirectory)-m_unLen, m_eType))
+	while(m_hDir.GetNext(m_szDirectory[m_unLen], sizeof(m_szDirectory)-m_unLen, m_eType))
 	{
 		if (m_eType != FileType_Directory)
 			continue;
@@ -3059,12 +3068,12 @@ public void CacheCustomDirectory()
 
 		CacheDirectory(m_szDirectory);
 	}
-	CloseHandle(m_hDir);
+	delete m_hDir;
 }
 
 public void CacheDirectory(const char[] directory)
 {
-	Handle m_hDir = OpenDirectory(directory);
+	DirectoryListing m_hDir = OpenDirectory(directory);
 	char m_szPath[PLATFORM_MAX_PATH];
 	FileType m_eType;
 	Format(m_szPath, sizeof(m_szPath), "%s/", directory);
@@ -3072,7 +3081,7 @@ public void CacheDirectory(const char[] directory)
 	int m_unOffset = FindCharInString(m_szPath, '/')+1;
 	m_unOffset += FindCharInString(m_szPath[m_unOffset], '/')+1;
 
-	while(ReadDirEntry(m_hDir, m_szPath[m_unLen], sizeof(m_szPath)-m_unLen, m_eType))
+	while(m_hDir.GetNext(m_szPath[m_unLen], sizeof(m_szPath)-m_unLen, m_eType))
 	{
 		if (strcmp(m_szPath[m_unLen], ".")==0 || strcmp(m_szPath[m_unLen], "..")==0)
 			continue;
@@ -3086,13 +3095,13 @@ public void CacheDirectory(const char[] directory)
 			for (int ch=0; ch<len; ch++){
 				m_szPath[ch] = CharToLower(m_szPath[ch]);
 			}
-			SetTrieString(g_hCustomFiles, m_szPath[m_unOffset], m_szPath);
+			g_hCustomFiles.SetString(m_szPath[m_unOffset], m_szPath);
 		}
 	}
-	CloseHandle(m_hDir);
+	delete m_hDir;
 }
 
-stock Handle OpenFile2(const char[] file, const char[] mode)
+stock File OpenFile2(const char[] file, const char[] mode)
 {
 	if (g_hCustomFiles == null)
 		CacheCustomDirectory();
@@ -3107,7 +3116,7 @@ stock Handle OpenFile2(const char[] file, const char[] mode)
 	}
 
 	char m_szPath[PLATFORM_MAX_PATH];
-	if (!GetTrieString(g_hCustomFiles, file2, m_szPath, sizeof(m_szPath)))
+	if (!g_hCustomFiles.GetString(file2, m_szPath, sizeof(m_szPath)))
 	{
 		strcopy(m_szPath, sizeof(m_szPath), file2);
 	}
@@ -3131,7 +3140,7 @@ stock bool FileExists2(const char[] file)
 	}
 
 	char m_szPath[PLATFORM_MAX_PATH];
-	if (!GetTrieString(g_hCustomFiles, file2, m_szPath, sizeof(m_szPath))){
+	if (!g_hCustomFiles.GetString(file2, m_szPath, sizeof(m_szPath))){
 		return FileExists(file2);
 	}
 	return FileExists(m_szPath);
@@ -3295,7 +3304,7 @@ stock void SetHudTextParamsViaConVars(ConVar& position, ConVar& holdtime, ConVar
 	int iColor[4]; iColor = GetConVarColor(color);
 	float fFades[2]; fFades = GetConVar2DVector(fades);
 
-	SetHudTextParams(vecPosition[0], vecPosition[1], GetConVarFloat(holdtime), iColor[0], iColor[1], iColor[2], iColor[3], GetConVarInt(effect), GetConVarFloat(fxtime), fFades[0], fFades[1]);
+	SetHudTextParams(vecPosition[0], vecPosition[1], holdtime.FloatValue, iColor[0], iColor[1], iColor[2], iColor[3], effect.IntValue, fxtime.FloatValue, fFades[0], fFades[1]);
 }
 
 /*--------------------------------------------------------->*/
