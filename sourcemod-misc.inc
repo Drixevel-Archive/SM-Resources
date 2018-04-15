@@ -47,7 +47,6 @@
 #define MAX_QUERY_LENGTH 8192
 #define MAX_BUTTONS 25
 #define MAX_IP_LENGTH 32
-#define TF2_MAX_CLASSES 10
 
 #define EF_BONEMERGE			(1 << 0)
 #define EF_BONEMERGE_FASTCULL	(1 << 7)
@@ -149,12 +148,9 @@ stock int GetClientBySteamID(const char[] steamid, AuthIdType type = AuthId_Stea
 			continue;
 		}
 
-		if (GetClientAuthId(i, type, sSteamID, sizeof(sSteamID)))
+		if (GetClientAuthId(i, type, sSteamID, sizeof(sSteamID)) && StrEqual(steamid, sSteamID))
 		{
-			if (StrEqual(steamid, sSteamID))
-			{
-				return i;
-			}
+			return i;
 		}
 	}
 
@@ -181,7 +177,7 @@ stock int KvGetInt(KeyValues kv, const char[] key, int defvalue=0)
 	return kv.GetNum(key, defvalue);
 }
 
-stock bool KvGetBool(Handle kv, const char[] key, bool defvalue=false)
+stock bool KvGetBool(KeyValues kv, const char[] key, bool defvalue=false)
 {
 	return view_as<bool>(kv.GetNum(key, view_as<int>(defvalue)));
 }
@@ -247,6 +243,11 @@ stock void ClearStack(ArrayStack stack)
 //Forgot
 stock bool CheckAdminFlagsByString(int client, const char[] flagString)
 {
+	if (client == 0 || IsFakeClient(client) || strlen(flagString) == 0)
+	{
+		return false;
+	}
+
 	AdminId admin = GetUserAdmin(client);
 
 	if (admin != INVALID_ADMIN_ID)
@@ -470,39 +471,6 @@ stock bool IsStringNumber(const char[] str)
 	return true;
 }
 
-stock int TF2_CreateGlow(const char[] name, int target, int color[4] = {255, 255, 255, 255})
-{
-	char sClassname[64];
-	GetEntityClassname(target, sClassname, sizeof(sClassname));
-
-	char sTarget[128];
-	Format(sTarget, sizeof(sTarget), "%s%i", sClassname, target);
-	DispatchKeyValue(target, "targetname", sTarget);
-
-	int glow = CreateEntityByName("tf_glow");
-
-	if (IsValidEntity(glow))
-	{
-		char sGlow[64];
-		Format(sGlow, sizeof(sGlow), "%i %i %i %i", color[0], color[1], color[2], color[3]);
-
-		DispatchKeyValue(glow, "targetname", name);
-		DispatchKeyValue(glow, "target", sTarget);
-		DispatchKeyValue(glow, "Mode", "1");
-		DispatchKeyValue(glow, "GlowColor", sGlow);
-		DispatchSpawn(glow);
-
-		//SetVariantString("!activator");
-		//AcceptEntityInput(glow, "SetParent", target, glow, 0);
-
-		SetParent(target, glow);
-
-		AcceptEntityInput(glow, "Enable");
-	}
-
-	return glow;
-}
-
 stock void RemoveFrontString(char[] strInput, int iSize, int iVar)
 {
 	strcopy(strInput, iSize, strInput[iVar]);
@@ -661,6 +629,11 @@ stock void CopyArrayToArray(const any[] array, any[] newArray, int size)
 
 stock bool GetClientLookPosition(int client, float fLookpoint[3])
 {
+	if (client == 0 || !IsClientConnected(client) || !IsClientInGame(client))
+	{
+		return false;
+	}
+
 	float vOrigin[3];
 	GetClientEyePosition(client,vOrigin);
 
@@ -749,7 +722,7 @@ stock int CreateParticle(const char[] particle, float time = 0.0, float origin[3
 	return entity;
 }
 
-stock void CreateTempParticle(char[] particle, int entity = -1, float origin[3], float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+stock void CreateTempParticle(char[] particle, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
 {
 	int tblidx = FindStringTable("ParticleEffectNames");
 
@@ -839,33 +812,6 @@ stock void GetServerIP(char[] sIP, int size, bool show_port = false)
 	if (show_port)
 	{
 		Format(sIP, size, "%s:%d", sIP, FindConVar("hostport").IntValue);
-	}
-}
-
-stock void TF2_GetClientClassName(int client, char[] name, int size, bool capitalize = false)
-{
-	TF2_GetClassName(TF2_GetPlayerClass(client), name, size, capitalize);
-}
-
-stock void TF2_GetClassName(TFClassType class, char[] name, int size, bool capitalize = false)
-{
-	switch (class)
-	{
-		case TFClass_Unknown: strcopy(name, size, "unknown");
-		case TFClass_Scout: strcopy(name, size, "scout");
-		case TFClass_Sniper: strcopy(name, size, "sniper");
-		case TFClass_Soldier: strcopy(name, size, "soldier");
-		case TFClass_DemoMan: strcopy(name, size, "demoman");
-		case TFClass_Medic: strcopy(name, size, "medic");
-		case TFClass_Heavy: strcopy(name, size, "heavy");
-		case TFClass_Pyro: strcopy(name, size, "pyro");
-		case TFClass_Spy: strcopy(name, size, "spy");
-		case TFClass_Engineer: strcopy(name, size, "engineer");
-	}
-
-	if (capitalize)
-	{
-		name[0] = CharToUpper(name[0]);
 	}
 }
 
@@ -973,7 +919,7 @@ stock void KillTimerSafe(Handle& timer)
 
 stock int GetActiveWeapon(int client)
 {
-	if (!IsPlayerIndex(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
+	if (client == 0 || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
 	{
 		return 0;
 	}
@@ -1039,23 +985,13 @@ stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, 
 	database.Query(callback, query, data, priority);
 }
 
-stock int GetMaxHealth(int client)
+stock bool GetClientAbsPosition(int client, float origin[3])
 {
-	return GetEntProp(client, Prop_Data, "m_iMaxHealth");
-}
+	if (client == 0 || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client))
+	{
+		return true;
+	}
 
-stock void SetClientHealth(int client, int health)
-{
-	SetEntityHealth(client, ClampCell(health, 1, GetMaxHealth(client)));
-}
-
-stock void AddClientHealth(int client, int health)
-{
-	SetClientHealth(client, GetClientHealth(client) + health);
-}
-
-stock void GetClientAbsPosition(int client, float origin[3])
-{
 	GetClientAbsOrigin(client, origin);
 
 	float target_velocity[3];
@@ -1083,6 +1019,8 @@ stock void GetClientAbsPosition(int client, float origin[3])
 
 	ScaleVector(target_velocity, correct);
 	SubtractVectors(origin, target_velocity, origin);
+
+	return false;
 }
 
 stock int GetClientActiveSlot(int client)
@@ -1165,67 +1103,6 @@ stock void ChangeClientTeam_Alive(int client, int team)
 	SetEntProp(client, Prop_Send, "m_lifeState", EntProp);
 }
 
-stock void TF2_StripToMelee(int client)
-{
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Primary);
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Secondary);
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Grenade);
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Building);
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_PDA);
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Item1);
-	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Item2);
-
-	int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
-
-	if (IsValidEntity(melee))
-	{
-		EquipPlayerWeapon(client, melee);
-	}
-}
-
-stock void TF2_SetPlayerColor(int client, int red, int green, int blue, int alpha)
-{
-	SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-	SetEntityRenderColor(client, red, green, blue, alpha);
-
-	int entity = INVALID_ENT_INDEX;
-	while((entity = FindEntityByClassname(entity, "tf_wearable_*")) != INVALID_ENT_INDEX)
-	{
-		if ((HasEntProp(entity, Prop_Send, "m_hOwner") && GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client) ||
-		 (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client))
-		{
-			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-			SetEntityRenderColor(entity, red, green, blue, alpha);
-		}
-	}
-
-	entity = INVALID_ENT_INDEX;
-	while((entity = FindEntityByClassname(entity, "tf_weapon_*")) != INVALID_ENT_INDEX)
-	{
-		if ((HasEntProp(entity, Prop_Send, "m_hOwner") && GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client) ||
-		 (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client))
-		{
-			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-			SetEntityRenderColor(entity, red, green, blue, alpha);
-		}
-	}
-}
-
-stock void TF2_ForceRoundWin(TFTeam team, bool map_valid = true)
-{
-	int entity = FindEntityByClassname(INVALID_ENT_INDEX, "team_control_point_master");
-
-	if (!IsValidEntity(entity))
-	{
-		entity = CreateEntityByName("team_control_point_master");
-		DispatchSpawn(entity);
-		AcceptEntityInput(entity, "Enable");
-	}
-
-	SetVariantInt(view_as<int>(team));
-	AcceptEntityInput(entity, "SetWinner");
-}
-
 stock int GetTotalAliveCount()
 {
 	return (GetTeamAliveClientCount(2) + GetTeamAliveClientCount(3));
@@ -1244,6 +1121,34 @@ stock int GetTeamAliveClientCount(int team)
 	}
 
 	return amount;
+}
+
+stock int GetClientsNearClient(int client, float distance = 1000.0, int team = 0, bool fake = true)
+{
+	int count;
+
+	float vecOrigin1[3];
+	GetClientAbsOrigin(client, vecOrigin1);
+
+	float vecOrigin2[3];
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientConnected(i) || !IsClientInGame(i) || !IsPlayerAlive(i) || (team > 0 && team != GetClientTeam(i)) || (!fake && IsFakeClient(i)))
+		{
+			continue;
+		}
+
+		GetClientAbsOrigin(i, vecOrigin2);
+
+		if (GetVectorDistance(vecOrigin1, vecOrigin2) > distance)
+		{
+			continue;
+		}
+
+		count++;
+	}
+
+	return count;
 }
 
 stock any ClampCell(any value, any min, any max)
@@ -1296,89 +1201,6 @@ stock float FloatDivider(float value, float multiplier)
 	return value *= 1.0 - multiplier;
 }
 
-stock void CSGO_ShowHudTextAll(char[] message, char[] x = "-1.0", char[] y = "-1.0", char[] channel = "0", char[] color = "255 255 255", char[] color2 = "0 0 0", char[] effect = "0", char[] fadein = "1.5", char[] fadeout = "0.5", char[] fxtime = "0.5", char[] holdtime = "5.0", char[] spawnflags = "0")
-{
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && !IsFakeClient(i))
-		{
-			CSGO_ShowHudText(i, message, x, y, channel, color, color2, effect, fadein, fadeout, fxtime, holdtime, spawnflags);
-		}
-	}
-}
-
-stock void CSGO_ShowHudText(int client, char[] message, char[] x = "-1.0", char[] y = "-1.0", char[] channel = "0", char[] color = "255 255 255", char[] color2 = "0 0 0", char[] effect = "0", char[] fadein = "1.5", char[] fadeout = "0.5", char[] fxtime = "0.5", char[] holdtime = "5.0", char[] spawnflags = "0")
-{
-	int entity = CreateEntityByName("game_text");
-
-	if (IsValidEntity(entity))
-	{
-		DispatchKeyValue(entity, "channel", channel);
-		DispatchKeyValue(entity, "color", color);
-		DispatchKeyValue(entity, "color2", color2);
-		DispatchKeyValue(entity, "effect", effect);
-		DispatchKeyValue(entity, "fadein", fadein);
-		DispatchKeyValue(entity, "fadeout", fadeout);
-		DispatchKeyValue(entity, "fxtime", fxtime);
-		DispatchKeyValue(entity, "holdtime", holdtime);
-		DispatchKeyValue(entity, "message", message);
-		DispatchKeyValue(entity, "spawnflags", spawnflags);
-		DispatchKeyValue(entity, "x", x);
-		DispatchKeyValue(entity, "y", y);
-		DispatchSpawn(entity);
-
-		SetVariantString("!activator");
-		AcceptEntityInput(entity, "display", client);
-	}
-}
-
-stock void TF2_SetUberLevel(int client, float uberlevel)
-{
-	int weapon = GetPlayerWeaponSlot(client, 1);
-
-	if (IsValidEntity(weapon))
-	{
-		SetEntPropFloat(weapon, Prop_Send, "m_flChargeLevel", uberlevel);
-	}
-}
-
-stock float TF2_GetUberLevel(int client)
-{
-	int weapon = GetPlayerWeaponSlot(client, 1);
-
-	if (IsValidEntity(weapon))
-	{
-		return GetEntPropFloat(weapon, Prop_Send, "m_flChargeLevel");
-	}
-
-	return -1.0;
-}
-
-stock int TF2_GetHealingTarget(int client)
-{
-	int weapon = GetPlayerWeaponSlot(client, 1);
-
-	if (!IsValidEntity(weapon) || weapon != GetActiveWeapon(client))
-	{
-		return -1;
-	}
-
-	char sClassname[32];
-	GetEdictClassname(weapon, sClassname, sizeof(sClassname));
-
-	if (StrContains(sClassname, "tf_weapon_med") == -1)
-	{
-		return -1;
-	}
-
-	return GetEntProp(weapon, Prop_Send, "m_bHealing") ? GetEntPropEnt(weapon, Prop_Send, "m_hHealingTarget") : -1;
-}
-
-stock bool IsArenaActive()
-{
-	return FindEntityByClassname(-1, "tf_logic_arena") != -1;
-}
-
 stock bool CalculateTime(int value, int timer)
 {
 	return value > 0 && (GetTime() - value) > timer;
@@ -1416,59 +1238,6 @@ stock void PrintTopText(int client, int color[4], const char[] format, any ...)
 	CreateDialog(client, kv, DialogType_Msg);
 
 	delete kv;
-}
-
-stock void CSGO_AddPlayerIncome(int client, int income)
-{
-	int new_amount = CSGO_GetPlayerIncome(client) + income;
-	new_amount = ClampCell(new_amount, 0, FindConVar("mp_maxmoney").IntValue);
-	SetEntProp(client, Prop_Send, "m_iAccount", new_amount);
-}
-
-stock void CSGO_SetPlayerIncome(int client, int income)
-{
-	int new_amount = ClampCell(income, 0, FindConVar("mp_maxmoney").IntValue);
-	SetEntProp(client, Prop_Send, "m_iAccount", new_amount);
-}
-
-stock int CSGO_GetPlayerIncome(int client)
-{
-	return GetEntProp(client, Prop_Send, "m_iAccount");
-}
-
-stock void CSGO_StripToKnife(int client)
-{
-	int weapon;
-	for (int i = 0; i < 4; i++)
-	{
-		if (i == CS_SLOT_KNIFE)
-		{
-			weapon = GetPlayerWeaponSlot(client, i);
-
-			if (IsValidEntity(i))
-			{
-				EquipPlayerWeapon(i, weapon);
-			}
-
-			continue;
-		}
-
-		if ((weapon = GetPlayerWeaponSlot(client, i)) != INVALID_ENT_INDEX)
-		{
-			if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
-			{
-				SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", client);
-			}
-
-			SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
-			AcceptEntityInput(weapon, "Kill");
-		}
-	}
-}
-
-stock void CSGO_GiveClientArmor(int client)
-{
-	SetEntProp(client, Prop_Data, "m_ArmorValue", 100);
 }
 
 stock bool IsValidEntityRef(int ref)
@@ -1741,7 +1510,7 @@ stock float GetPlayerSpeed(int client)
 
 stock bool GetClientSteamID(int client, char[] buffer, int size)
 {
-	if (!IsPlayerIndex(client))
+	if (!client == 0)
 	{
 		return false;
 	}
@@ -1756,60 +1525,6 @@ stock bool GetClientSteamID(int client, char[] buffer, int size)
 	}
 
 	return false;
-}
-
-stock int CSGO_ReplaceWeapon(int client, int slot, const char[] weapon_string)
-{
-	int old_weapon = GetPlayerWeaponSlot(client, slot);
-
-	if (IsValidEntity(old_weapon))
-	{
-		if (GetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity") != client)
-		{
-			SetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity", client);
-		}
-
-		CS_DropWeapon(client, old_weapon, false, true);
-		AcceptEntityInput(old_weapon, "Kill");
-	}
-
-	int new_weapon = GivePlayerItem(client, weapon_string);
-
-	if (IsValidEntity(new_weapon))
-	{
-		EquipPlayerWeapon(client, new_weapon);
-	}
-
-	return new_weapon;
-}
-
-stock void CSGO_SetMoney(int client, int money)
-{
-	SetEntProp(client, Prop_Send, "m_iAccount", ClampCell(money, 0, CSGO_GetMaxMoney()));
-}
-
-stock void CSGO_GetMoney(int client)
-{
-	return GetEntProp(client, Prop_Send, "m_iAccount");
-}
-
-stock void CSGO_AddMoney(int client, int money)
-{
-	CSGO_SetMoney(client, CSGO_GetMoney(client) + money);
-}
-
-stock int CSGO_GetMaxMoney()
-{
-	return FindConVar("mp_maxmoney").IntValue;
-}
-
-stock void TF2_CreateExplosion(float origin[3], float damage = 99999.0, float radius = 250.0, float magnitude = 500.0, int attacker = 0, int inflictor = 0, int team = 0, const char[] particle = "cinefx_goldrush", const char[] sound = "items/cart_explode.wav", float amplitude = 50.0, float frequency = 150.0, float duration = 3.0)
-{
-	CreateParticle(particle, 10.0, origin);
-	EmitSoundToAllSafe(sound);
-	ScreenShakeAll(SHAKE_START, amplitude, frequency, duration);
-	DamageArea(origin, radius, damage, attacker, inflictor, team, DMG_BLAST);
-	PushAllPlayersFromPoint(origin, magnitude, radius, team);
 }
 
 stock bool PushPlayerFromPoint(int client, float point[3], float magnitude = 50.0, float radius = 0.0)
@@ -1918,7 +1633,7 @@ public Action Timer_DelayClientConcept28305820358023532(Handle timer, DataPack d
 	char sClass[64];
 	data.ReadString(sClass, sizeof(sClass));
 
-	if (IsPlayerIndex(client) && IsClientInGame(client) && IsPlayerAlive(client))
+	if (client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		SpeakResponseConcept(client, sConcept, sContext, sClass);
 	}
@@ -2079,26 +1794,6 @@ stock bool IsClientNearEntityViaName(int client, const char[] name, const char[]
 	return false;
 }
 
-stock void TF2_RemoveAllWearables(int client)
-{
-	int entity;
-	while ((entity = FindEntityByClassname(entity, "tf_wearable*")) != -1)
-	{
-		if (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
-		{
-			TF2_RemoveWearable(client, entity);
-		}
-	}
-}
-
-// Thanks to 11530
-// https://forums.alliedmods.net/showthread.php?t=193255
-stock void ResizePlayer(int client, float fScale)
-{
-	SetEntPropFloat(client, Prop_Send, "m_flModelScale", fScale);
-	SetEntPropFloat(client, Prop_Send, "m_flStepSize", 18.0 * fScale);
-}
-
 //With help from Arthurdead.
 stock void VectorAddRotatedOffset(const float angle[3], float vec[3], const float offset[3])
 {
@@ -2133,7 +1828,6 @@ stock void EquipWeapon(int client, int weapon)
 	GetEntityClassname(weapon, class, sizeof(class));
 
 	FakeClientCommand(client, "use %s", class);
-//	SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", weapon);
 }
 /* */
 
@@ -2251,72 +1945,83 @@ stock bool AddMenuItemFormat(Menu& menu, const char[] info, int style = ITEMDRAW
 	return menu.AddItem(info, display, style);
 }
 
-/*--------------------------------------------------------->*/
-//TF2 Healing Stocks by Chdata
-/*--------------------------------------------------------->*/
-
-stock bool TF2_ReadyToOverheal(int client, int add = 0)
+stock int Util_GetMaxHealth(int client)
 {
-	return (add > 0) ? ((TF2_GetMaxHealth(client) - GetClientHealth(client)) < add) : (GetClientHealth(client) >= TF2_GetMaxHealth(client));
+	return GetEngineVersion() == Engine_TF2 ? TF2_GetMaxHealth(client) : GetEntProp(client, Prop_Data, "m_iMaxHealth");
 }
 
-stock void TF2_AddPlayerHealth(int client, int add, float overheal = 1.5, bool additive = false, bool event = true)
+stock void Util_SetClientHealth(int client, int health)
 {
-	int iHealth = GetClientHealth(client);
-	int iNewHealth = iHealth + add;
-	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
-
-	if (iHealth < iMax)
+	if (GetEngineVersion() == Engine_TF2)
 	{
-		iNewHealth = ClampCell(iNewHealth, 1, iMax);
-
-		if (event)
-		{
-			TF2_ShowHealthGain(client, iNewHealth - iHealth);
-		}
-
-		SetEntityHealth(client, iNewHealth);
+		TF2_SetPlayerHealth(client, health);
+	}
+	else
+	{
+		SetEntityHealth(client, ClampCell(health, 1, Util_GetMaxHealth(client)));
 	}
 }
 
-stock void TF2_ShowHealthGain(int patient, int health, int healer = -1)
+stock void Util_AddClientHealth(int client, int health, float overheal = 1.5, bool additive = false, bool event = true)
 {
-	int iUserId = GetClientUserId(patient);
-
-	Event hEvent = CreateEvent("player_healed", true);
-	hEvent.SetBool("sourcemod", true);
-	hEvent.SetInt("patient", iUserId);
-	hEvent.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : iUserId);
-	hEvent.SetInt("amount", health);
-	hEvent.Fire();
-
-	hEvent = CreateEvent("player_healonhit", true);
-	hEvent.SetBool("sourcemod", true);
-	hEvent.SetInt("amount", health);
-	hEvent.SetInt("entindex", patient);
-	hEvent.Fire();
+	if (GetEngineVersion() == Engine_TF2)
+	{
+		TF2_AddPlayerHealth(client, health, overheal, additive, event);
+	}
+	else
+	{
+		SetEntityHealth(client, ClampCell((GetClientHealth(client) + health), 1, Util_GetMaxHealth(client)));
+	}
 }
 
-stock int TF2_GetMaxHealth(int client)
+stock void Util_HealArea(float origin[3], float distance = 500.0, int amount = 500,  int team = 0, float overheal = 1.5, bool additive = false, bool event = true)
 {
-	int maxhealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
-	return ((maxhealth == -1 || maxhealth == 80896) ? GetEntProp(client, Prop_Data, "m_iMaxHealth") : maxhealth);
+	float vecOrigin[3];
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientConnected(i) || !IsClientInGame(i) || !IsPlayerAlive(i) || (team > 0 && team != GetClientTeam(i)))
+		{
+			continue;
+		}
+
+		GetClientAbsOrigin(i, vecOrigin);
+
+		if (GetVectorDistance(origin, vecOrigin) > distance)
+		{
+			continue;
+		}
+
+		Util_AddClientHealth(i, amount, overheal, additive, event);
+	}
 }
 
-stock int TF2_GetMaxOverHeal(int client, float overheal = 1.5) // Quick-Fix would be 1.25
+stock int[] GetNearestPlayers(int entity, int& count, float distance, bool self = false, bool fake_clients = true)
 {
-	return RoundFloat(float(TF2_GetMaxHealth(client)) * overheal);
-}
+	count = 0;
+	int clients[MAXPLAYERS + 1];
 
-stock int TF2_GetOverHeal(int client, float overheal = 1.5)
-{
-	return RoundFloat(float(TF2_GetMaxHealth(client)) * (overheal - 1.0));
-}
+	float vecOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
 
-stock void TF2_SetHealth(int client, int health)
-{
-	SetEntProp(client, Prop_Send, "m_iHealth", health);
-	SetEntProp(client, Prop_Data, "m_iHealth", health);
+	float vecOrigin2[3];
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientConnected(i) || !IsClientInGame(i) || !IsPlayerAlive(i) || (!self && i == entity) || (!fake_clients && IsFakeClient(i)))
+		{
+			continue;
+		}
+
+		GetClientAbsOrigin(i, vecOrigin2);
+
+		if (GetVectorDistance(vecOrigin, vecOrigin2) > distance)
+		{
+			continue;
+		}
+
+		clients[count++] = i;
+	}
+
+	return clients;
 }
 
 /*--------------------------------------------------------->*/
@@ -2400,7 +2105,7 @@ stock int PrepareModelConVar(ConVar &convar, bool preload = false)
 
 stock bool EmitSoundToClientSafe(int client, const char[] sample, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
-	if (!IsPlayerIndex(client) || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
+	if (client == 0 || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
 	{
 		return false;
 	}
@@ -2730,423 +2435,6 @@ stock bool RequiresFakePrecache()
 }
 
 /*--------------------------------------------------------->*/
-//TF2Attributes Stocks
-/*--------------------------------------------------------->*/
-
-stock void TF2Attrib_SetByName_Weapons(int client, int weapon = -1, char[] attrib, float value, bool invert = false)
-{
-	if (weapon != -1 && IsValidEntity(weapon))
-	{
-		TF2Attrib_SetByName(weapon, attrib, value);
-		return;
-	}
-
-	if (invert)
-	{
-		value = 1.0 + value;
-	}
-	else
-	{
-		value = 1.0 - value;
-	}
-
-	int weapon2;
-	for (int i = 0; i < 6; i++)
-	{
-		weapon2 = GetPlayerWeaponSlot(client, i);
-
-		if (IsValidEntity(weapon2))
-		{
-			TF2Attrib_SetByName(weapon2, attrib, value);
-		}
-	}
-}
-
-stock void TF2Attrib_RemoveByName_Weapons(int client, int weapon = -1, char[] attrib)
-{
-	if (weapon != -1 && IsValidEntity(weapon))
-	{
-		TF2Attrib_RemoveByName(weapon, attrib);
-		return;
-	}
-
-	int weapon2;
-	for (int i = 0; i < 6; i++)
-	{
-		weapon2 = GetPlayerWeaponSlot(client, i);
-
-		if (IsValidEntity(weapon2))
-		{
-			TF2Attrib_RemoveByName(weapon2, attrib);
-		}
-	}
-}
-
-stock float TF2Attrib_ApplyMoveSpeedBonus(int client, float value)
-{
-	Address addr = TF2Attrib_GetByName(client, "move speed bonus");
-	float old;
-
-	if (addr != Address_Null)
-	{
-		old = TF2Attrib_GetValue(addr);
-	}
-
-	TF2Attrib_SetByName(client, "move speed bonus", 1.0 + value);
-	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
-
-	return old;
-}
-
-stock void TF2Attrib_RemoveMoveSpeedBonus(int client)
-{
-	TF2Attrib_RemoveByName(client, "move speed bonus");
-	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
-}
-
-stock float TF2Attrib_ApplyMoveSpeedPenalty(int client, float value)
-{
-	Address addr = TF2Attrib_GetByName(client, "move speed bonus");
-	float old;
-
-	if (addr != Address_Null)
-	{
-		old = TF2Attrib_GetValue(addr);
-	}
-
-	TF2Attrib_SetByName(client, "move speed penalty", 1.0 - value);
-	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
-
-	return old;
-}
-
-stock void TF2Attrib_RemoveMoveSpeedPenalty(int client)
-{
-	TF2Attrib_RemoveByName(client, "move speed penalty");
-	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
-}
-
-/*--------------------------------------------------------->*/
-//SmartDM - Zephyrius
-/*--------------------------------------------------------->*/
-
-ArrayList g_hCachedFiles;
-StringMap g_hCachedNums;
-char g_szModelExts[][16] = {".phy", ".sw.vtx", ".dx80.vtx", ".dx90.vtx", ".vtx", ".xbox.vtx", ".vvd"};
-char g_szMaterialKeys[][64] = {"$baseTexture", "$bumpmap", "$lightwarptexture"};
-StringMap g_hCustomFiles;
-
-stock int ParseMDLFiles(char[] filename)
-{
-	int len = strlen(filename);
-	ReplaceString(filename, len, "\\", "/");
-	for (int ch=0; ch<len; ch++){
-		filename[ch] = CharToLower(filename[ch]);
-	}
-
-	if (!FileExists2(filename))
-		return 0;
-
-	if (g_hCachedNums == null)
-	{
-		g_hCachedNums = new StringMap();
-		g_hCachedFiles = new ArrayList(PLATFORM_MAX_PATH);
-	}
-
-	AddFileToDownloadsTable(filename);
-
-	int m_iValue;
-	if (g_hCachedNums.GetValue(filename, m_iValue))
-	{
-		int m_iStart = g_hCachedFiles.FindString(filename)+1;
-		char m_szFile[PLATFORM_MAX_PATH];
-		for (int i=m_iStart-m_iValue-1;i<m_iStart-1;++i)
-		{
-			if (i<0)
-				break;
-			g_hCachedFiles.GetString(i, m_szFile, sizeof(m_szFile));
-			AddFileToDownloadsTable(m_szFile);
-		}
-		return true;
-	}
-
-	char m_szExt[16];
-	int m_iDot = FindCharInString(filename, '.', true);
-	if (m_iDot == -1)
-		return true;
-
-	int m_iNumFiles = 0;
-
-	strcopy(m_szExt, sizeof(m_szExt), filename[m_iDot]);
-	char m_szMaterials[8][PLATFORM_MAX_PATH];
-	int m_iNum;
-	if (strcmp(m_szExt, ".mdl") == 0)
-	{
-		char m_szFiles[sizeof(g_szModelExts)][PLATFORM_MAX_PATH];
-		char m_szInternal[64];
-
-		m_iNum = Downloader_ParseMDL(filename, m_szInternal, sizeof(m_szInternal), m_szMaterials, sizeof(m_szMaterials), sizeof(m_szMaterials[]));
-		for (int i=0;i<m_iNum;++i)
-		{
-			if (FileExists2(m_szMaterials[i])){
-				m_iNumFiles += ParseMDLFiles(m_szMaterials[i])+1;
-			}
-		}
-
-		m_iNum = Downloader_GetModelFiles(filename, m_szInternal, m_szFiles, sizeof(m_szFiles), sizeof(m_szFiles[]));
-		for (int i=0;i<m_iNum;++i)
-			m_iNumFiles += ParseMDLFiles(m_szFiles[i])+1;
-	} else if (strcmp(m_szExt, ".vmt") == 0)
-	{
-		m_iNum = Downloader_GetMaterialsFromVMT(filename, m_szMaterials, sizeof(m_szMaterials), sizeof(m_szMaterials[]));
-		char m_szMaterial[PLATFORM_MAX_PATH];
-		for (int i=0;i<m_iNum;++i)
-		{
-			Format(m_szMaterial, sizeof(m_szMaterial), "materials\\%s.vtf", m_szMaterials[i]);
-
-			if (FileExists2(m_szMaterial))
-				m_iNumFiles += ParseMDLFiles(m_szMaterial)+1;
-		}
-	}
-
-	g_hCachedFiles.PushString(filename);
-	g_hCachedNums.SetValue(filename, m_iNumFiles);
-
-	return m_iNumFiles;
-}
-
-stock int Downloader_ParseMDL(const char[] model, char[] internal, int maxlen1, char[][] files, int maxsize, int maxlen2)
-{
-	if (!FileExists2(model))
-		return 0;
-
-	int m_iID;
-	int m_iVersion;
-	int m_iNum = 0;
-	int m_iDirNum = 0;
-	int m_iOffset = 0;
-	int m_iDirOffset = 0;
-	int m_iNameOffset = 0;
-	int m_iIdx = 0;
-
-	File m_hFile = OpenFile2(model, "rb");
-	if (m_hFile==null)
-		return 0;
-
-	m_hFile.ReadInt32(m_iID);
-	m_hFile.ReadInt32(m_iVersion);
-	m_hFile.Seek(4, SEEK_CUR);
-	m_hFile.ReadString(internal, maxlen1);
-
-	m_hFile.Seek(204, SEEK_SET);
-	m_hFile.ReadInt32(m_iNum);
-	m_hFile.ReadInt32(m_iOffset);
-	m_hFile.ReadInt32(m_iDirNum);
-	m_hFile.ReadInt32(m_iDirOffset);
-
-	char m_szPath[PLATFORM_MAX_PATH];
-	if (m_iDirNum!=0)
-	{
-		m_hFile.Seek(m_iDirOffset, SEEK_SET);
-		m_hFile.ReadInt32(m_iDirOffset);
-		m_hFile.Seek(m_iDirOffset, SEEK_SET);
-		m_hFile.ReadString(m_szPath, sizeof(m_szPath));
-	}
-
-	char m_szMaterial[PLATFORM_MAX_PATH];
-	for (m_iIdx=0;m_iIdx<m_iNum;++m_iIdx)
-	{
-		m_hFile.Seek(m_iOffset+m_iIdx*64, SEEK_SET);
-		m_hFile.ReadInt32(m_iNameOffset);
-		m_hFile.Seek(m_iNameOffset-4, SEEK_CUR);
-		m_hFile.ReadString(m_szMaterial, sizeof(m_szMaterial));
-
-		Format(files[m_iIdx], maxlen2, "materials\\%s%s.vmt", m_szPath, m_szMaterial);
-	}
-
-	return m_iNum;
-}
-
-stock int Downloader_GetModelFiles(const char[] model, const char[] internal, char[][] files, int maxsize, int maxlen)
-{
-	char m_szRawPath1[PLATFORM_MAX_PATH];
-	char m_szRawPath2[PLATFORM_MAX_PATH];
-	strcopy(m_szRawPath1, sizeof(m_szRawPath1), model);
-	Format(m_szRawPath2, sizeof(m_szRawPath2), "models/%s", internal);
-
-	int m_iDot = FindCharInString(m_szRawPath1, '.', true);
-	if (m_iDot == -1)
-		return 0;
-	m_szRawPath1[m_iDot] = 0;
-
-	m_iDot = FindCharInString(m_szRawPath2, '.', true);
-	if (m_iDot == -1)
-		return 0;
-	m_szRawPath2[m_iDot] = 0;
-
-	int m_iNum = 0;
-	for (int i=0;i<sizeof(g_szModelExts);++i)
-	{
-		if (m_iNum == maxsize)
-			break;
-		Format(files[m_iNum], maxlen, "%s%s", m_szRawPath1, g_szModelExts[i]);
-		if (FileExists2(files[m_iNum]))
-			++m_iNum;
-		else
-		{
-			Format(files[m_iNum], maxlen, "%s%s", m_szRawPath2, g_szModelExts[i]);
-			if (FileExists2(files[m_iNum]))
-				++m_iNum;
-		}
-	}
-	return m_iNum;
-}
-
-stock int Downloader_GetMaterialsFromVMT(const char[] vmt, char[][] materials, int maxsize, int maxlen)
-{
-	if (!FileExists2(vmt))
-		return 0;
-
-	char m_szLine[512];
-
-	File m_hFile = OpenFile2(vmt, "r");
-
-	bool m_bFound[sizeof(g_szMaterialKeys)];
-	int m_iPos;
-	int m_iLast;
-	int m_iNum = 0;
-	while(m_hFile.ReadLine(m_szLine, sizeof(m_szLine))!=false)
-	{
-		if (m_iNum == sizeof(g_szMaterialKeys) || maxsize == m_iNum)
-			break;
-
-		for (int i=0;i<sizeof(g_szMaterialKeys);++i)
-		{
-			if (m_bFound[i])
-				continue;
-			if ((m_iPos = StrContains(m_szLine, g_szMaterialKeys[i], false)) > 0)
-			{
-				m_bFound[i]=true;
-				while(m_szLine[m_iPos] != '"' && m_szLine[m_iPos] != ' ' && m_szLine[m_iPos] != '	')
-					++m_iPos;
-				while(m_szLine[m_iPos] == ' ' || m_szLine[m_iPos] == '	' || m_szLine[m_iPos] == '"')
-					++m_iPos;
-				m_iLast = m_iPos;
-				while(m_szLine[m_iLast] != '"' && m_szLine[m_iLast] != '\r' && m_szLine[m_iLast] != '\n' && m_szLine[m_iLast] != ' ' && m_szLine[m_iLast] != '	' && m_szLine[m_iLast] != 0)
-					++m_iLast;
-				m_szLine[m_iLast] = 0;
-				strcopy(materials[m_iNum], maxlen, m_szLine[m_iPos]);
-				++m_iNum;
-			}
-		}
-	}
-
-	delete m_hFile;
-
-	return m_iNum;
-}
-
-public void CacheCustomDirectory()
-{
-	g_hCustomFiles = new StringMap();
-
-	DirectoryListing m_hDir = OpenDirectory("custom");
-	if (m_hDir == null)
-		return;
-
-	char m_szDirectory[PLATFORM_MAX_PATH] = "custom/";
-	FileType m_eType;
-	int m_unLen = strlen(m_szDirectory);
-
-	while(m_hDir.GetNext(m_szDirectory[m_unLen], sizeof(m_szDirectory)-m_unLen, m_eType))
-	{
-		if (m_eType != FileType_Directory)
-			continue;
-
-		if (strcmp(m_szDirectory[m_unLen], ".")==0 || strcmp(m_szDirectory[m_unLen], "..")==0)
-			continue;
-
-		CacheDirectory(m_szDirectory);
-	}
-	delete m_hDir;
-}
-
-public void CacheDirectory(const char[] directory)
-{
-	DirectoryListing m_hDir = OpenDirectory(directory);
-	char m_szPath[PLATFORM_MAX_PATH];
-	FileType m_eType;
-	Format(m_szPath, sizeof(m_szPath), "%s/", directory);
-	int m_unLen = strlen(m_szPath);
-	int m_unOffset = FindCharInString(m_szPath, '/')+1;
-	m_unOffset += FindCharInString(m_szPath[m_unOffset], '/')+1;
-
-	while(m_hDir.GetNext(m_szPath[m_unLen], sizeof(m_szPath)-m_unLen, m_eType))
-	{
-		if (strcmp(m_szPath[m_unLen], ".")==0 || strcmp(m_szPath[m_unLen], "..")==0)
-			continue;
-
-		if (m_eType == FileType_Directory)
-			CacheDirectory(m_szPath);
-		else if (m_eType == FileType_File)
-		{
-			int len = strlen(m_szPath);
-			ReplaceString(m_szPath, len, "\\", "/");
-			for (int ch=0; ch<len; ch++){
-				m_szPath[ch] = CharToLower(m_szPath[ch]);
-			}
-			g_hCustomFiles.SetString(m_szPath[m_unOffset], m_szPath);
-		}
-	}
-	delete m_hDir;
-}
-
-stock File OpenFile2(const char[] file, const char[] mode)
-{
-	if (g_hCustomFiles == null)
-		CacheCustomDirectory();
-
-	char file2[PLATFORM_MAX_PATH];
-	strcopy(file2, PLATFORM_MAX_PATH, file);
-
-	int len = strlen(file2);
-	ReplaceString(file2, len, "\\", "/");
-	for (int ch=0; ch<len; ch++){
-		file2[ch] = CharToLower(file2[ch]);
-	}
-
-	char m_szPath[PLATFORM_MAX_PATH];
-	if (!g_hCustomFiles.GetString(file2, m_szPath, sizeof(m_szPath)))
-	{
-		strcopy(m_szPath, sizeof(m_szPath), file2);
-	}
-
-	return OpenFile(m_szPath, mode);
-}
-
-stock bool FileExists2(const char[] file)
-{
-	if (g_hCustomFiles == null){
-		CacheCustomDirectory();
-	}
-
-	char file2[PLATFORM_MAX_PATH];
-	strcopy(file2, PLATFORM_MAX_PATH, file);
-
-	int len = strlen(file2);
-	ReplaceString(file2, len, "\\", "/");
-	for (int ch=0; ch<len; ch++){
-		file2[ch] = CharToLower(file2[ch]);
-	}
-
-	char m_szPath[PLATFORM_MAX_PATH];
-	if (!g_hCustomFiles.GetString(file2, m_szPath, sizeof(m_szPath))){
-		return FileExists(file2);
-	}
-	return FileExists(m_szPath);
-}
-
-/*--------------------------------------------------------->*/
 //From SMLIB, lets draw happy little boxes together.
 /*--------------------------------------------------------->*/
 
@@ -3267,7 +2555,7 @@ stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3], bool half = 
     mins[2] += origin[2];
     maxs[0] += origin[0];
     maxs[1] += origin[1];
-    
+
     if (!half) {
         maxs[2] += origin[2];
     } else {
@@ -3308,10 +2596,10 @@ stock void SetHudTextParamsViaConVars(ConVar& position, ConVar& holdtime, ConVar
 }
 
 /*--------------------------------------------------------->*/
-//TF2 force look stocks by Pelipoika
+//Force look stocks by Pelipoika
 /*--------------------------------------------------------->*/
 
-stock void TF2_LookAtPos(int client, float flGoal[3], float flAimSpeed = 0.05)
+stock void LookAtPosition(int client, float flGoal[3], float flAimSpeed = 0.05)
 {
     float flPos[3];
     GetClientEyePosition(client, flPos);
@@ -3413,6 +2701,130 @@ methodmap SMTimer < Handle
 	{
 		TriggerTimer(this, reset);
 	}
+/*
+	public void PushString(const char[] id, const char[] data)
+	{
+		this.AddItem(id, data, ITEMDRAW_IGNORE);
+	}
+
+	public void PushCell(const char[] id, int data)
+	{
+		char DataString[64];
+		IntToString(data, DataString, sizeof(DataString));
+		this.AddItem(id, DataString, ITEMDRAW_IGNORE);
+	}
+
+	public void PushFloat(const char[] id, float data)
+	{
+		char DataString[64];
+		FloatToString(data, DataString, sizeof(DataString));
+		this.AddItem(id, DataString, ITEMDRAW_IGNORE);
+	}
+
+	public void PushBool(const char[] id, bool data)
+	{
+		char DataString[64];
+		IntToString(view_as<int>(data), DataString, sizeof(DataString));
+		this.AddItem(id, DataString, ITEMDRAW_IGNORE);
+	}
+
+	public bool GetString(const char[] id, char[] buffer, int size)
+	{
+		char info[64]; char data[64];
+
+		for (int i = 0; i < this.ItemCount; i++)
+		{
+			if (this.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+			{
+				if (StrEqual(info, id))
+				{
+					strcopy(Buffer, size, data);
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public int GetCell(const char[] id, int DefaultValue = 0)
+	{
+		char info[64]; char data[64];
+
+		for (int i = 0; i < this.ItemCount; i++)
+		{
+			if (this.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+			{
+				if (StrEqual(info, id))
+				{
+					return StringToInt(data);
+				}
+			}
+		}
+
+		return DefaultValue;
+	}
+
+	public float GetFloat(const char[] id, float DefaultValue = 0.0)
+	{
+		char info[64]; char data[64];
+
+		for (int i = 0; i < this.ItemCount; i++)
+		{
+			if (this.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+			{
+				if (StrEqual(info, id))
+				{
+					return StringToFloat(data);
+				}
+			}
+		}
+
+		return DefaultValue;
+	}
+
+	public bool GetBool(const char[] id, bool DefaultValue = false)
+	{
+		char info[64]; char data[64];
+
+		for (int i = 0; i < this.ItemCount; i++)
+		{
+			if (this.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+			{
+				if (StrEqual(info, id))
+				{
+					return view_as<bool>(StringToInt(data));
+				}
+			}
+		}
+
+		return DefaultValue;
+	}
+
+	public float Copy(Menu dest, const char[] id)
+	{
+		char info[64]; char data[64];
+
+		for (int i = 0; i < this.ItemCount; i++)
+		{
+			if (this.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+			{
+				if (StrEqual(info, id))
+				{
+					dest.AddItem(id, data, ITEMDRAW_IGNORE);
+				}
+			}
+		}
+	}
+
+	public bool AddItemFormat(const char[] info, int style = ITEMDRAW_DEFAULT, const char[] format, any ...)
+	{
+		char display[128];
+		VFormat(display, sizeof(display), format, 4);
+
+		return this.AddItem(info, display, style);
+	}
+*/
 }
 
 methodmap SMDataTimer < SMTimer
@@ -3581,9 +2993,35 @@ methodmap CookieIterator < Handle
 }
 #endif
 
-/*--------------------------------------------------------->*/
-//Spell stocks for TF2. (by Tylerst)
-/*--------------------------------------------------------->*/
+/*--------------------------------------------------------->
+.-----.                      .---.         .-.                          .---.
+`-. .-'                      : .--'       .' `.                         `--. :
+  : : .--.  .--.  ,-.,-.,-.  : `;.--. .--.`. .'.--.  .--.  .--.  .--.     ,','
+  : :' '_.'' .; ; : ,. ,. :  : :' .; :: ..': : : ..'' '_.'`._-.'`._-.'  .'.'_
+  :_;`.__.'`.__,_;:_;:_;:_;  :_;`.__.':_;  :_; :_;  `.__.'`.__.'`.__.'  :____;
+
+- Team Fortress 2
+- TF2
+
+- Credits: Pelipoika, 11530, Chdata, Tylerst, aIM
+--------------------------------------------------------->*/
+
+#define TF2_MAX_CLASSES 10
+
+#define PICKUP_TYPE_HEALTHKIT	1
+#define PICKUP_TYPE_AMMOBOX		2
+
+#define PICKUP_SMALL	0
+#define PICKUP_MEDIUM	1
+#define PICKUP_FULL		2
+
+enum TFClassRole
+{
+	TFRole_Unknown,
+	TFRole_Offense,
+	TFRole_Defense,
+	TFRole_Support
+}
 
 #define SPELL_FIREBALL			0
 #define SPELL_BALLOBATS			1
@@ -3598,6 +3036,712 @@ methodmap CookieIterator < Handle
 #define SPELL_METEORSHOWER		10
 #define SPELL_SUMMONSKELETONS	11
 
+#define POWERUP_STRENGTH	0
+#define POWERUP_RESIST		1
+#define POWERUP_VAMPIRE		2
+#define POWERUP_WARLOCK		3
+#define POWERUP_HASTE		4
+#define POWERUP_REGEN		5
+#define POWERUP_PRECISION	6
+#define POWERUP_AGILITY		7
+#define POWERUP_KNOCKOUT	8
+#define POWERUP_KING		9
+#define POWERUP_PLAGUE		10
+#define POWERUP_SUPERNOVA	11
+
+/**
+*	Create a glow entity and attach it to a client.
+*	This seems to have an unintended side effect for animations for models for some reason.
+*
+*	name	Name to give the entity.
+*	target	Target entity index to glow.
+*	colors	Color of the glow.
+*
+*	return	Entity index of the glow.
+**/
+stock int TF2_CreateGlow(const char[] name, int target, int color[4] = {255, 255, 255, 255})
+{
+	char sClassname[64];
+	GetEntityClassname(target, sClassname, sizeof(sClassname));
+
+	char sTarget[128];
+	Format(sTarget, sizeof(sTarget), "%s%i", sClassname, target);
+	DispatchKeyValue(target, "targetname", sTarget);
+
+	int glow = CreateEntityByName("tf_glow");
+
+	if (IsValidEntity(glow))
+	{
+		char sGlow[64];
+		Format(sGlow, sizeof(sGlow), "%i %i %i %i", color[0], color[1], color[2], color[3]);
+
+		DispatchKeyValue(glow, "targetname", name);
+		DispatchKeyValue(glow, "target", sTarget);
+		DispatchKeyValue(glow, "Mode", "1");
+		DispatchKeyValue(glow, "GlowColor", sGlow);
+		DispatchSpawn(glow);
+
+		//SetVariantString("!activator");
+		//AcceptEntityInput(glow, "SetParent", target, glow, 0);
+
+		SetParent(target, glow);
+
+		AcceptEntityInput(glow, "Enable");
+	}
+
+	return glow;
+}
+
+/**
+*	Retrieves the name of the class a client is playing as.
+*
+*	client	Client index.
+*	name	String buffer to save it to.
+*	size	Size of the buffer.
+*	capitalize	Whether to capitalize the first letter or not.
+*
+*	return	void
+**/
+stock void TF2_GetClientClassName(int client, char[] buffer, int size, bool capitalize = false)
+{
+	TF2_GetClassName(TF2_GetPlayerClass(client), buffer, size, capitalize);
+}
+
+/**
+*	Retrieves the name of a certain class based on the type given.
+*
+*	class	Class.
+*	name	String buffer to save it to.
+*	size	Size of the buffer.
+*	capitalize	Whether to capitalize the first letter or not.
+*
+*	return	void
+**/
+stock void TF2_GetClassName(TFClassType class, char[] name, int size, bool capitalize = false)
+{
+	switch (class)
+	{
+		case TFClass_Unknown: strcopy(name, size, "unknown");
+		case TFClass_Scout: strcopy(name, size, "scout");
+		case TFClass_Sniper: strcopy(name, size, "sniper");
+		case TFClass_Soldier: strcopy(name, size, "soldier");
+		case TFClass_DemoMan: strcopy(name, size, "demoman");
+		case TFClass_Medic: strcopy(name, size, "medic");
+		case TFClass_Heavy: strcopy(name, size, "heavy");
+		case TFClass_Pyro: strcopy(name, size, "pyro");
+		case TFClass_Spy: strcopy(name, size, "spy");
+		case TFClass_Engineer: strcopy(name, size, "engineer");
+	}
+
+	if (capitalize) name[0] = CharToUpper(name[0]);
+}
+
+/**
+*	Strips a player to melee only and equips their melee.
+*
+*	client	Client index.
+*
+*	return	void
+**/
+stock void TF2_StripToMelee(int client)
+{
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Primary);
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Secondary);
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Grenade);
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Building);
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_PDA);
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Item1);
+	TF2_RemoveWeaponSlot(client, TFWeaponSlot_Item2);
+
+	int melee;
+	if ((melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee)) != -1 && IsValidEntity(melee))
+	{
+		EquipPlayerWeapon(client, melee);
+	}
+}
+
+/**
+*	Sets the color of a player including all of their weapons and cosmetics.
+*
+*	client	Client index.
+*	red		Amount of Red. (0-255)
+*	green	Amount of Green. (0-255)
+*	blue	Amount of Blue. (0-255)
+*	alpha	Amount of Alpha. (0-255)
+*
+*	return	void
+**/
+stock void TF2_SetPlayerColor(int client, int red, int green, int blue, int alpha)
+{
+	SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+	SetEntityRenderColor(client, red, green, blue, alpha);
+
+	int entity = INVALID_ENT_INDEX;
+	while((entity = FindEntityByClassname(entity, "tf_weapon_*")) != INVALID_ENT_INDEX)
+	{
+		if ((HasEntProp(entity, Prop_Send, "m_hOwner") && GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client) ||
+		 (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client))
+		{
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+			SetEntityRenderColor(entity, red, green, blue, alpha);
+		}
+	}
+
+	entity = INVALID_ENT_INDEX;
+	while((entity = FindEntityByClassname(entity, "tf_wearable_*")) != INVALID_ENT_INDEX)
+	{
+		if ((HasEntProp(entity, Prop_Send, "m_hOwner") && GetEntPropEnt(entity, Prop_Send, "m_hOwner") == client) ||
+		 (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client))
+		{
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+			SetEntityRenderColor(entity, red, green, blue, alpha);
+		}
+	}
+}
+
+/**
+*	Force the round to win and give the win to a certain team or draw.
+*	You should code a boolean in your plugin to automatically pass to this callback so that it doesn't create the entity if the map isn't running.
+*
+*	team	Team index to have the win. (unassigned = draw)
+*	map_valid	Passive check to use in your plugins to make sure the map is running.
+*
+*	return	void
+**/
+stock void TF2_ForceRoundWin(TFTeam team, bool map_valid = true)
+{
+	int entity = FindEntityByClassname(INVALID_ENT_INDEX, "team_control_point_master");
+
+	if (!IsValidEntity(entity))
+	{
+		entity = CreateEntityByName("team_control_point_master");
+		DispatchSpawn(entity);
+		AcceptEntityInput(entity, "Enable");
+	}
+
+	SetVariantInt(view_as<int>(team));
+	AcceptEntityInput(entity, "SetWinner");
+}
+
+/**
+*	Retrieves the current uber level of a Medic.
+*
+*	client	Client index.
+*
+*	return	Amount of current uber.
+**/
+stock float TF2_GetUberLevel(int client)
+{
+	int weapon = GetPlayerWeaponSlot(client, 1);
+	return IsValidEntity(weapon) ? GetEntPropFloat(weapon, Prop_Send, "m_flChargeLevel") : -1.0;
+}
+
+/**
+*	Set the uber level on a Medic.
+*
+*	client	Client index.
+*	amount	Amount of uber to set.
+*
+*	return	void
+**/
+stock void TF2_SetUberLevel(int client, float amount)
+{
+	int weapon = GetPlayerWeaponSlot(client, 1);
+
+	if (IsValidEntity(weapon))
+	{
+		SetEntPropFloat(weapon, Prop_Send, "m_flChargeLevel", amount);
+	}
+}
+
+/**
+*	Add uber level to a Medic.
+*
+*	client	Client index.
+*	amount	Amount of uber to add.
+*
+*	return	void
+**/
+stock void TF2_AddUberLevel(int client, float amount)
+{
+	TF2_SetUberLevel(client, (TF2_GetUberLevel(client) + amount));
+}
+
+/**
+*	Retrieves the current healing target of a Medic.
+*
+*	client	Client index.
+*
+*	return	Client index the Medic is healing.
+**/
+stock int TF2_GetHealingTarget(int client)
+{
+	int weapon = GetPlayerWeaponSlot(client, 1);
+
+	if (!IsValidEntity(weapon) || weapon != GetActiveWeapon(client))
+	{
+		return -1;
+	}
+
+	char sClassname[32];
+	GetEdictClassname(weapon, sClassname, sizeof(sClassname));
+
+	if (StrContains(sClassname, "tf_weapon_med") == -1)
+	{
+		return -1;
+	}
+
+	return GetEntProp(weapon, Prop_Send, "m_bHealing") ? GetEntPropEnt(weapon, Prop_Send, "m_hHealingTarget") : -1;
+}
+
+/**
+*	Simple check if the mode is arena or not.
+*
+*	return	Is Arena or not.
+**/
+stock bool IsArenaActive()
+{
+	return FindEntityByClassname(-1, "tf_logic_arena") != -1;
+}
+
+/**
+*	Simple stock to create an explosion.
+*
+*	origin	Vector coordinate to spawn the explosion.
+*	damage	Damage to cause in the area.
+*	radius	Radius of the blast damage.
+*	magnitude	Magnitude to push players away from the point.
+*	attacker	Attacker index if there is one. (0 = world)
+*	inflictor	Inflictor index if there is one. (0 = world)
+*	team	Team to cause damage to. (0 = everyone)
+*	particle	Particle effect to use. (default is cinefx_goldrush which is fairly large)
+*	sound	Sound to play for the explosion.
+*	amplitude	Amplitude for the shaking effect.
+*	frequency	Frequency for the shaking effect.
+*	duration	Duration for the shaking effect.
+*
+*	return	void
+**/
+stock void TF2_CreateExplosion(float origin[3], float damage = 99999.0, float radius = 250.0, float magnitude = 500.0, int attacker = 0, int inflictor = 0, int team = 0, const char[] particle = "cinefx_goldrush", const char[] sound = "items/cart_explode.wav", float amplitude = 50.0, float frequency = 150.0, float duration = 3.0)
+{
+	CreateParticle(particle, 10.0, origin);
+	EmitSoundToAllSafe(sound);
+	ScreenShakeAll(SHAKE_START, amplitude, frequency, duration);
+	DamageArea(origin, radius, damage, attacker, inflictor, team, DMG_BLAST);
+	PushAllPlayersFromPoint(origin, magnitude, radius, team);
+}
+
+/**
+*	A simple stock to remove every wearable on a client.
+*
+*	client	Client index.
+*
+*	return	void
+**/
+stock void TF2_RemoveAllWearables(int client)
+{
+	int entity;
+	while ((entity = FindEntityByClassname(entity, "tf_wearable*")) != -1)
+	{
+		if (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+		{
+			TF2_RemoveWearable(client, entity);
+		}
+	}
+}
+
+/**
+*	Sets the size of a player and scales accordingly.
+*	https://forums.alliedmods.net/showthread.php?t=193255
+*
+*	client	Client index.
+*	amount	Scale to set to.
+*
+*	return	void
+**/
+stock void TF2_ResizePlayer(int client, float amount)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flModelScale", amount);
+	SetEntPropFloat(client, Prop_Send, "m_flStepSize", 18.0 * amount);
+}
+
+/**
+*	Spawn an item that players can pickup.
+*
+*	origin	Vector to spawn the pickup at.
+*	type	Type of pickup.
+*	size	Size of the pickup.
+*	team	Which team it belongs to.
+*	persistent	Whether the pickup is persistent. (will list until the round ends, map changes, etc)
+*	z_offset	How far above the origin to actually spawn the pickup.
+*	model	Custom model for the pickup. (can be blank)
+*
+*	return	Entity index of the pickup.
+**/
+stock int TF2_SpawnPickup(float origin[3], int type = PICKUP_TYPE_HEALTHKIT, int size = PICKUP_FULL, int team = 0, bool persistent = false, float z_offset = 5.0, const char[] model = "")
+{
+	char sTeam[6];
+	IntToString(team, sTeam, sizeof(sTeam));
+
+	char sEntity[64];
+
+	switch (type)
+	{
+		case PICKUP_TYPE_HEALTHKIT: strcopy(sEntity, sizeof(sEntity), "item_healthkit_");
+		case PICKUP_TYPE_AMMOBOX: strcopy(sEntity, sizeof(sEntity), "item_ammopack_");
+	}
+
+	switch (size)
+	{
+		case PICKUP_SMALL: StrCat(sEntity, sizeof(sEntity), "small");
+		case PICKUP_MEDIUM: StrCat(sEntity, sizeof(sEntity), "medium");
+		case PICKUP_FULL: StrCat(sEntity, sizeof(sEntity), "full");
+	}
+
+	int entity = CreateEntityByName(sEntity);
+
+	if (IsValidEntity(entity))
+	{
+		origin[2] += z_offset;
+		DispatchKeyValueVector(entity, "origin", origin);
+		DispatchKeyValue(entity, "TeamNum", sTeam);
+		if (!persistent) DispatchKeyValue(entity, "OnPlayerTouch", "!self,Kill,,0,-1");	//Make sure it's killed after 1st pickup.
+		if (strlen(model) > 0) DispatchKeyValue(entity, "powerup_model", model);
+		DispatchSpawn(entity);
+
+		EmitSoundToAll("items/spawn_item.wav", entity, _, _, _, 0.75);
+	}
+
+	return entity;
+}
+
+/**
+*	Retrieves the clients current class role.
+*
+*	client	Client index.
+*
+*	return	Role for the client.
+**/
+stock TFClassRole TF2_GetClientRole(int client)
+{
+	return TF2_GetClassRole(TF2_GetPlayerClass(client));
+}
+
+/**
+*	Retrieves the class role from the class it's given.
+*
+*	class	Class index.
+*
+*	return	Role for the class.
+**/
+stock TFClassRole TF2_GetClassRole(TFClassType class)
+{
+	switch (class)
+	{
+		case TFClass_Unknown: return TFRole_Unknown;
+		case TFClass_Scout: return TFRole_Offense;
+		case TFClass_Sniper: return TFRole_Support;
+		case TFClass_Soldier: return TFRole_Offense;
+		case TFClass_DemoMan: return TFRole_Defense;
+		case TFClass_Medic: return TFRole_Support;
+		case TFClass_Heavy: return TFRole_Defense;
+		case TFClass_Pyro: return TFRole_Offense;
+		case TFClass_Spy: return TFRole_Support;
+		case TFClass_Engineer: return TFRole_Defense;
+		default: return TFRole_Unknown;
+	}
+}
+
+/**
+*	Sets a players health while applying TF2 health logic.
+*
+*	client	Client index.
+*	amount	Amount of health to set.
+*	overheal	Overheal amount to offset.
+*	additive	Whether to account for overheal.
+*	event	Fire the health gain event.
+*
+*	return	void
+**/
+stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool event = true)
+{
+	int iHealth = GetClientHealth(client);
+	int iNewHealth = amount;
+	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
+
+	if (iHealth < iMax)
+	{
+		iNewHealth = ClampCell(iNewHealth, 1, iMax);
+
+		if (event)
+		{
+			TF2_ShowHealthGain(client, iNewHealth - iHealth);
+		}
+
+		SetEntityHealth(client, iNewHealth);
+	}
+}
+
+/**
+*	Add to a players health while applying TF2 health logic.
+*
+*	client	Client index.
+*	amount	Amount of health to add.
+*	overheal	Overheal amount to offset.
+*	additive	Whether to account for overheal.
+*	event	Fire the health gain event.
+*
+*	return	void
+**/
+stock void TF2_AddPlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool event = true)
+{
+	int iHealth = GetClientHealth(client);
+	int iNewHealth = iHealth + amount;
+	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
+
+	if (iHealth < iMax)
+	{
+		iNewHealth = ClampCell(iNewHealth, 1, iMax);
+
+		if (event)
+		{
+			TF2_ShowHealthGain(client, iNewHealth - iHealth);
+		}
+
+		SetEntityHealth(client, iNewHealth);
+	}
+}
+
+/**
+*	Fires an event in TF2 to apply proper logic like for health meter sprites.
+*
+*	client	Client index.
+*	health	Health to pass.
+*	healer	Healer index.
+*
+*	return	void
+**/
+stock void TF2_ShowHealthGain(int client, int health, int healer = -1)
+{
+	int iUserId = GetClientUserId(client);
+
+	Event hEvent = CreateEvent("player_healed", true);
+	hEvent.SetBool("sourcemod", true);
+	hEvent.SetInt("patient", iUserId);
+	hEvent.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : iUserId);
+	hEvent.SetInt("amount", health);
+	hEvent.Fire();
+
+	hEvent = CreateEvent("player_healonhit", true);
+	hEvent.SetBool("sourcemod", true);
+	hEvent.SetInt("amount", health);
+	hEvent.SetInt("entindex", client);
+	hEvent.Fire();
+}
+
+/**
+*	Retrieves the maximum health for a client in TF2.
+*
+*	client	Client index.
+*
+*	return	Max health of the client.
+**/
+stock int TF2_GetMaxHealth(int client)
+{
+	int maxhealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
+	return ((maxhealth == -1 || maxhealth == 80896) ? GetEntProp(client, Prop_Data, "m_iMaxHealth") : maxhealth);
+}
+
+/**
+*	Retrieves the maximum overheal for a client in TF2.
+*	Quick-Fix would be 1.25.
+*
+*	client	Client index.
+*
+*	return	Max overheal of the client.
+**/
+stock int TF2_GetMaxOverHeal(int client, float overheal = 1.5)
+{
+	return RoundFloat(float(TF2_GetMaxHealth(client)) * overheal);
+}
+
+/**
+*	Retrieves the current overheal for a client in TF2.
+*
+*	client	Client index.
+*
+*	return	Current overheal of the client.
+**/
+stock int TF2_GetOverHeal(int client, float overheal = 1.5)
+{
+	return RoundFloat(float(TF2_GetMaxHealth(client)) * (overheal - 1.0));
+}
+
+/**
+*	Retrieves whether the client is ready to overheal in TF2.
+*
+*	client	Client index.
+*	add		Buffer to add.
+*
+*	return	Whether they're ready to overheal or not.
+**/
+stock bool TF2_ReadyToOverheal(int client, int add = 0)
+{
+	return (add > 0) ? ((TF2_GetMaxHealth(client) - GetClientHealth(client)) < add) : (GetClientHealth(client) >= TF2_GetMaxHealth(client));
+}
+
+/**
+*	A simple stock to allow for attributes to be applied to weapons on a client.
+*
+*	client	Client index.
+*	weapon	Entity index for the weapon. (-1 = all weapons)
+*	attrib	Attribute to apply.
+*	value	Value for the attribute.
+*	invert	Whether to invert the value for inverted valued attributes.
+*
+*	return	void
+**/
+stock void TF2Attrib_SetByName_Weapons(int client, int weapon = -1, char[] attrib, float value, bool invert = false)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_SetByName(weapon, attrib, value);
+		return;
+	}
+
+	if (invert)
+	{
+		value = 1.0 + value;
+	}
+	else
+	{
+		value = 1.0 - value;
+	}
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+		{
+			TF2Attrib_SetByName(weapon2, attrib, value);
+		}
+	}
+}
+
+/**
+*	A simple stock to remove attributes from the weapons on a client.
+*
+*	client	Client index.
+*	weapon	Entity index for the weapon. (-1 = all weapons)
+*	attrib	Attribute to apply.
+*
+*	return	void
+**/
+stock void TF2Attrib_RemoveByName_Weapons(int client, int weapon = -1, char[] attrib)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_RemoveByName(weapon, attrib);
+		return;
+	}
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+		{
+			TF2Attrib_RemoveByName(weapon2, attrib);
+		}
+	}
+}
+
+/**
+*	A simple stock to apply a bonus movement speed effect to the client.
+*
+*	client	Client index.
+*	value	Amount of movement speed to apply.
+*
+*	return	The original speed they were at to cache later if need be.
+**/
+stock float TF2Attrib_ApplyMoveSpeedBonus(int client, float value)
+{
+	Address addr = TF2Attrib_GetByName(client, "move speed bonus");
+	float old;
+
+	if (addr != Address_Null)
+	{
+		old = TF2Attrib_GetValue(addr);
+	}
+
+	TF2Attrib_SetByName(client, "move speed bonus", 1.0 + value);
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+
+	return old;
+}
+
+/**
+*	A simple stock to remove a bonus movement speed effect from the client.
+*
+*	client	Client index.
+*
+*	return	void
+**/
+stock void TF2Attrib_RemoveMoveSpeedBonus(int client)
+{
+	TF2Attrib_RemoveByName(client, "move speed bonus");
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+}
+
+/**
+*	A simple stock to apply a penalty movement speed effect to the client.
+*
+*	client	Client index.
+*	value	Amount of movement speed to apply.
+*
+*	return	The original speed they were at to cache later if need be.
+**/
+stock float TF2Attrib_ApplyMoveSpeedPenalty(int client, float value)
+{
+	Address addr = TF2Attrib_GetByName(client, "move speed bonus");
+	float old;
+
+	if (addr != Address_Null)
+	{
+		old = TF2Attrib_GetValue(addr);
+	}
+
+	TF2Attrib_SetByName(client, "move speed penalty", 1.0 - value);
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+
+	return old;
+}
+
+/**
+*	A simple stock to remove a penalty movement speed effect from the client.
+*
+*	client	Client index.
+*
+*	return	void
+**/
+stock void TF2Attrib_RemoveMoveSpeedPenalty(int client)
+{
+	TF2Attrib_RemoveByName(client, "move speed penalty");
+	TF2_AddCondition(client, TFCond_SpeedBuffAlly, 0.0);
+}
+
+/**
+*	Sets the spell plus charges on a client in TF2.
+*
+*	client	Client index.
+*	spell	Spell index.
+*	uses	Amount of uses to apply.
+*
+*	return	void
+**/
 stock void TF2_SetSpell(int client, int spell, int uses)
 {
 	int entity = TF2_GetSpellBook(client);
@@ -3609,6 +3753,14 @@ stock void TF2_SetSpell(int client, int spell, int uses)
 	}
 }
 
+/**
+*	Sets the spell uses for their current spell on a client in TF2.
+*
+*	client	Client index.
+*	uses	Amount of uses to apply.
+*
+*	return	void
+**/
 stock void TF2_SetSpellUses(int client, int uses)
 {
 	int entity = TF2_GetSpellBook(client);
@@ -3619,7 +3771,14 @@ stock void TF2_SetSpellUses(int client, int uses)
 	}
 }
 
-stock void TF2_GetSpell(int client)
+/**
+*	Retrieves the current spell on a client in TF2.
+*
+*	client	Client index.
+*
+*	return	Spell index.
+**/
+stock int TF2_GetSpell(int client)
 {
 	int entity = TF2_GetSpellBook(client);
 
@@ -3631,7 +3790,14 @@ stock void TF2_GetSpell(int client)
 	return INVALID_ENT_INDEX;
 }
 
-stock void TF2_GetSpellUses(int client)
+/**
+*	Retrieves the currently available uses of their current spell on a client in TF2.
+*
+*	client	Client index.
+*
+*	return	Amount of uses.
+**/
+stock int TF2_GetSpellUses(int client)
 {
 	int entity = TF2_GetSpellBook(client);
 
@@ -3641,6 +3807,13 @@ stock void TF2_GetSpellUses(int client)
 	}
 }
 
+/**
+*	Retrieves the entity index for the clients spellbook.
+*
+*	client	Client index.
+*
+*	return	Spellbook index.
+**/
 stock int TF2_GetSpellBook(int client)
 {
 	int entity = -1;
@@ -3655,53 +3828,63 @@ stock int TF2_GetSpellBook(int client)
 	return -1;
 }
 
+/**
+*	A simple stock to check whether a spell is rare or not.
+*
+*	spell	Spell index.
+*
+*	return	Whether the spell is considered rare or not.
+**/
 stock bool TF2_SpellIsRare(int spell)
 {
 	switch(spell)
 	{
 		case SPELL_TELSABOLT, SPELL_MINIFY, SPELL_SUMMONMONOCULUS, SPELL_METEORSHOWER, SPELL_SUMMONSKELETONS: return true;
+		default: return false;
 	}
-
-	return false;
 }
 
-stock void TF2_GetSpellName(int spell, char[] buffer, int size)
+//TODO: Update it so that it properly capitalizes every word properly.
+/**
+*	Retrieves the name of a certain spell.
+*
+*	spell	Spell index.
+*	buffer	Buffer to store the name into.
+*	size	Size of the buffer.
+*	capitalize	Whether to capitalize the name.
+*
+*	return	void
+**/
+stock void TF2_GetSpellName(int spell, char[] buffer, int size, bool capitalize = true)
 {
 	switch(spell)
 	{
-		case SPELL_FIREBALL: strcopy(buffer, size, "Fireball");
-		case SPELL_BALLOBATS: strcopy(buffer, size, "Ball O' Bats");
-		case SPELL_HEALINGAURA: strcopy(buffer, size, "Healing Aura");
-		case SPELL_PUMPKINMIRV: strcopy(buffer, size, "Pumpkin MIRV");
-		case SPELL_SUPERJUMP: strcopy(buffer, size, "Superjump");
-		case SPELL_INVISIBILITY: strcopy(buffer, size, "Invisibility");
-		case SPELL_TELEPORT: strcopy(buffer, size, "Teleport");
-		case SPELL_TELSABOLT: strcopy(buffer, size, "Tesla Bolt");
-		case SPELL_MINIFY: strcopy(buffer, size, "Minify");
-		case SPELL_SUMMONMONOCULUS: strcopy(buffer, size, "Summon Monoculus");
-		case SPELL_METEORSHOWER: strcopy(buffer, size, "Meteor Shower");
-		case SPELL_SUMMONSKELETONS: strcopy(buffer, size, "Summon Skeletons");
-		default: strcopy(buffer, size, "None");
+		case SPELL_FIREBALL: strcopy(buffer, size, "fireball");
+		case SPELL_BALLOBATS: strcopy(buffer, size, "ball O' Bats");
+		case SPELL_HEALINGAURA: strcopy(buffer, size, "healing Aura");
+		case SPELL_PUMPKINMIRV: strcopy(buffer, size, "pumpkin MIRV");
+		case SPELL_SUPERJUMP: strcopy(buffer, size, "superjump");
+		case SPELL_INVISIBILITY: strcopy(buffer, size, "invisibility");
+		case SPELL_TELEPORT: strcopy(buffer, size, "teleport");
+		case SPELL_TELSABOLT: strcopy(buffer, size, "tesla Bolt");
+		case SPELL_MINIFY: strcopy(buffer, size, "minify");
+		case SPELL_SUMMONMONOCULUS: strcopy(buffer, size, "summon Monoculus");
+		case SPELL_METEORSHOWER: strcopy(buffer, size, "meteor Shower");
+		case SPELL_SUMMONSKELETONS: strcopy(buffer, size, "summon Skeletons");
+		default: strcopy(buffer, size, "none");
 	}
+
+	if (capitalize) name[0] = CharToUpper(name[0]);
 }
 
-/*--------------------------------------------------------->*/
-//Mannpower Powerups (by Shaders Allen, Configured by aIM)
-/*--------------------------------------------------------->*/
-
-#define POWERUP_STRENGTH	0
-#define POWERUP_RESIST		1
-#define POWERUP_VAMPIRE		2
-#define POWERUP_WARLOCK		3
-#define POWERUP_HASTE		4
-#define POWERUP_REGEN		5
-#define POWERUP_PRECISION	6
-#define POWERUP_AGILITY		7
-#define POWERUP_KNOCKOUT	8
-#define POWERUP_KING		9
-#define POWERUP_PLAGUE		10
-#define POWERUP_SUPERNOVA	11
-
+/**
+*	Sets the current powerup on a client.
+*
+*	client	Client index.
+*	powerup	Powerup to apply.
+*
+*	return	void
+**/
 stock void TF2_SetPowerup(int client, int powerup)
 {
 	switch (powerup)
@@ -3770,6 +3953,433 @@ stock void TF2_SetPowerup(int client, int powerup)
 
 	//This has to be here.
 	TF2_AddCondition(client, TFCond_HasRune);
+}
+
+/**
+*	Retrieves the default weapon class for a client based on slot.
+*
+*	class	Class index.
+*	slot	Slot to retrieve.
+*	buffer	Buffer to store the classname in.
+*	size	Size of the buffer.
+*
+*	return	Whether it found a default or not based on the slot.
+**/
+stock bool TF2_GetDefaultWeaponClass(TFClassType class, int slot, char[] buffer, int size)
+{
+	bool found;
+
+	switch(class)
+	{
+		case TFClass_Scout:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_scattergun"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_pistol_scout"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_bat"), found = true;
+			}
+		}
+		case TFClass_Sniper:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_sniperrifle"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_smg"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_club"), found = true;
+			}
+		}
+		case TFClass_Soldier:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_rocketlauncher"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_shotgun_soldier"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_shovel"), found = true;
+			}
+		}
+		case TFClass_DemoMan:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_grenadelauncher"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_pipebomblauncher"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_bottle"), found = true;
+			}
+		}
+		case TFClass_Medic:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_syringegun_medic"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_medigun"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_bonesaw"), found = true;
+			}
+		}
+		case TFClass_Heavy:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_minigun"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_shotgun_hwg"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_fists"), found = true;
+			}
+		}
+		case TFClass_Pyro:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_flamethrower"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_shotgun_pyro"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_fireaxe"), found = true;
+			}
+		}
+		case TFClass_Spy:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_revolver"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_builder"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_knife"), found = true;
+				case 4: Format(buffer, size, "tf_weapon_invis"), found = true;
+			}
+		}
+		case TFClass_Engineer:
+		{
+			switch(slot)
+			{
+				case 0: Format(buffer, size, "tf_weapon_shotgun_primary"), found = true;
+				case 1: Format(buffer, size, "tf_weapon_pistol"), found = true;
+				case 2: Format(buffer, size, "tf_weapon_wrench"), found = true;
+				case 3: Format(buffer, size, "tf_weapon_pda_engineer_build"), found = true;
+			}
+		}
+	}
+
+	return found;
+}
+
+/**
+*	Retrieves the default weapon id for a client based on slot.
+*
+*	class	Class index.
+*	slot	Slot to retrieve.
+*
+*	return	The id of the weapon slot.
+**/
+stock int TF2_GetDefaultWeaponID(TFClassType class, int slot)
+{
+	switch(class)
+	{
+		case TFClass_Scout:
+		{
+			switch(slot)
+			{
+				case 0: return 13;
+				case 1: return 23;
+				case 2: return 0;
+			}
+		}
+		case TFClass_Sniper:
+		{
+			switch(slot)
+			{
+				case 0: return 14;
+				case 1: return 16;
+				case 2: return 3;
+			}
+		}
+		case TFClass_Soldier:
+		{
+			switch(slot)
+			{
+				case 0: return 18;
+				case 1: return 10;
+				case 2: return 6;
+			}
+		}
+		case TFClass_DemoMan:
+		{
+			switch(slot)
+			{
+				case 0: return 19;
+				case 1: return 20;
+				case 2: return 1;
+			}
+		}
+		case TFClass_Medic:
+		{
+			switch(slot)
+			{
+				case 0: return 17;
+				case 1: return 29;
+				case 2: return 8;
+			}
+		}
+		case TFClass_Heavy:
+		{
+			switch(slot)
+			{
+				case 0: return 15;
+				case 1: return 11;
+				case 2: return 5;
+			}
+		}
+		case TFClass_Pyro:
+		{
+			switch(slot)
+			{
+				case 0: return 21;
+				case 1: return 12;
+				case 2: return 2;
+			}
+		}
+		case TFClass_Spy:
+		{
+			switch(slot)
+			{
+				case 0: return 24;
+				case 1: return 735;
+				case 2: return 4;
+				case 4: return 30;
+			}
+		}
+		case TFClass_Engineer:
+		{
+			switch(slot)
+			{
+				case 0: return 9;
+				case 1: return 22;
+				case 2: return 7;
+				case 3: return 25;
+			}
+		}
+	}
+
+	return -1;
+}
+
+/*--------------------------------------------------------->
+.--.                    .-.                  .--.  .-.       _ .-.
+: .--'                  .' `.                : .--'.' `.     :_;: :.-.       _
+: :    .--. .-..-.,-.,-.`. .'.--. .--.  _____`. `. `. .'.--. .-.: `'.' .--. :_:
+: :__ ' .; :: :; :: ,. : : :' '_.': ..':_____:_`, : : : : ..': :: . `.' '_.' _
+`.__.'`.__.'`.__.':_;:_; :_;`.__.':_;        `.__.' :_; :_;  :_;:_;:_;`.__.':_;
+.--. .-.        .-.          .-.     .--.  .--. .--.                 _
+: .--': :        : :          : :    : ,. :: .-': .-'                :_;
+: : _ : :   .--. : `-.  .--.  : :    : :: :: `; : `;.--. ,-.,-. .--. .-..-..-. .--.
+: :; :: :_ ' .; :' .; :' .; ; : :_   : :; :: :  : :' '_.': ,. :`._-.': :: `; :' '_.'
+`.__.'`.__;`.__.'`.__.'`.__,_;`.__;  `.__.':_;  :_;`.__.':_;:_;`.__.':_;`.__.'`.__.'
+
+- Counter-Strike: Global Offensive
+- CSGO
+
+- Credits: SM9();
+--------------------------------------------------------->*/
+
+/**
+*	A simple stock to show hud text to all in CSGO.
+*
+*	message	String to set on the hud text.
+*	x	X coordinate to apply.
+*	y	Y coordinate to apply.
+*	channel	Channel to apply.
+*	color	Color to apply.
+*	color2	Color2 to apply.
+*	effect	Effect to apply.
+*	fadein	Fadein amount to apply.
+*	fadeout	Fadeout amount to apply.
+*	fxtime	Fxtime amount to apply.
+*	holdtime	Holdtime amount to apply.
+*	spawnflags	Spawn Flags to apply.
+*
+*	return	void
+**/
+stock void CSGO_ShowHudTextAll(char[] message, char[] x = "-1.0", char[] y = "-1.0", char[] channel = "0", char[] color = "255 255 255", char[] color2 = "0 0 0", char[] effect = "0", char[] fadein = "1.5", char[] fadeout = "0.5", char[] fxtime = "0.5", char[] holdtime = "5.0", char[] spawnflags = "0")
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && !IsFakeClient(i))
+		{
+			CSGO_ShowHudText(i, message, x, y, channel, color, color2, effect, fadein, fadeout, fxtime, holdtime, spawnflags);
+		}
+	}
+}
+
+/**
+*	A simple stock to show hud text to a certain client in CSGO.
+*
+*	client	Client index.
+*	message	String to set on the hud text.
+*	x	X coordinate to apply.
+*	y	Y coordinate to apply.
+*	channel	Channel to apply.
+*	color	Color to apply.
+*	color2	Color2 to apply.
+*	effect	Effect to apply.
+*	fadein	Fadein amount to apply.
+*	fadeout	Fadeout amount to apply.
+*	fxtime	Fxtime amount to apply.
+*	holdtime	Holdtime amount to apply.
+*	spawnflags	Spawn Flags to apply.
+*
+*	return	void
+**/
+stock void CSGO_ShowHudText(int client, char[] message, char[] x = "-1.0", char[] y = "-1.0", char[] channel = "0", char[] color = "255 255 255", char[] color2 = "0 0 0", char[] effect = "0", char[] fadein = "1.5", char[] fadeout = "0.5", char[] fxtime = "0.5", char[] holdtime = "5.0", char[] spawnflags = "0")
+{
+	int entity = CreateEntityByName("game_text");
+
+	if (IsValidEntity(entity))
+	{
+		DispatchKeyValue(entity, "channel", channel);
+		DispatchKeyValue(entity, "color", color);
+		DispatchKeyValue(entity, "color2", color2);
+		DispatchKeyValue(entity, "effect", effect);
+		DispatchKeyValue(entity, "fadein", fadein);
+		DispatchKeyValue(entity, "fadeout", fadeout);
+		DispatchKeyValue(entity, "fxtime", fxtime);
+		DispatchKeyValue(entity, "holdtime", holdtime);
+		DispatchKeyValue(entity, "message", message);
+		DispatchKeyValue(entity, "spawnflags", spawnflags);
+		DispatchKeyValue(entity, "x", x);
+		DispatchKeyValue(entity, "y", y);
+		DispatchSpawn(entity);
+
+		SetVariantString("!activator");
+		AcceptEntityInput(entity, "display", client);
+	}
+}
+
+/**
+*	A simple stock to strip a client to only a knife.
+*
+*	client	Client index.
+*
+*	return	void
+**/
+stock void CSGO_StripToKnife(int client)
+{
+	int weapon;
+	for (int i = 0; i < 4; i++)
+	{
+		if (i == CS_SLOT_KNIFE)
+		{
+			weapon = GetPlayerWeaponSlot(client, i);
+
+			if (IsValidEntity(i))
+			{
+				EquipPlayerWeapon(i, weapon);
+			}
+
+			continue;
+		}
+
+		if ((weapon = GetPlayerWeaponSlot(client, i)) != INVALID_ENT_INDEX)
+		{
+			if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
+			{
+				SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", client);
+			}
+
+			SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+			AcceptEntityInput(weapon, "Kill");
+		}
+	}
+}
+
+/**
+*	Sets a clients current armor value to the specified amount.
+*
+*	client	Client index.
+*	amount	Amount of armor to set.
+*
+*	return	void
+**/
+stock void CSGO_SetClientArmor(int client, int amount = 100)
+{
+	SetEntProp(client, Prop_Data, "m_ArmorValue", amount);
+}
+
+/**
+*	A simple stock to replace a certain weapon slot on a client.
+*
+*	client	Client index.
+*	slot	Slot to set the weapon to.
+*	weapon_string	Entity classname of the weapon to replace the slot with.
+*
+*	return	Entity index of the new weapon.
+**/
+stock int CSGO_ReplaceWeapon(int client, int slot, const char[] weapon_string)
+{
+	int old_weapon = GetPlayerWeaponSlot(client, slot);
+
+	if (IsValidEntity(old_weapon))
+	{
+		if (GetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity") != client)
+		{
+			SetEntPropEnt(old_weapon, Prop_Send, "m_hOwnerEntity", client);
+		}
+
+		CS_DropWeapon(client, old_weapon, false, true);
+		AcceptEntityInput(old_weapon, "Kill");
+	}
+
+	int new_weapon = GivePlayerItem(client, weapon_string);
+
+	if (IsValidEntity(new_weapon))
+	{
+		EquipPlayerWeapon(client, new_weapon);
+	}
+
+	return new_weapon;
+}
+
+/**
+*	Retrieves the current amount of money a client has in CSGO.
+*
+*	client	Client index.
+*
+*	return	Amount of money the client currently has.
+**/
+stock int CSGO_GetMoney(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iAccount");
+}
+
+/**
+*	A simple stock to set money on a client.
+*
+*	client	Client index.
+*	amount	Amount of money to set.
+*
+*	return	void
+**/
+stock void CSGO_SetMoney(int client, int money)
+{
+	SetEntProp(client, Prop_Send, "m_iAccount", ClampCell(money, 0, CSGO_GetMaxMoney()));
+}
+
+/**
+*	A simple stock to add money to a client.
+*
+*	client	Client index.
+*	amount	Amount of money to add.
+*
+*	return	void
+**/
+stock void CSGO_AddMoney(int client, int amount)
+{
+	SetEntProp(client, Prop_Send, "m_iAccount", ClampCell((CSGO_GetMoney(client) + amount), 0, CSGO_GetMaxMoney()));
+}
+
+/**
+*	Retrieves the current maximim amount of money allowed.
+*
+*	return	Maximum amount of money.
+**/
+stock int CSGO_GetMaxMoney()
+{
+	return FindConVar("mp_maxmoney").IntValue;
 }
 
 /*--------------------------------------------------------->*/
