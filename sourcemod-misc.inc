@@ -3448,8 +3448,9 @@ stock TFClassRole TF2_GetClassRole(TFClassType class)
 		case TFClass_Pyro: return TFRole_Offense;
 		case TFClass_Spy: return TFRole_Support;
 		case TFClass_Engineer: return TFRole_Defense;
-		default: return TFRole_Unknown;
 	}
+	
+	return TFRole_Unknown;
 }
 
 /**
@@ -4157,6 +4158,80 @@ stock int TF2_GetDefaultWeaponID(TFClassType class, int slot)
 	}
 
 	return -1;
+}
+
+/**
+*	Retrieves a certain healer for the client by index.
+*	Credits: Pelipoika
+*
+*	client	Client index.
+*	index	Slot for the healer inside of 'm_nNumHealers' Netprop.
+*
+*	return	Client index for the healer.
+**/
+stock int TF2_GetHealerByIndex(int client, int index)
+{
+	if (!IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client))
+	{
+		return 0;
+	}
+	
+	int m_aHealers = FindSendPropInfo("CTFPlayer", "m_nNumHealers") + 12;
+	
+	Address m_Shared = GetEntityAddress(client) + view_as<Address>(m_aHealers);
+	Address aHealers = view_as<Address>(LoadFromAddress(m_Shared, NumberType_Int32));
+	
+	return (LoadFromAddress(aHealers + view_as<Address>(index * 0x24), NumberType_Int32) & 0xFFF);
+}
+
+/**
+*	Retrieves the healer count for the client.
+*
+*	client	Client index.
+*
+*	return	Amount of healers the client has.
+**/
+stock int TF2_GetHealerCount(int client)
+{
+	if (!IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_nNumHealers"))
+	{
+		return 0;
+	}
+	
+	return GetEntProp(client, Prop_Send, "m_nNumHealers");
+}
+
+/**
+*	Checks whether or not a certain client is healing another client.
+*
+*	client	Client index.
+*	healer	Healer index.
+*
+*	return	Amount of healers the client has.
+**/
+stock bool TF2_IsCurrentHealer(int client, int healer)
+{
+	if (!IsPlayerIndex(client) || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || !IsPlayerIndex(healer) || !IsClientConnected(healer) || !IsClientInGame(healer) || !IsPlayerAlive(healer) || TF2_GetPlayerClass(healer) != TFClass_Medic)
+	{
+		return false;
+	}
+	
+	int healers;
+	
+	if ((healers = TF2_GetHealerCount(client)) == 0)
+	{
+		return false;
+	}
+	
+	for (int i = 0; i < TF2_GetHealerCount(client); i++)
+	{
+		if (TF2_GetHealerByIndex(client, i) == healer)
+		{
+			return true;
+		}
+	}
+	
+	return false;
 }
 
 /*--------------------------------------------------------->
