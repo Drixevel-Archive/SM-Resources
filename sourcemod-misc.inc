@@ -66,6 +66,216 @@
 #define	SHAKE_START_RUMBLEONLY		4			// Starts a shake effect that only rumbles the controller, no screen effect.
 #define	SHAKE_START_NORUMBLE		5			// Starts a shake that does NOT rumble the controller.
 
+//Hex Colors ( Should be used as characters and not strings, ala %c or {1:c} )
+#define WHITE 0x01
+#define DARKRED 0x02
+#define PURPLE 0x03
+#define GREEN 0x04
+#define MOSSGREEN 0x05
+#define LIMEGREEN 0x06
+#define RED 0x07
+#define GRAY 0x08
+#define YELLOW 0x09
+#define DARKGREY 0x0A
+#define BLUE 0x0B
+#define DARKBLUE 0x0C
+#define LIGHTBLUE 0x0D
+#define PINK 0x0E
+#define LIGHTRED 0x0F
+
+//Color codes for CSGO and old engines.
+#define COLOR_DEFAULT "\x01"
+#define COLOR_DARKRED "\x02"
+#define COLOR_TEAM "\x03"
+#define COLOR_PURPLE "\x03"
+#define COLOR_GREEN "\x04"
+#define COLOR_LIGHTGREEN "\x05"
+#define COLOR_LIME "\x06"
+#define COLOR_RED "\x07"
+#define COLOR_GREY "\x08"
+#define COLOR_YELLOW "\x09"
+#define COLOR_GOLD "\x10"
+#define COLOR_BLUEGREY "\x0A"
+#define COLOR_BLUE "\x0B"
+#define COLOR_DARKBLUE "\x0C"
+#define COLOR_GREY2 "\x0D"
+#define COLOR_ORCHID "\x0E"
+#define COLOR_LIGHTRED "\x0F"
+
+//Color codes for TF2 and new engines.
+#define NEW_COLOR_ALICEBLUE "\x07F0F8FF"
+#define NEW_COLOR_ALLIES "\x074D7942"
+#define NEW_COLOR_ANCIENT "\x07EB4B4B"
+#define NEW_COLOR_ANTIQUEWHITE "\x07FAEBD7"
+#define NEW_COLOR_AQUA "\x0700FFFF"
+#define NEW_COLOR_AQUAMARINE "\x077FFFD4"
+#define NEW_COLOR_ARCANA "\x07ADE55C"
+#define NEW_COLOR_AXIS "\x07FF4040"
+#define NEW_COLOR_AZURE "\x07007FFF"
+#define NEW_COLOR_BEIGE "\x07F5F5DC"
+#define NEW_COLOR_BISQUE "\x07FFE4C4"
+#define NEW_COLOR_BLACK "\x07000000"
+#define NEW_COLOR_BLANCHEDALMOND "\x07FFEBCD"
+#define NEW_COLOR_BLUE "\x0799CCFF"
+#define NEW_COLOR_BLUEVIOLET "\x078A2BE2"
+#define NEW_COLOR_BROWN "\x07A52A2A"
+#define NEW_COLOR_BURLYWOOD "\x07DEB887"
+#define NEW_COLOR_CADETBLUE "\x075F9EA0"
+#define NEW_COLOR_CHARTREUSE "\x077FFF00"
+#define NEW_COLOR_CHOCOLATE "\x07D2691E"
+#define NEW_COLOR_COLLECTORS "\x07AA0000"
+#define NEW_COLOR_COMMON "\x07B0C3D9"
+#define NEW_COLOR_COMMUNITY "\x0770B04A"
+#define NEW_COLOR_CORAL "\x07FF7F50"
+#define NEW_COLOR_CORNFLOWERBLUE "\x076495ED"
+#define NEW_COLOR_CORNSILK "\x07FFF8DC"
+#define NEW_COLOR_CORRUPTED "\x07A32C2E"
+#define NEW_COLOR_CRIMSON "\x07DC143C"
+#define NEW_COLOR_CYAN "\x0700FFFF"
+#define NEW_COLOR_DARKBLUE "\x0700008B"
+#define NEW_COLOR_DARKCYAN "\x07008B8B"
+#define NEW_COLOR_DARKGOLDENROD "\x07B8860B"
+#define NEW_COLOR_DARKGRAY "\x07A9A9A9"
+#define NEW_COLOR_DARKGREY "\x07A9A9A9"
+#define NEW_COLOR_DARKGREEN "\x07006400"
+#define NEW_COLOR_DARKKHAKI "\x07BDB76B"
+#define NEW_COLOR_DARKMAGENTA "\x078B008B"
+#define NEW_COLOR_DARKOLIVEGREEN "\x07556B2F"
+#define NEW_COLOR_DARKORANGE "\x07FF8C00"
+#define NEW_COLOR_DARKORCHID "\x079932CC"
+#define NEW_COLOR_DARKRED "\x078B0000"
+#define NEW_COLOR_DARKSALMON "\x07E9967A"
+#define NEW_COLOR_DARKSEAGREEN "\x078FBC8F"
+#define NEW_COLOR_DARKSLATEBLUE "\x07483D8B"
+#define NEW_COLOR_DARKSLATEGRAY "\x072F4F4F"
+#define NEW_COLOR_DARKSLATEGREY "\x072F4F4F"
+#define NEW_COLOR_DARKTURQUOISE "\x0700CED1"
+#define NEW_COLOR_DARKVIOLET "\x079400D3"
+#define NEW_COLOR_DEEPPINK "\x07FF1493"
+#define NEW_COLOR_DEEPSKYBLUE "\x0700BFFF"
+#define NEW_COLOR_DIMGRAY "\x07696969"
+#define NEW_COLOR_DIMGREY "\x07696969"
+#define NEW_COLOR_DODGERBLUE "\x071E90FF"
+#define NEW_COLOR_EXALTED "\x07CCCCCD"
+#define NEW_COLOR_FIREBRICK "\x07B22222"
+#define NEW_COLOR_FLORALWHITE "\x07FFFAF0"
+#define NEW_COLOR_FORESTGREEN "\x07228B22"
+#define NEW_COLOR_FROZEN "\x074983B3"
+#define NEW_COLOR_FUCHSIA "\x07FF00FF"
+#define NEW_COLOR_FULLBLUE "\x070000FF"
+#define NEW_COLOR_FULLRED "\x07FF0000"
+#define NEW_COLOR_GAINSBORO "\x07DCDCDC"
+#define NEW_COLOR_GENUINE "\x074D7455"
+#define NEW_COLOR_GHOSTWHITE "\x07F8F8FF"
+#define NEW_COLOR_GOLD "\x07FFD700"
+#define NEW_COLOR_GOLDENROD "\x07DAA520"
+#define NEW_COLOR_GRAY "\x07CCCCCC"
+#define NEW_COLOR_GREY "\x07CCCCCC"
+#define NEW_COLOR_GREEN "\x073EFF3E"
+#define NEW_COLOR_GREENYELLOW "\x07ADFF2F"
+#define NEW_COLOR_HAUNTED "\x0738F3AB"
+#define NEW_COLOR_HONEYDEW "\x07F0FFF0"
+#define NEW_COLOR_HOTPINK "\x07FF69B4"
+#define NEW_COLOR_IMMORTAL "\x07E4AE33"
+#define NEW_COLOR_INDIANRED "\x07CD5C5C"
+#define NEW_COLOR_INDIGO "\x074B0082"
+#define NEW_COLOR_IVORY "\x07FFFFF0"
+#define NEW_COLOR_KHAKI "\x07F0E68C"
+#define NEW_COLOR_LAVENDER "\x07E6E6FA"
+#define NEW_COLOR_LAVENDERBLUSH "\x07FFF0F5"
+#define NEW_COLOR_LAWNGREEN "\x077CFC00"
+#define NEW_COLOR_LEGENDARY "\x07D32CE6"
+#define NEW_COLOR_LEMONCHIFFON "\x07FFFACD"
+#define NEW_COLOR_LIGHTBLUE "\x07ADD8E6"
+#define NEW_COLOR_LIGHTCORAL "\x07F08080"
+#define NEW_COLOR_LIGHTCYAN "\x07E0FFFF"
+#define NEW_COLOR_LIGHTGOLDENRODYELLOW "\x07FAFAD2"
+#define NEW_COLOR_LIGHTGRAY "\x07D3D3D3"
+#define NEW_COLOR_LIGHTGREY "\x07D3D3D3"
+#define NEW_COLOR_LIGHTGREEN "\x0799FF99"
+#define NEW_COLOR_LIGHTPINK "\x07FFB6C1"
+#define NEW_COLOR_LIGHTSALMON "\x07FFA07A"
+#define NEW_COLOR_LIGHTSEAGREEN "\x0720B2AA"
+#define NEW_COLOR_LIGHTSKYBLUE "\x0787CEFA"
+#define NEW_COLOR_LIGHTSLATEGRAY "\x07778899"
+#define NEW_COLOR_LIGHTSLATEGREY "\x07778899"
+#define NEW_COLOR_LIGHTSTEELBLUE "\x07B0C4DE"
+#define NEW_COLOR_LIGHTYELLOW "\x07FFFFE0"
+#define NEW_COLOR_LIME "\x0700FF00"
+#define NEW_COLOR_LIMEGREEN "\x0732CD32"
+#define NEW_COLOR_LINEN "\x07FAF0E6"
+#define NEW_COLOR_MAGENTA "\x07FF00FF"
+#define NEW_COLOR_MAROON "\x07800000"
+#define NEW_COLOR_MEDIUMAQUAMARINE "\x0766CDAA"
+#define NEW_COLOR_MEDIUMBLUE "\x070000CD"
+#define NEW_COLOR_MEDIUMORHCID "\x07BA55D3"
+#define NEW_COLOR_MEDIUMSEAGREEN "\x073CB371"
+#define NEW_COLOR_MEDIUMSLATEBLUE "\x077B68EE"
+#define NEW_COLOR_MEDIUMSPRINGGREEN "\x0700FA9A"
+#define NEW_COLOR_MEDIUMTURQUOISE "\x0748D1CC"
+#define NEW_COLOR_MEDIUMVIOLETRED "\x07C71585"
+#define NEW_COLOR_MIDNIGHTBLUE "\x07191970"
+#define NEW_COLOR_MINTCREAM "\x07F5FFFA"
+#define NEW_COLOR_MISTYROSE "\x07FFE4E1"
+#define NEW_COLOR_MOCCASIN "\x07FFE4B5"
+#define NEW_COLOR_MYTHICAL "\x078847FF"
+#define NEW_COLOR_NAVAJOWHITE "\x07FFDEAD"
+#define NEW_COLOR_NAVY "\x07000080"
+#define NEW_COLOR_NORMAL "\x07B2B2B2"
+#define NEW_COLOR_OLDLACE "\x07FDF5E6"
+#define NEW_COLOR_OLIVE "\x079EC34F"
+#define NEW_COLOR_OLIVEDRAB "\x076B8E23"
+#define NEW_COLOR_ORANGE "\x07FFA500"
+#define NEW_COLOR_ORANGERED "\x07FF4500"
+#define NEW_COLOR_ORCHID "\x07DA70D6"
+#define NEW_COLOR_PALEGOLDENROD "\x07EEE8AA"
+#define NEW_COLOR_PALEGREEN "\x0798FB98"
+#define NEW_COLOR_PALETURQUOISE "\x07AFEEEE"
+#define NEW_COLOR_PALEVIOLETRED "\x07D87093"
+#define NEW_COLOR_PAPAYAWHIP "\x07FFEFD5"
+#define NEW_COLOR_PEACHPUFF "\x07FFDAB9"
+#define NEW_COLOR_PERU "\x07CD853F"
+#define NEW_COLOR_PINK "\x07FFC0CB"
+#define NEW_COLOR_PLUM "\x07DDA0DD"
+#define NEW_COLOR_POWDERBLUE "\x07B0E0E6"
+#define NEW_COLOR_PURPLE "\x07800080"
+#define NEW_COLOR_RARE "\x074B69FF"
+#define NEW_COLOR_RED "\x074B69FF"
+#define NEW_COLOR_ROSYBROWN "\x07BC8F8F"
+#define NEW_COLOR_ROYALBLUE "\x074169E1"
+#define NEW_COLOR_SADDLEBROWN "\x078B4513"
+#define NEW_COLOR_SALMON "\x07FA8072"
+#define NEW_COLOR_SANDYBROWN "\x07F4A460"
+#define NEW_COLOR_SEAGREEN "\x072E8B57"
+#define NEW_COLOR_SEASHELL "\x07FFF5EE"
+#define NEW_COLOR_SELFMADE "\x0770B04A"
+#define NEW_COLOR_SIENNA "\x07A0522D"
+#define NEW_COLOR_SILVER "\x07C0C0C0"
+#define NEW_COLOR_SKYBLUE "\x0787CEEB"
+#define NEW_COLOR_SLATEBLUE "\x076A5ACD"
+#define NEW_COLOR_SLATEGRAY "\x07708090"
+#define NEW_COLOR_SLATEGREY "\x07708090"
+#define NEW_COLOR_SNOW "\x07FFFAFA"
+#define NEW_COLOR_SPRINGGREEN "\x0700FF7F"
+#define NEW_COLOR_STEELBLUE "\x074682B4"
+#define NEW_COLOR_STRANGE "\x07CF6A32"
+#define NEW_COLOR_TAN "\x07D2B48C"
+#define NEW_COLOR_TEAL "\x07008080"
+#define NEW_COLOR_THISTLE "\x07D8BFD8"
+#define NEW_COLOR_TOMATO "\x07FF6347"
+#define NEW_COLOR_TURQUOISE "\x0740E0D0"
+#define NEW_COLOR_UNCOMMON "\x07B0C3D9"
+#define NEW_COLOR_UNIQUE "\x07FFD700"
+#define NEW_COLOR_UNUSUAL "\x078650AC"
+#define NEW_COLOR_VALVE "\x07A50F79"
+#define NEW_COLOR_VINTAGE "\x07476291"
+#define NEW_COLOR_VIOLET "\x07EE82EE"
+#define NEW_COLOR_WHEAT "\x07F5DEB3"
+#define NEW_COLOR_WHITE "\x07FFFFFF"
+#define NEW_COLOR_WHITESMOKE "\x07F5F5F5"
+#define NEW_COLOR_YELLOW "\x07FFFF00"
+#define NEW_COLOR_YELLOWGREEN "\x079ACD32"
+
 /*
 	Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around)
 */
@@ -303,17 +513,16 @@ stock bool GetRandomBool()
 	return view_as<bool>(GetRandomInt(0, 1));
 }
 
-stock void AddFileToDownloadsTableEx(const char[] format, any ...)
+stock bool AddFileToDownloadsTableEx(const char[] pFormat, any ...)
 {
-	if (strlen(format) == 0)
-	{
-		return;
-	}
+	if (strlen(pFormat) == 0)
+		return false;
 
 	char sBuffer[PLATFORM_MAX_PATH];
-	VFormat(sBuffer, sizeof(sBuffer), format, 2);
+	VFormat(sBuffer, sizeof(sBuffer), pFormat, 2);
 
 	AddFileToDownloadsTable(sBuffer);
+	return true;
 }
 
 stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char[] format, bool precision = false)
@@ -819,7 +1028,7 @@ stock bool AreVectorsEqual(const float vec1[3], const float vec2[3])
 	return vec1[0] == vec2[0] && vec1[1] == vec2[1] && vec1[2] == vec2[2];
 }
 
-stock void GetServerIP(char[] sIP, int size, bool show_port = false)
+stock void GetServerIP(char[] pIP, int pSize, bool pShowPort = false)
 {
 	int ip = FindConVar("hostip").IntValue;
 
@@ -829,17 +1038,15 @@ stock void GetServerIP(char[] sIP, int size, bool show_port = false)
 	ips[2] = (ip >> 8) & 0x000000FF;
 	ips[3] = ip & 0x000000FF;
 
-	Format(sIP, size, "%d.%d.%d.%d", ips[0], ips[1], ips[2], ips[3]);
+	Format(pIP, pSize, "%d.%d.%d.%d", ips[0], ips[1], ips[2], ips[3]);
 
-	if (show_port)
-	{
-		Format(sIP, size, "%s:%d", sIP, FindConVar("hostport").IntValue);
-	}
+	if (pShowPort)
+		Format(pIP, pSize, "%s:%d", pIP, FindConVar("hostport").IntValue);
 }
 
 stock bool SetPlayerWeaponAmmo(int client, int weapon, int clip = -1, int ammo = -1)
 {
-	if (client == 0 || client > MaxClents || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon))
+	if (client == 0 || client > MaxClients || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon))
 	{
 		return false;
 	}
@@ -917,10 +1124,8 @@ stock bool SetAmmo(int client, int weapon, int ammo)
 	{
 		ammo = 0;
 	}
-
-	int iOffset = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4;
-	int iAmmoTable = FindSendPropInfo("CTFPlayer", "m_iAmmo");
-	SetEntData(client, iAmmoTable + iOffset, ammo, 4, true);
+	
+	SetEntData(client, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), ammo, 4, true);
 	return true;
 }
 
@@ -934,12 +1139,12 @@ stock int GetMaxAmmo(int weapon)
 	return GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoCount");
 }
 
-stock bool KillTimerSafe(Handle& timer)
+stock bool KillTimerSafe(Handle &pTimer)
 {
-	if (timer != null)
+	if (pTimer != null)
 	{
-		KillTimer(timer);
-		timer = null;
+		KillTimer(pTimer);
+		pTimer = null;
 
 		return true;
 	}
@@ -1059,19 +1264,15 @@ stock int GetClientActiveSlot(int client)
 	return GetWeaponSlot(client, GetActiveWeapon(client));
 }
 
-stock int GetWeaponSlot(int client, int weapon)
+stock int GetWeaponSlot(int pClient, int pWeapon)
 {
-	if (client == 0 || client > MaxClients || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon < MaxClients || !IsValidEntity(weapon))
-	{
+	if (pClient == 0 || pClient > MaxClients || !IsClientInGame(pClient) || !IsPlayerAlive(pClient) || pWeapon == 0 || pWeapon < MaxClients || !IsValidEntity(pWeapon))
 		return -1;
-	}
 
 	for (int i = 0; i < 5; i++)
 	{
-		if (GetPlayerWeaponSlot(client, i) != weapon)
-		{
+		if (GetPlayerWeaponSlot(pClient, i) != pWeapon)
 			continue;
-		}
 
 		return i;
 	}
@@ -1154,7 +1355,17 @@ stock bool ChangeClientTeam_Alive(int client, int team)
 
 stock int GetTotalAliveCount()
 {
-	return (GetTeamAliveClientCount(2) + GetTeamAliveClientCount(3));
+	int amount;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || !IsPlayerAlive(i))
+			continue;
+
+		amount++;
+	}
+
+	return amount;
 }
 
 stock int GetTeamAliveClientCount(int team)
@@ -1955,114 +2166,132 @@ stock bool HasEntName(int entity, const char[] buffer, bool case_sensitive = fal
 //Menu stocks by Kisslick
 /*---------------------------------------------------------*/
 
-stock void PushMenuString(Menu hndl, const char[] id, const char[] data)
+stock bool PushMenuString(Menu pMenu, const char[] pId, const char[] pValue)
 {
-	hndl.AddItem(id, data, ITEMDRAW_IGNORE);
+	if (pMenu == null || strlen(pId) == 0)
+		return false;
+	
+	return pMenu.AddItem(pId, pValue, ITEMDRAW_IGNORE);
 }
 
-stock void PushMenuCell(Menu hndl, const char[] id, int data)
+stock bool PushMenuCell(Menu pMenu, const char[] pId, int pValue)
 {
-	char DataString[64];
-	IntToString(data, DataString, sizeof(DataString));
-	hndl.AddItem(id, DataString, ITEMDRAW_IGNORE);
+	if (pMenu == null || strlen(pId) == 0)
+		return false;
+	
+	char sBuffer[128];
+	IntToString(pValue, sBuffer, sizeof(sBuffer));
+	return pMenu.AddItem(pId, sBuffer, ITEMDRAW_IGNORE);
 }
 
-stock void PushMenuFloat(Menu hndl, const char[] id, float data)
+stock bool PushMenuFloat(Menu pMenu, const char[] pId, float pValue)
 {
-	char DataString[64];
-	FloatToString(data, DataString, sizeof(DataString));
-	hndl.AddItem(id, DataString, ITEMDRAW_IGNORE);
+	if (pMenu == null || strlen(pId) == 0)
+		return false;
+	
+	char sBuffer[128];
+	FloatToString(pValue, sBuffer, sizeof(sBuffer));
+	return pMenu.AddItem(pId, sBuffer, ITEMDRAW_IGNORE);
 }
 
-stock void PushMenuBool(Menu hndl, const char[] id, bool data)
+stock bool PushMenuBool(Menu pMenu, const char[] pId, bool pValue)
 {
-	char DataString[64];
-	IntToString(view_as<int>(data), DataString, sizeof(DataString));
-	hndl.AddItem(id, DataString, ITEMDRAW_IGNORE);
+	if (pMenu == null || strlen(pId) == 0)
+		return false;
+	
+	char sBuffer[128];
+	IntToString(view_as<int>(pValue), sBuffer, sizeof(sBuffer));
+	return pMenu.AddItem(pId, sBuffer, ITEMDRAW_IGNORE);
 }
 
-stock bool GetMenuString(Menu hndl, const char[] id, char[] Buffer, int size)
+stock bool GetMenuString(Menu pMenu, const char[] pId, char[] pBuffer, int pSize)
 {
-	int ItemCount = hndl.ItemCount;
-	char info[64]; char data[64];
-
-	for (int i = 0; i < ItemCount; i++) {
-		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
+	if (pMenu == null || strlen(pId) == 0)
+		return false;
+	
+	char info[128]; char data[8192];
+	for (int i = 0; i < pMenu.ItemCount; i++)
+	{
+		if (pMenu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, pId))
 		{
-			if (StrEqual(info, id)) {
-				strcopy(Buffer, size, data);
-				return true;
-			}
+			strcopy(pBuffer, pSize, data);
+			return true;
 		}
 	}
+	
 	return false;
 }
 
-stock int GetMenuCell(Menu hndl, const char[] id, int DefaultValue = 0)
+stock int GetMenuCell(Menu pMenu, const char[] pId, int pDefaultValue = 0)
 {
-	int ItemCount = hndl.ItemCount;
-	char info[64]; char data[64];
-
-	for (int i = 0; i < ItemCount; i++) {
-		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
-		{
-			if (StrEqual(info, id))
+	if (pMenu == null || strlen(pId) == 0)
+		return pDefaultValue;
+	
+	char info[128]; char data[128];
+	for (int i = 0; i < pMenu.ItemCount; i++)
+	{
+		if (pMenu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, pId))
 			return StringToInt(data);
-		}
 	}
-	return DefaultValue;
+	
+	return pDefaultValue;
 }
 
-stock float GetMenuFloat(Menu hndl, const char[] id, float DefaultValue = 0.0)
+stock float GetMenuFloat(Menu pMenu, const char[] pId, float pDefaultValue = 0.0)
 {
-	int ItemCount = hndl.ItemCount;
-	char info[64]; char data[64];
-
-	for (int i = 0; i < ItemCount; i++) {
-		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
-		{
-			if (StrEqual(info, id))
+	if (pMenu == null || strlen(pId) == 0)
+		return pDefaultValue;
+		
+	char info[128]; char data[128];
+	for (int i = 0; i < pMenu.ItemCount; i++)
+	{
+		if (pMenu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, pId))
 			return StringToFloat(data);
-		}
 	}
-	return DefaultValue;
+	
+	return pDefaultValue;
 }
 
-stock bool GetMenuBool(Menu hndl, const char[] id, bool DefaultValue = false)
+stock bool GetMenuBool(Menu pMenu, const char[] pId, bool pDefaultValue = false)
 {
-	int ItemCount = hndl.ItemCount;
-	char info[64]; char data[64];
-
-	for (int i = 0; i < ItemCount; i++) {
-		if (hndl.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
-		{
-			if (StrEqual(info, id))
+	if (pMenu == null || strlen(pId) == 0)
+		return pDefaultValue;
+	
+	char info[128]; char data[128];
+	for (int i = 0; i < pMenu.ItemCount; i++)
+	{
+		if (pMenu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, pId))
 			return view_as<bool>(StringToInt(data));
-		}
 	}
-	return DefaultValue;
+	
+	return pDefaultValue;
 }
 
-stock void CopyMenuAny(Menu source, Menu dest, const char[] id)
+stock bool CopyMenuAny(Menu pSource, Menu pDest, const char[] pId)
 {
-	int ItemCount = source.ItemCount;
-	char info[64]; char data[64];
+	if (pSource == null || pDest == null || strlen(pId) == 0)
+		return false;
+	
+	char info[128]; char data[128];
 
-	for (int i = 0; i < ItemCount; i++) {
-		if (source.GetItem(i, info, sizeof(info), _, data, sizeof(data)))
-		{
-			if (StrEqual(info, id))
-			dest.AddItem(id, data, ITEMDRAW_IGNORE);
-		}
+	for (int i = 0; i < pSource.ItemCount; i++)
+	{
+		if (pSource.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, pId))
+			pDest.AddItem(pId, data, ITEMDRAW_IGNORE);
 	}
+	
+	return true;
 }
 
-stock bool AddMenuItemFormat(Menu& menu, const char[] info, int style = ITEMDRAW_DEFAULT, const char[] format, any ...)
+stock bool AddMenuItemFormat(Menu pMenu, const char[] pInfo, int pStyle = ITEMDRAW_DEFAULT, const char[] pFormat, any ...)
 {
-	char display[128];
-	VFormat(display, sizeof(display), format, 5);
+	if (pMenu == null)
+		return false;
+	
+	char sBuffer[256];
+	VFormat(sBuffer, sizeof(sBuffer), pFormat, 5);
 
-	return menu.AddItem(info, display, style);
+	return pMenu.AddItem(pInfo, sBuffer, pStyle);
 }
 
 stock int Util_GetMaxHealth(int client)
@@ -4576,6 +4805,21 @@ stock bool TF2_RemoveRagdoll(int client)
 - Credits: SM9();
 --------------------------------------------------------->*/
 
+//Lighting styles for light_dynamic entities.
+#define LIGHT_STYLE_NORMAL 0
+#define LIGHT_STYLE_FLICKER_A 1
+#define LIGHT_STYLE_SLOW_STRONG_PULSE 2
+#define LIGHT_STYLE_CANDLE_A 3
+#define LIGHT_STYLE_FAST_STROBE 4
+#define LIGHT_STYLE_GENTLE_PULSE 5
+#define LIGHT_STYLE_FLICKER_B 6
+#define LIGHT_STYLE_CANDLE_B 7
+#define LIGHT_STYLE_CANDLE_C 8
+#define LIGHT_STYLE_SLOW_STROBE 9
+#define LIGHT_STYLE_FLOURESCENT_FLICKER 10
+#define LIGHT_STYLE_SLOW_PULSE_NO_BLACK 11
+#define LIGHT_STYLE_UNDERWATER_LIGHT_MUTATION 12
+
 /**
 *	A simple stock to show hud text to all in CSGO.
 *
@@ -4666,16 +4910,14 @@ stock void CSGO_ShowHudText(int client, char[] message, char[] x = "-1.0", char[
 stock void CSGO_StripToKnife(int client)
 {
 	int weapon;
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 3; i++)
 	{
 		if (i == CS_SLOT_KNIFE)
 		{
 			weapon = GetPlayerWeaponSlot(client, i);
 
 			if (IsValidEntity(i))
-			{
 				EquipPlayerWeapon(i, weapon);
-			}
 
 			continue;
 		}
@@ -4683,9 +4925,7 @@ stock void CSGO_StripToKnife(int client)
 		if ((weapon = GetPlayerWeaponSlot(client, i)) != INVALID_ENT_INDEX)
 		{
 			if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
-			{
 				SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", client);
-			}
 
 			SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
 			AcceptEntityInput(weapon, "Kill");
@@ -4709,33 +4949,29 @@ stock void CSGO_SetClientArmor(int client, int amount = 100)
 /**
 *	A simple stock to replace a certain weapon slot on a client.
 *
-*	client	Client index.
-*	slot	Slot to set the weapon to.
-*	classname	Entity classname of the weapon to replace the slot with.
+*	pClient	Client index.
+*	pSlot	Slot to set the weapon to.
+*	pClass	Entity classname of the weapon to replace the slot with.
 *
 *	return	Entity index of the new weapon.
 **/
-stock int CSGO_ReplaceWeapon(int client, int slot, const char[] classname)
+stock int CSGO_ReplaceWeapon(int pClient, int pSlot, const char[] pClass)
 {
-	int weapon = GetPlayerWeaponSlot(client, slot);
+	int weapon = GetPlayerWeaponSlot(pClient, pSlot);
 
 	if (IsValidEntity(weapon))
 	{
-		if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
-		{
-			SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", client);
-		}
+		if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != pClient)
+			SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", pClient);
 
-		CS_DropWeapon(client, weapon, false, true);
+		CS_DropWeapon(pClient, weapon, false, true);
 		AcceptEntityInput(weapon, "Kill");
 	}
 
-	weapon = GivePlayerItem(client, classname);
+	weapon = GivePlayerItem(pClient, pClass);
 
 	if (IsValidEntity(weapon))
-	{
-		EquipPlayerWeapon(client, weapon);
-	}
+		EquipPlayerWeapon(pClient, weapon);
 
 	return weapon;
 }
@@ -4747,9 +4983,9 @@ stock int CSGO_ReplaceWeapon(int client, int slot, const char[] classname)
 *
 *	return	Amount of money the client currently has.
 **/
-stock int CSGO_GetMoney(int client)
+stock int CSGO_GetMoney(int pClient)
 {
-	return GetEntProp(client, Prop_Send, "m_iAccount");
+	return GetEntProp(pClient, Prop_Send, "m_iAccount");
 }
 
 /**
@@ -4773,9 +5009,9 @@ stock void CSGO_SetMoney(int client, int money)
 *
 *	return	void
 **/
-stock void CSGO_AddMoney(int client, int amount)
+stock void CSGO_AddMoney(int pClient, int pAmount)
 {
-	SetEntProp(client, Prop_Send, "m_iAccount", (GetEntProp(client, Prop_Send, "m_iAccount") + amount));
+	SetEntProp(pClient, Prop_Send, "m_iAccount", (GetEntProp(pClient, Prop_Send, "m_iAccount") + pAmount));
 }
 
 /**
@@ -4802,7 +5038,72 @@ stock void CSGO_SetTeam(int client, int team)
 	CS_UpdateClientModel(client);
 }
 
+/**
+*	Sets the current speed of the client.
+*
+*	client	Client index.
+*	speed	Speed to give.
+*
+*	return	void
+**/
+stock void CSGO_SetPlayerSpeed(int client, float speed)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", speed);
+}
+
+/**
+*	Gets the current speed of the client.
+*
+*	client	Client index.
+*
+*	return	Speed of the client.
+**/
+stock float CSGO_GetPlayerSpeed(int client)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue");
+}
+
+/**
+*	Creates a dynamic light on the map.
+*
+*	pPos		Position of the light.
+*	pColor		Color of the light.
+*	pBrightness	Brightness of the light.
+*	pStyle		Style of the light.
+*	pRadius		Radius of the light.
+*	pDistance	Distance of the light.
+*
+*	return	Speed of the client.
+**/
+stock int CSGO_CreateDynamicLight(float pPos[3], int pColor[4] = {255, 255, 255, 255}, int pBrightness = 10, int pStyle = LIGHT_STYLE_NORMAL, const float pRadius = 32.0, const float pDistance = 64.0)
+{
+	int light = CreateEntityByName("light_dynamic");
+	
+	if (IsValidEntity(light))
+    {
+		char sColor[64];
+		FormatEx(sColor, sizeof(sColor), "%i %i %i %i", pColor[0], pColor[1], pColor[2], pColor[3]);
+        DispatchKeyValue(light, "_light", sColor);
+		
+		char sBrightness[12];
+		FormatEx(sBrightness, sizeof(sBrightness), "%i", pBrightness);
+        DispatchKeyValue(light, "brightness", sBrightness);
+		
+		char sStyle[12];
+		FormatEx(sStyle, sizeof(sStyle), "%i", pStyle);
+        DispatchKeyValue(light, "style", sStyle);
+		
+        DispatchKeyValueFloat(light, "spotlight_radius", pRadius);
+        DispatchKeyValueFloat(light, "distance", pDistance);
+        DispatchSpawn(light);
+        
+        TeleportEntity(light, pPos, NULL_VECTOR, NULL_VECTOR);
+        AcceptEntityInput(light, "TurnOn");
+    }
+	
+	return light;
+}
+
 /*--------------------------------------------------------->*/
 //This is the end of this THICCCCCC include file.
 /*--------------------------------------------------------->*/
-//test
