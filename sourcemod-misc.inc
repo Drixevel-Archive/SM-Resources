@@ -7,13 +7,6 @@
 *
 **/
 
-//Easy fix to make sure this include doesn't compile as an actual plugin.
-//You'll need to define 'IS_PLUGIN' in your plugin to include this naturally.
-//#define IS_PLUGIN
-//#if !defined IS_PLUGIN
-//#error Can't compile include.
-//#endif
-
 //Because I'm too stupid at remembering how to do this properly.
 //Apply Bit: damagetype |= DMG_CRIT;
 //Apply Multi Bit: damagetype |= (DMG_CRIT | DMG_BURN);
