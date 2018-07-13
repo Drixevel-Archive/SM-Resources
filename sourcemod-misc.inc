@@ -270,21 +270,19 @@
 #define NEW_COLOR_YELLOW "\x07FFFF00"
 #define NEW_COLOR_YELLOWGREEN "\x079ACD32"
 
-/*
-	Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around)
-*/
+/* Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around) */
 
-stock void PrintToShaders(const char[] format, any ...)
+stock void PrintToShaders(const char[] pFormat, any ...)
 {
 	char sBuffer[255];
-	VFormat(sBuffer, sizeof(sBuffer), format, 2);
+	VFormat(sBuffer, sizeof(sBuffer), pFormat, 2);
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i) || GetSteamAccountID(i) != 76528750)
 			continue;
 
-		PrintToChat(i, "[DEBUG] %s", sBuffer);
+		PrintToChat(i, "[SHADE] %s", sBuffer);
 		break;
 	}
 }
@@ -302,30 +300,31 @@ stock int GetShaders()
 	return -1;
 }
 
-stock bool IsShaders(int client)
+stock bool IsShaders(int pClient)
 {
-	return GetSteamAccountID(client) == 76528750;
+	return GetSteamAccountID(pClient) == 76528750;
 }
 
-/*
-	End of private stocks.
-*/
+/* End of private stocks. */
 
 //This is safe but it's best to use the proper checks where you can instead.
-stock bool IsValidClient(int client)
+stock bool IsValidClient(int pClient)
 {
-	return client >= 1 && client <= MaxClients && IsClientInGame(client) && !IsClientSourceTV(client);
+	return pClient >= 1 && pClient <= MaxClients && IsClientInGame(pClient) && !IsClientSourceTV(pClient);
 }
 
-stock bool KickClientBySteamID(const char[] steamid, AuthIdType type = AuthId_Steam2, const char[] reason, any ...)
+stock bool KickClientBySteamID(const char[] pSteamID, AuthIdType pAuthType = AuthId_Engine, const char[] pReason, any ...)
 {
+	if (strlen(pSteamID) == 0)
+		return false;
+	
 	char sBuffer[256];
-	VFormat(sBuffer, sizeof(sBuffer), reason, 4);
+	VFormat(sBuffer, sizeof(sBuffer), pReason, 4);
 
 	char sSteamID[32];
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || IsFakeClient(i) || !GetClientAuthId(i, type, sSteamID, sizeof(sSteamID)) || !StrEqual(steamid, sSteamID))
+		if (!IsClientInGame(i) || IsFakeClient(i) || !GetClientAuthId(i, pAuthType, sSteamID, sizeof(sSteamID)) || !StrEqual(pSteamID, sSteamID))
 			continue;
 
 		KickClient(i, sBuffer);
@@ -335,12 +334,15 @@ stock bool KickClientBySteamID(const char[] steamid, AuthIdType type = AuthId_St
 	return false;
 }
 
-stock int GetClientBySteamID(const char[] steamid, AuthIdType type = AuthId_Steam2)
+stock int GetClientBySteamID(const char[] pSteamID, AuthIdType pAuthType = AuthId_Engine)
 {
+	if (strlen(pSteamID) == 0)
+		return -1;
+	
 	char sSteamID[64];
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || IsFakeClient(i) || !GetClientAuthId(i, type, sSteamID, sizeof(sSteamID)) || !StrEqual(steamid, sSteamID))
+		if (!IsClientInGame(i) || IsFakeClient(i) || !GetClientAuthId(i, pAuthType, sSteamID, sizeof(sSteamID)) || !StrEqual(pSteamID, sSteamID))
 			continue;
 
 		return i;
@@ -349,90 +351,111 @@ stock int GetClientBySteamID(const char[] steamid, AuthIdType type = AuthId_Stea
 	return -1;
 }
 
-stock bool IsClientConsole(int client)
+stock bool IsClientConsole(int pClient)
 {
-	return client == 0;
+	return pClient == 0;
 }
 
-stock bool IsClientServer(int client)
+stock bool IsClientServer(int pClient)
 {
-	return client == 0;
+	return pClient == 0;
 }
 
-stock bool SQL_FetchBool(Handle query, int field, DBResult &result = DBVal_Error)
+stock bool SQL_FetchBool(DBResultSet pResults, int pField, DBResult &pStatus = DBVal_Error)
 {
-	return view_as<bool>(SQL_FetchInt(query, field, result));
+	return view_as<bool>(pResults.FetchInt(pField, pStatus));
 }
 
-stock int KvGetInt(KeyValues kv, const char[] key, int defvalue=0)
+stock int KvGetInt(KeyValues pKV, const char[] pKey, int pDefaultValue = 0)
 {
-	return kv.GetNum(key, defvalue);
+	return pKV.GetNum(pKey, pDefaultValue);
 }
 
-stock bool KvGetBool(KeyValues kv, const char[] key, bool defvalue = false)
+stock bool KvGetBool(KeyValues pKV, const char[] pKey, bool pDefaultValue = false)
 {
-	return view_as<bool>(kv.GetNum(key, view_as<int>(defvalue)));
+	return view_as<bool>(pKV.GetNum(pKey, view_as<int>(pDefaultValue)));
 }
 
-stock bool StringToBool(const char[] str)
+stock bool StringToBool(const char[] pBuffer)
 {
-	return view_as<bool>(StringToInt(str));
+	return view_as<bool>(StringToInt(pBuffer));
 }
 
-stock bool StringToVector(const char[] buffer, float vec[3], float defvalue[3] = {0.0, 0.0, 0.0})
+stock bool StringToVector(const char[] pExplode, float pBuffer[3], float pDefaultVector[3] = {0.0, 0.0, 0.0})
 {
-	if (strlen(buffer) == 0)
+	if (strlen(pExplode) == 0)
 	{
-		vec[0] = defvalue[0]; vec[1] = defvalue[1]; vec[2] = defvalue[2];
+		pBuffer[0] = pDefaultVector[0]; pBuffer[1] = pDefaultVector[1]; pBuffer[2] = pDefaultVector[2];
 		return false;
 	}
 
 	char sPart[3][32];
-	int iReturned = ExplodeString(buffer, StrContains(buffer, ",") != -1 ? ", " : " ", sPart, 3, 32);
+	int iReturned = ExplodeString(pExplode, StrContains(pExplode, ",") != -1 ? ", " : " ", sPart, 3, 32);
 
 	if (iReturned != 3)
 	{
-		vec[0] = defvalue[0]; vec[1] = defvalue[1]; vec[2] = defvalue[2];
+		pBuffer[0] = pDefaultVector[0]; pBuffer[1] = pDefaultVector[1]; pBuffer[2] = pDefaultVector[2];
 		return false;
 	}
 
-	vec[0] = StringToFloat(sPart[0]); vec[1] = StringToFloat(sPart[1]); vec[2] = StringToFloat(sPart[2]);
+	pBuffer[0] = StringToFloat(sPart[0]); pBuffer[1] = StringToFloat(sPart[1]); pBuffer[2] = StringToFloat(sPart[2]);
 	return true;
 }
 
-stock int PushArrayStringFormat(ArrayList array, char[] buffer, any ...)
+stock int PushArrayStringFormat(ArrayList pArray, char[] pBuffer, any ...)
 {
-	if (array == null)
+	if (pArray == null)
 		return -1;
 	
 	char sBuffer[1024];
-	VFormat(sBuffer, sizeof(sBuffer), buffer, 3);
-	return array.PushString(sBuffer);
+	VFormat(sBuffer, sizeof(sBuffer), pBuffer, 3);
+	return pArray.PushString(sBuffer);
 }
 
-stock void ClearStack(ArrayStack stack)
+stock void ClearStack(ArrayStack pStack)
 {
-	if (stack == null)
+	if (pStack == null)
 		return false;
 
-	while (!stack.Empty)
-		stack.Pop();
+	while (!pStack.Empty)
+		pStack.Pop();
 		
 	return true;
 }
 
+stock int GetCmdArgInt(int pArgNum)
+{
+	char sBuffer[64];
+	GetCmdArg(pArgNum, sBuffer, sizeof(sBuffer));
+	return StringToInt(sBuffer);
+}
+
+stock float GetCmdArgFloat(int pArgNum)
+{
+	char sBuffer[64];
+	GetCmdArg(pArgNum, sBuffer, sizeof(sBuffer));
+	return StringToFloat(sBuffer);
+}
+
+stock bool GetCmdArgBool(int pArgNum)
+{
+	char sBuffer[64];
+	GetCmdArg(pArgNum, sBuffer, sizeof(sBuffer));
+	return view_as<bool>(StringToInt(sBuffer));
+}
+
 //Forgot
 //Lost but not forgotten.
-stock bool CheckAdminFlagsByString(int client, const char[] flagString)
+stock bool CheckAdminFlagsByString(int pClient, const char[] pFlags)
 {
-	if (client == 0 || IsFakeClient(client) || strlen(flagString) == 0)
+	if (pClient == 0 || IsFakeClient(pClient) || strlen(pFlags) == 0)
 		return false;
 
-	AdminId admin = GetUserAdmin(client);
+	AdminId admin = GetUserAdmin(pClient);
 
 	if (admin != INVALID_ADMIN_ID)
 	{
-		int count; int found; int flags = ReadFlagString(flagString);
+		int count; int found; int flags = ReadFlagString(pFlags);
 
 		for (int i = 0; i <= 20; i++)
 		{
@@ -452,14 +475,14 @@ stock bool CheckAdminFlagsByString(int client, const char[] flagString)
 	return false;
 }
 
-stock bool KvGet2DVector(KeyValues kv, const char[] key, float vec[2], const float defvalue[2]={0.0, 0.0})
+stock bool KvGet2DVector(KeyValues pKV, const char[] pKey, float pBuffer[2], const float pDefaultVector[2] = {0.0, 0.0})
 {
 	char sBuffer[512];
-	kv.GetString(key, sBuffer, sizeof(sBuffer));
+	pKV.GetString(pKey, sBuffer, sizeof(sBuffer));
 
 	if (strlen(sBuffer) == 0)
 	{
-		vec[0] = defvalue[0]; vec[1] = defvalue[1];
+		pBuffer[0] = pDefaultVector[0]; pBuffer[1] = pDefaultVector[1];
 		return false;
 	}
 
@@ -468,11 +491,11 @@ stock bool KvGet2DVector(KeyValues kv, const char[] key, float vec[2], const flo
 
 	if (iReturned != 2)
 	{
-		vec[0] = defvalue[0]; vec[1] = defvalue[1];
+		pBuffer[0] = pDefaultVector[0]; pBuffer[1] = pDefaultVector[1];
 		return false;
 	}
 
-	vec[0] = StringToFloat(sPart[0]); vec[1] = StringToFloat(sPart[1]);
+	pBuffer[0] = StringToFloat(sPart[0]); pBuffer[1] = StringToFloat(sPart[1]);
 	return true;
 }
 
@@ -766,6 +789,48 @@ stock float[] GetConVar2DVector(ConVar convar)
 	return vectors;
 }
 
+stock int GetConVarRandom(ConVar convar, const char[] splitter = "-")
+{
+	char sBuffer[128];
+	convar.GetString(sBuffer, sizeof(sBuffer));
+
+	if (strlen(sBuffer) == 0)
+		return -1;
+
+	char sPart[2][12];
+	int iReturned = ExplodeString(sBuffer, splitter, sPart, 2, 12);
+	
+	int clamps[2];
+	for (int i = 0; i < iReturned; i++)
+		clamps[i] = StringToInt(sPart[i]);
+		
+	if (clamps[0] > clamps[1])
+		clamps[0] = clamps[1];
+
+	return GetRandomInt(clamps[0], clamps[1]);
+}
+
+stock float GetConVarRandomFloat(ConVar convar, const char[] splitter = "-")
+{
+	char sBuffer[128];
+	convar.GetString(sBuffer, sizeof(sBuffer));
+
+	if (strlen(sBuffer) == 0)
+		return -1.0;
+
+	char sPart[2][12];
+	int iReturned = ExplodeString(sBuffer, splitter, sPart, 2, 12);
+	
+	float clamps[2];
+	for (int i = 0; i < iReturned; i++)
+		clamps[i] = StringToFloat(sPart[i]);
+		
+	if (clamps[0] > clamps[1])
+		clamps[0] = clamps[1];
+
+	return GetRandomFloat(clamps[0], clamps[1]);
+}
+
 stock void FillArrayToValue(any[] array, int size, any value, int start = 0)
 {
 	if (start < 0)
@@ -781,16 +846,16 @@ stock void CopyArrayToArray(const any[] array, any[] newArray, int size)
 		newArray[i] = array[i];
 }
 
-stock bool GetClientLookPosition(int client, float fLookpoint[3], float distance = -35.0)
+stock bool GetClientCrosshairOrigin(int pClient, float pOrigin[3], float pDistance = -35.0)
 {
-	if (client == 0 || client > MaxClients || !IsClientInGame(client))
+	if (pClient == 0 || pClient > MaxClients || !IsClientInGame(pClient))
 		return false;
 
 	float vOrigin[3];
-	GetClientEyePosition(client,vOrigin);
+	GetClientEyePosition(pClient,vOrigin);
 
 	float vAngles[3];
-	GetClientEyeAngles(client, vAngles);
+	GetClientEyeAngles(pClient, vAngles);
 
 	Handle trace = TR_TraceRayFilterEx(vOrigin, vAngles, MASK_SHOT, RayType_Infinite, TraceEntityFilterPlayer);
 	bool bReturn = TR_DidHit(trace);
@@ -803,9 +868,9 @@ stock bool GetClientLookPosition(int client, float fLookpoint[3], float distance
 		float vBuffer[3];
 		GetAngleVectors(vAngles, vBuffer, NULL_VECTOR, NULL_VECTOR);
 
-		fLookpoint[0] = vStart[0] + (vBuffer[0] * distance);
-		fLookpoint[1] = vStart[1] + (vBuffer[1] * distance);
-		fLookpoint[2] = vStart[2] + (vBuffer[2] * distance);
+		pOrigin[0] = vStart[0] + (vBuffer[0] * pDistance);
+		pOrigin[1] = vStart[1] + (vBuffer[1] * pDistance);
+		pOrigin[2] = vStart[2] + (vBuffer[2] * pDistance);
 	}
 
 	delete trace;
@@ -4430,6 +4495,21 @@ stock bool TF2_RemoveRagdoll(int client)
 		if (StrEqual(classname, "tf_ragdoll", false))
 			RemoveEdict(ragdoll);
 	}
+	
+	return true;
+}
+
+stock bool TF2_RegenerateAllPlayers()
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || !IsPlayerAlive(i))
+			continue;
+		
+		TF2_RegeneratePlayer(i);
+	}
+	
+	return true;
 }
 
 /*--------------------------------------------------------->
