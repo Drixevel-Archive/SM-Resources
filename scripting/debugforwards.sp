@@ -11,10 +11,10 @@
 public Plugin myinfo = 
 {
 	name = "debug start", 
-	author = "Keith Warren (Shaders Allen)", 
+	author = "Keith Warren (Drixevel)", 
 	description = "Debugs servers on startup.", 
 	version = "1.0.0", 
-	url = "https://github.com/ShadersAllen"
+	url = "https://github.com/drixevel"
 };
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)

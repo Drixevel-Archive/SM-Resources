@@ -3354,6 +3354,19 @@ stock void EquipWeapon(int client, int weapon)
 /*--------------------------------------------------------->
 //CONVARS
 --------------------------------------------------------->*/
+
+stock bool SetConVarFlag(ConVar convar, bool add, int set)
+{
+	int flags = convar.Flags;
+	
+	if (add)
+		flags |= set;
+	else
+		flags &= ~set;
+	
+	convar.Flags = flags;
+}
+
 stock int[] GetConVarColor(ConVar convar)
 {
 	int colors[4] = {255, 255, 255, 255};

@@ -33,10 +33,10 @@ bool g_Locked;
 public Plugin myinfo =
 {
 	name = "Server Tools",
-	author = "Keith Warren (Shaders Allen)",
+	author = "Keith Warren (Drixevel)",
 	description = "A simple set of admin tools that help with development or server moderation.",
 	version = "1.0.0",
-	url = "https://github.com/shadersallen"
+	url = "https://github.com/drixevel"
 };
 
 public void OnPluginStart()
@@ -670,7 +670,7 @@ public Action Command_Respawn(int client, int args)
 	char sTargetName[MAX_TARGET_LENGTH];
 	bool tn_is_ml;
 
-	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_CONNECTED, sTargetName, sizeof(sTargetName), tn_is_ml);
 
 	if (targets == COMMAND_TARGET_NONE)
 	{
@@ -926,9 +926,9 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 			else if (StrEqual(sInfo, "move"))
 			{
 				ConVar blind = FindConVar("nb_blind");
-				UnsetCheatVar(blind);
+				SetConVarFlag(blind, false, FCVAR_CHEAT);
 				blind.SetBool(!blind.BoolValue);
-				SetCheatVar(blind);
+				SetConVarFlag(blind, true, FCVAR_CHEAT);
 
 				CPrintToChatAll("%s {chartreuse}%N {honeydew}has toggled bot movement {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, param1, !blind.BoolValue ? "on" : "off");
 
@@ -960,7 +960,7 @@ void OpenSetBotClassMenu(int client, int target)
 	menu.AddItem("2", "Sniper");
 	menu.AddItem("8", "Spy");
 
-	PushMenuCell(menu, "target", target);
+	PushMenuInt(menu, "target", target);
 
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -975,7 +975,7 @@ public int MenuHandler_SetBotClass(Menu menu, MenuAction action, int param1, int
 			char sInfo[32];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
 
-			int target = GetMenuCell(menu, "target");
+			int target = GetMenuInt(menu, "target");
 			TFClassType class = view_as<TFClassType>(StringToInt(sInfo));
 
 			if (!IsPlayerIndex(target) || !IsFakeClient(target))
@@ -1010,7 +1010,7 @@ void OpenSetBotTeamMenu(int client, int target)
 	menu.AddItem("2", "Red");
 	menu.AddItem("3", "Blue");
 
-	PushMenuCell(menu, "target", target);
+	PushMenuInt(menu, "target", target);
 
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -1025,7 +1025,7 @@ public int MenuHandler_SetBotTeam(Menu menu, MenuAction action, int param1, int 
 			char sInfo[32];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
 
-			int target = GetMenuCell(menu, "target");
+			int target = GetMenuInt(menu, "target");
 			TFTeam team = view_as<TFTeam>(StringToInt(sInfo));
 
 			if (!IsPlayerIndex(target) || !IsFakeClient(target))
@@ -2760,12 +2760,5 @@ public Action Noclip(int client, int args)
 
 void ToggleNoclip(int client)
 {
-	if (GetEntityMoveType(client) == MOVETYPE_NOCLIP)
-	{
-		SetEntityMoveType(client, MOVETYPE_ISOMETRIC);
-	}
-	else
-	{
-		SetEntityMoveType(client, MOVETYPE_NOCLIP);
-	}
+	SetEntityMoveType(client, (GetEntityMoveType(client) == MOVETYPE_NOCLIP) ? MOVETYPE_ISOMETRIC : MOVETYPE_NOCLIP);
 }
