@@ -3,8 +3,8 @@
 #pragma newdecls required
 
 //Defines
-#define CHAT_TAG "[Tools] "
-#define COLORED_CHAT_TAG "[Tools] "
+#define CHAT_TAG "[Tools]"
+#define COLORED_CHAT_TAG "[Tools]"
 
 //Sourcemod Includes
 #include <sourcemod>
@@ -21,11 +21,14 @@ int g_iClip[MAX_ENTITY_LIMIT + 1];
 
 TopMenu hTopMenu;
 bool g_SpewSounds;
+bool g_SpewAmbients;
 bool g_SpewEntities;
 
 //entity tools
 ArrayList g_OwnedEntities[MAXPLAYERS + 1];
 int g_iTarget[MAXPLAYERS + 1] = {INVALID_ENT_REFERENCE, ...};
+
+bool g_Locked;
 
 public Plugin myinfo =
 {
@@ -91,7 +94,18 @@ public void OnPluginStart()
 	RegAdminCmd("sm_spawnparticle", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
 	RegAdminCmd("sm_p", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
 	RegAdminCmd2("sm_spewsounds", Command_SpewSounds, ADMFLAG_SLAY, "Logs all sounds played live into chat.");
+	RegAdminCmd2("sm_spewambients", Command_SpewAmbients, ADMFLAG_SLAY, "Logs all ambient sounds played live into chat.");
 	RegAdminCmd2("sm_spewentities", Command_SpewEntities, ADMFLAG_SLAY, "Logs all entities created live into chat.");
+	RegAdminCmd2("sm_getentitymodel", Command_GetEntityModel, ADMFLAG_SLAY, "Gets the model of a certain entity if it has a model.");
+	RegAdminCmd2("sm_setkillstreak", Command_SetKillstreak, ADMFLAG_SLAY, "Sets your current killstreak.");
+	RegAdminCmd2("sm_lock", Command_Lock, ADMFLAG_SLAY, "Lock the server to admins only.");
+	RegAdminCmd2("sm_lockserver", Command_Lock, ADMFLAG_SLAY, "Lock the server to admins only.");
+	RegAdminCmd2("sm_createprop", Command_CreateProp, ADMFLAG_SLAY, "Create a dynamic prop entity.");
+	RegAdminCmd2("sm_animateprop", Command_AnimateProp, ADMFLAG_SLAY, "Animate a dynamic prop entity.");
+	RegAdminCmd2("sm_deleteprop", Command_DeleteProp, ADMFLAG_SLAY, "Delete a dynamic prop entity.");
+	
+	//simple noclip
+	RegAdminCmd("noclip", Noclip, ADMFLAG_SLAY);
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_SLAY, "Create an entity.");
@@ -99,10 +113,12 @@ public void OnPluginStart()
 	RegAdminCmd("sm_dispatchkeyvaluefloat", Command_DispatchKeyValueFloat, ADMFLAG_SLAY, "Dispatch keyvalue float on an entity.");
 	RegAdminCmd("sm_dispatchkeyvaluevector", Command_DispatchKeyValueVector, ADMFLAG_SLAY, "Dispatch keyvalue vector on an entity.");
 	RegAdminCmd("sm_dispatchspawn", Command_DispatchSpawn, ADMFLAG_SLAY, "Dispatch spawn an entity.");
+	RegAdminCmd("sm_acceptentityinput", Command_AcceptEntityInput, ADMFLAG_SLAY, "Send an input to an entity.");
+	RegAdminCmd("sm_animate", Command_Animate, ADMFLAG_SLAY, "Send an animation input to an entity.");
 	RegAdminCmd("sm_targetentity", Command_TargetEntity, ADMFLAG_SLAY, "Target an entity.");
 	RegAdminCmd("sm_deleteentity", Command_DeleteEntity, ADMFLAG_SLAY, "Delete an entity.");
 	RegAdminCmd("sm_listownedentities", Command_ListOwnedEntities, ADMFLAG_SLAY, "List all entities owned by you.");
-
+	
 	TopMenu topmenu;
 	if (LibraryExists("adminmenu") && ((topmenu = GetAdminTopMenu()) != null))
 		OnAdminMenuReady(topmenu);
@@ -176,6 +192,8 @@ public void OnAllPluginsLoaded()
 			
 			ServerCommand("sm plugins reload %s", sReload);
 			PrintToChatAll("Plugin '%s' has been reloaded.", sName);
+			
+			ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
 		}
 
 		g_CachedTimes.SetValue(sFile, current);
@@ -195,6 +213,7 @@ public void OnMapEnd()
 {
 	delete g_OwnedEntities[0];
 	g_iTarget[0] = INVALID_ENT_REFERENCE;
+	g_Locked = false;
 }
 
 public void OnAdminMenuReady(Handle aTopMenu)
@@ -560,7 +579,7 @@ public Action Command_SetClass(int client, int args)
 
 	char sClass[32];
 	GetCmdArg(2, sClass, sizeof(sClass));
-	TFClassType class = IsStringNumber(sClass) ? view_as<TFClassType>(StringToInt(sClass)) : TF2_GetClass(sClass);
+	TFClassType class = IsStringNumeric(sClass) ? view_as<TFClassType>(StringToInt(sClass)) : TF2_GetClass(sClass);
 
 	if (class == TFClass_Unknown)
 	{
@@ -613,7 +632,7 @@ public Action Command_SetTeam(int client, int args)
 
 	char sTeam[32];
 	GetCmdArg(2, sTeam, sizeof(sTeam));
- 	TFTeam team = IsStringNumber(sTeam) ? view_as<TFTeam>(StringToInt(sTeam)) : TF2_GetTeam(sTeam);
+ 	TFTeam team = IsStringNumeric(sTeam) ? view_as<TFTeam>(StringToInt(sTeam)) : TF2_GetTeam(sTeam);
 
 	if (team == TFTeam_Unassigned)
 	{
@@ -2187,6 +2206,24 @@ public Action SpewSounds(int clients[MAXPLAYERS], int &numClients, char sample[P
 	CPrintToChatAll("[SpewSounds] -: %s", sample);
 }
 
+public Action Command_SpewAmbients(int client, int args)
+{
+	g_SpewAmbients = !g_SpewAmbients;
+	CReplyToCommand(client, "%s Spew Ambients: %s", COLORED_CHAT_TAG, g_SpewAmbients ? "ON" : "OFF");
+	
+	if (g_SpewAmbients)
+		AddAmbientSoundHook(SpewAmbients);
+	else
+		RemoveAmbientSoundHook(SpewAmbients);
+	
+	return Plugin_Handled;
+}
+
+public Action SpewAmbients(char sample[PLATFORM_MAX_PATH], int &entity, float &volume, int &level, int &pitch, float pos[3], int &flags, float &delay)
+{
+	CPrintToChatAll("[SpewAmbients] -: %s", sample);
+}
+
 public Action Command_SpewEntities(int client, int args)
 {
 	g_SpewEntities = !g_SpewEntities;
@@ -2199,6 +2236,37 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (g_SpewEntities)
 		CPrintToChatAll("[SpewEntities] -%i: %s", entity, classname);
+}
+
+public Action Command_GetEntityModel(int client, int args)
+{
+	int target = GetClientAimTarget(client, false);
+	
+	if (!IsValidEntity(target))
+	{
+		CPrintToChat(client, "%s Target not found, please aim your crosshair at the entity.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+	
+	if (!HasEntProp(target, Prop_Data, "m_ModelName"))
+	{
+		CPrintToChat(client, "%s Target doesn't have a valid model.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+	
+	char sModel[PLATFORM_MAX_PATH];
+	GetEntPropString(target, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
+	CPrintToChat(client, "%s Model Found: %s", COLORED_CHAT_TAG, sModel);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_SetKillstreak(int client, int args)
+{
+	int value = GetCmdArgInt(1);
+	TF2_SetKillstreak(client, value);
+	CPrintToChat(client, "%s Killstreak set to: %i", COLORED_CHAT_TAG, value);
+	return Plugin_Handled;
 }
 
 public Action Command_CreateEntity(int client, int args)
@@ -2391,6 +2459,77 @@ public Action Command_DispatchSpawn(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_AcceptEntityInput(int client, int args)
+{
+	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
+	{
+		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+
+	int entity = EntRefToEntIndex(g_iTarget[client]);
+
+	if (!IsValidEntity(entity) || entity < 1)
+	{
+		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		g_iTarget[client] = INVALID_ENT_REFERENCE;
+		return Plugin_Handled;
+	}
+	
+	char sInput[64];
+	GetCmdArg(1, sInput, sizeof(sInput));
+	
+	char sVariantType[64];
+	GetCmdArg(2, sVariantType, sizeof(sVariantType));
+	
+	char sVariant[64];
+	GetCmdArg(3, sVariant, sizeof(sVariant));
+	
+	if (strlen(sVariantType) > 0 && strlen(sVariant) > 0)
+	{
+		if (StrEqual(sVariantType, "string", false))
+			SetVariantString(sVariant);
+	}
+	
+	char sName[64];
+	GetEntityName(entity, sName, sizeof(sName));
+
+	AcceptEntityInput(entity, sInput);
+	CReplyToCommand(client, "%s Targetted entity '%s' input '%s' sent.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sInput);
+
+	return Plugin_Handled;
+}
+
+public Action Command_Animate(int client, int args)
+{
+	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
+	{
+		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+
+	int entity = EntRefToEntIndex(g_iTarget[client]);
+
+	if (!IsValidEntity(entity) || entity < 1)
+	{
+		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		g_iTarget[client] = INVALID_ENT_REFERENCE;
+		return Plugin_Handled;
+	}
+	
+	char sAnimation[64];
+	GetCmdArg(1, sAnimation, sizeof(sAnimation));
+	
+	char sName[64];
+	GetEntityName(entity, sName, sizeof(sName));
+	
+	SetVariantString(sAnimation);
+	AcceptEntityInput(entity, "SetAnimation");
+	CReplyToCommand(client, "%s Targetted entity '%s' animation '%s' set.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sAnimation);
+
+	return Plugin_Handled;
+}
+
 public Action Command_TargetEntity(int client, int args)
 {
 	int entity = GetClientAimTarget(client, false);
@@ -2511,5 +2650,122 @@ public int MenuHandler_ListOwnedEntities(Menu menu, MenuAction action, int param
 		{
 			delete menu;
 		}
+	}
+}
+
+public Action Command_Lock(int client, int args)
+{
+	ToggleLock(client);
+	return Plugin_Handled;
+}
+
+void ToggleLock(int client)
+{
+	g_Locked = !g_Locked;
+	CPrintToChatAll(g_Locked ? "Server is now locked to admins by %N." : "Server is now unlocked by %N.", client);
+}
+
+public bool OnClientConnect(int client, char[] rejectmsg, int maxlen)
+{
+	if (g_Locked && CheckCommandAccess(client, "", ADMFLAG_GENERIC, true))
+	{
+		strcopy(rejectmsg, maxlen, "Server is currently locked, you cannot access it.");
+		return false;
+	}
+	
+	return true;
+}
+
+public Action Command_CreateProp(int client, int args)
+{
+	float vecOrigin[3];
+	GetClientCrosshairOrigin(client, vecOrigin);
+	
+	char sModel[PLATFORM_MAX_PATH];
+	GetCmdArgString(sModel, sizeof(sModel));
+	
+	if (strlen(sModel) > 0 && GetEngineVersion() == Engine_TF2)
+		PrecacheModel(sModel);
+	
+	CreateProp(sModel, vecOrigin);
+	CPrintToChat(client, "Prop '%s' has been spawned.");
+	
+	return Plugin_Handled;
+}
+
+public Action Command_AnimateProp(int client, int args)
+{
+	int target = GetNearestEntity(client, "prop_dynamic");
+	
+	if (!IsValidEntity(target))
+	{
+		CPrintToChat(client, "No target has been found.");
+		return Plugin_Handled;
+	}
+	
+	char sClassname[32];
+	GetEntityClassname(target, sClassname, sizeof(sClassname));
+	
+	if (StrContains(sClassname, "prop_dynamic") != 0)
+	{
+		CPrintToChat(client, "Target is not a dynamic prop entity.");
+		return Plugin_Handled;
+	}
+	
+	char sAnimation[32];
+	GetCmdArgString(sAnimation, sizeof(sAnimation));
+	
+	if (strlen(sAnimation) == 0)
+	{
+		CPrintToChat(client, "Invalid animation input, please specify one.");
+		return Plugin_Handled;
+	}
+	
+	bool success = AnimateEntity(target, sAnimation);
+	CPrintToChat(client, "Animation '%s' has been sent to the target %s.", sAnimation, success ? "successfully" : "unsuccessfully");
+	
+	return Plugin_Handled;
+}
+
+public Action Command_DeleteProp(int client, int args)
+{
+	int target = GetNearestEntity(client, "prop_dynamic");
+	
+	if (!IsValidEntity(target))
+	{
+		CPrintToChat(client, "No target has been found.");
+		return Plugin_Handled;
+	}
+	
+	char sClassname[32];
+	GetEntityClassname(target, sClassname, sizeof(sClassname));
+	
+	if (StrContains(sClassname, "prop_dynamic") != 0)
+	{
+		CPrintToChat(client, "Target is not a dynamic prop entity.");
+		return Plugin_Handled;
+	}
+	
+	bool success = DeleteEntity(target);
+	CPrintToChat(client, "Prop has been deleted %s.", success ? "successfully" : "unsuccessfully");
+	
+	return Plugin_Handled;
+}
+
+public Action Noclip(int client, int args)
+{
+	ToggleNoclip(client);
+	return Plugin_Handled;
+}
+
+void ToggleNoclip(int client)
+{
+	if (GetEntityMoveType(client) == MOVETYPE_NOCLIP)
+	{
+		SetEntityMoveType(client, MOVETYPE_ISOMETRIC);
+	}
+	else
+	{
+		SetEntityMoveType(client, MOVETYPE_NOCLIP);
 	}
 }
