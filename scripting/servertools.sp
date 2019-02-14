@@ -193,7 +193,10 @@ public void OnAllPluginsLoaded()
 			ServerCommand("sm plugins reload %s", sReload);
 			PrintToChatAll("Plugin '%s' has been reloaded.", sName);
 			
-			ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
+			if (GetPluginStatus(FindPluginByFile(sReload)) != Plugin_Running)
+				ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
+			
+			ServerCommand("sm_reload_translations %s", sReload); //Automatically reloads translations.
 		}
 
 		g_CachedTimes.SetValue(sFile, current);

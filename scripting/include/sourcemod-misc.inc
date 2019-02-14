@@ -551,8 +551,11 @@ stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char
 	ReplaceString(buffer, maxlength, "%S", strlen(sSeconds) > 0 ? sSeconds : "00");
 }
 
-stock void ClearArraySafe(ArrayList array)
+stock bool ClearArraySafe(ArrayList array)
 {
+	if (array == null)
+		return false;
+	
 	for (int i = 0; i < array.Length; i++)
 	{
 		Handle hndl = array.Get(i);
@@ -560,12 +563,13 @@ stock void ClearArraySafe(ArrayList array)
 	}
 
 	array.Clear();
+	return true;
 }
 
-stock void ClearTrieSafe(StringMap map)
+stock bool ClearTrieSafe(StringMap map)
 {
 	if (map == null)
-		return;
+		return false;
 
 	StringMapSnapshot snapshot = map.Snapshot();
 	int size;
@@ -586,6 +590,7 @@ stock void ClearTrieSafe(StringMap map)
 	}
 
 	delete snapshot;
+	return true;
 }
 
 stock float CalculateFloat(int value1, int value2, float fMultiplier = 0.0)
@@ -651,9 +656,14 @@ stock bool IsStringNumeric(const char[] str)
 	return numbersFound > 0;
 }
 
-stock void RemoveFrontString(char[] buffer, int size, int position)
+stock void StripCharactersPre(char[] buffer, int size, int position)
 {
 	strcopy(buffer, size, buffer[position]);
+}
+
+stock void StripCharactersPost(char[] buffer, int position)
+{
+	buffer[position] = '\0';
 }
 
 stock bool GetStringMinMax(const char[] buffer, any& min, any& max, const char[] splitter = "/", bool clamp = true)
@@ -776,6 +786,73 @@ public bool TraceEntityFilterNone(int entity, int contentsMask, any data)
 	return entity != data;
 }
 
+stock int TE_LookupParticle(const char[] name)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+
+	char tmp[256];
+	int stridx = INVALID_STRING_INDEX;
+
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
+		
+		if (StrEqual(tmp, name, false))
+		{
+			stridx = i;
+			break;
+		}
+	}
+	
+	return stridx;
+}
+
+stock void TE_Particle(char[] name, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+
+	char tmp[256];
+	int stridx = INVALID_STRING_INDEX;
+
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
+		if (StrEqual(tmp, name, false))
+		{
+			stridx = i;
+			break;
+		}
+	}
+
+	TE_Start("TFParticleEffect");
+	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
+	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
+	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
+	TE_WriteVector("m_vecAngles", angles);
+	TE_WriteNum("m_iParticleSystemIndex", stridx);
+	TE_WriteNum("entindex", entity);
+	TE_WriteNum("m_iAttachType", 5);
+	TE_WriteNum("m_bResetParticles", resetparticles);
+	TE_SendToAll();
+}
+
+stock void TE_ParticleByID(int stridx, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+{
+	if (stridx == INVALID_STRING_INDEX)
+		return;
+
+	TE_Start("TFParticleEffect");
+	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
+	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
+	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
+	TE_WriteVector("m_vecAngles", angles);
+	TE_WriteNum("m_iParticleSystemIndex", stridx);
+	TE_WriteNum("entindex", entity);
+	TE_WriteNum("m_iAttachType", 5);
+	TE_WriteNum("m_bResetParticles", resetparticles);
+	TE_SendToAll();
+}
+
 stock int AttachParticle(int entity, const char[] name, float time = 0.0, const char[] attach = "", float angles[3] = {0.0, 0.0, 0.0}, float offsets[3] = {0.0, 0.0, 0.0})
 {
 	float vecPosition[3];
@@ -830,41 +907,6 @@ stock int CreateParticle(const char[] name, float time = 0.0, float origin[3], f
 	}
 
 	return entity;
-}
-
-stock void CreateTempParticle(char[] name, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
-{
-	int tblidx = FindStringTable("ParticleEffectNames");
-
-	char tmp[256];
-	int stridx = INVALID_STRING_INDEX;
-
-	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
-	{
-		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
-		if (StrEqual(tmp, name, false))
-		{
-			stridx = i;
-			break;
-		}
-	}
-
-	TE_Start("TFParticleEffect");
-	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
-	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
-	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
-	TE_WriteVector("m_vecAngles", angles);
-	TE_WriteNum("m_iParticleSystemIndex", stridx);
-	TE_WriteNum("entindex", entity);
-	TE_WriteNum("m_iAttachType", 5);
-	TE_WriteNum("m_bResetParticles", resetparticles);
-	TE_SendToAll();
-}
-
-stock void ClearTempParticles(int client)
-{
-	float empty[3];
-	CreateTempParticle("sandwich_fx", client, empty, empty, true);	//sandwich_fx = TF2
 }
 
 stock void SetEntitySelfDestruct(int entity, float duration)
@@ -1075,12 +1117,15 @@ stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = fa
 	return clients[GetRandomInt(0, amount)];
 }
 
-stock void SQL_VoidQueryF(Database& database, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
+stock void SQL_VoidQueryF(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
 {
 	char query[8192];
 	VFormat(query, sizeof(query), format, 4);
 
-	SQL_VoidQuery(database, query, priority);
+	DataPack pack = new DataPack();
+	pack.WriteString(query);
+
+	database.Query(TQuery_Void, query, pack, prio);
 }
 
 stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
@@ -1352,12 +1397,21 @@ stock void PrintTopTextAll(int color[4], const char[] format, any ...)
 {
 	char message[100];
 	VFormat(message, sizeof(message), format, 3);
+	
+	KeyValues kv = new KeyValues("Stuff", "title", message);
+	kv.SetColor("color", color[0], color[1], color[2], color[3]);
+	kv.SetNum("level", 1);
+	kv.SetNum("time", 10);
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientInGame(i) && !IsFakeClient(i))
-			PrintTopText(i, color, message);
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+		
+		CreateDialog(i, kv, DialogType_Msg);
 	}
+	
+	delete kv;
 }
 
 stock void PrintTopText(int client, int color[4], const char[] format, any ...)
@@ -1375,13 +1429,25 @@ stock void PrintTopText(int client, int color[4], const char[] format, any ...)
 	delete kv;
 }
 
+stock bool SendClientError(int client, int error_code, char[] format, any ...)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client))
+		return false;
+	
+	char sBuffer[255];
+	VFormat(sBuffer, sizeof(sBuffer), format, 4);
+	
+	PrintToChat(client, "Error Generated: %s [ERROR CODE: %i]", sBuffer, error_code);
+	return true;
+}
+
 stock bool IsValidEntityRef(int ref)
 {
 	return IsValidEntity(EntRefToEntIndex(ref));
 }
 
 //WARNING: Don't call this inside of the 'player_death' event, it'll crash. (May also apply to some OnTakeDamage hooks as well)
-stock void DamageArea(float origin[3], float distance = 500.0, float damage = 500.0, int attacker = 0, int inflictor = 0, int team = 0, int damagetype = DMG_GENERIC, int weapon = -1, float damageforce[3] = NULL_VECTOR)
+stock void DamageArea(float origin[3], float distance = 500.0, float damage = 500.0, int attacker = 0, int inflictor = 0, int damagetype = DMG_GENERIC, int weapon = -1, float damageforce[3] = NULL_VECTOR)
 {
 	if (distance <= 0.0 || damage <= 0.0)
 		return;
@@ -1389,7 +1455,7 @@ stock void DamageArea(float origin[3], float distance = 500.0, float damage = 50
 	float vecOrigin[3];
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || !IsPlayerAlive(i) || (team > 0 && team != GetClientTeam(i)) || (attacker > 0 && i == attacker))
+		if (!IsClientInGame(i) || !IsPlayerAlive(i) || (attacker > 0 && i == attacker))
 			continue;
 
 		GetClientAbsOrigin(i, vecOrigin);
@@ -1415,12 +1481,39 @@ stock void DamageArea(float origin[3], float distance = 500.0, float damage = 50
 	}
 }
 
-stock void ScreenFadeAll(int duration = 4, int hold_time = 4, int flag = FFADE_IN, int colors[4] = {255, 255, 255, 255})
+stock void ScreenFadeAll(int duration = 4, int hold_time = 4, int flag = FFADE_IN, int colors[4] = {255, 255, 255, 255}, bool reliable = true)
 {
+	bool pb = GetFeatureStatus(FeatureType_Native, "GetUserMessageType") == FeatureStatus_Available && GetUserMessageType() == UM_Protobuf;
+	Handle userMessage;
+	
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientInGame(i) && !IsFakeClient(i))
-			ScreenFade(i, duration, hold_time, flag, colors);
+		if (!IsClientInGame(i) || IsFakeClient(i))
+		
+		userMessage = StartMessageOne("Fade", i, (reliable ? USERMSG_RELIABLE : 0));
+
+		if (userMessage == null)
+			continue;
+
+		if (pb)
+		{
+			PbSetInt(userMessage, "duration", duration);
+			PbSetInt(userMessage, "hold_time", hold_time);
+			PbSetInt(userMessage, "flags", flag);
+			PbSetColor(userMessage, "clr", colors);
+		}
+		else
+		{
+			BfWriteShort(userMessage, duration);
+			BfWriteShort(userMessage, hold_time);
+			BfWriteShort(userMessage, flag);
+			BfWriteByte(userMessage, colors[0]);
+			BfWriteByte(userMessage, colors[1]);
+			BfWriteByte(userMessage, colors[2]);
+			BfWriteByte(userMessage, colors[3]);
+		}
+			
+		EndMessage();
 	}
 }
 
@@ -1454,21 +1547,48 @@ stock bool ScreenFade(int client, int duration = 4, int hold_time = 4, int flag 
 	return true;
 }
 
-stock bool ScreenShakeAll(int command = SHAKE_START, float amplitude = 50.0, float frequency = 150.0, float duration = 3.0, float origin[3] = NULL_VECTOR, float distance = 0.0)
+stock bool ScreenShakeAll(int command = SHAKE_START, float amplitude = 50.0, float frequency = 150.0, float duration = 3.0, float distance = 0.0, float origin[3] = NULL_VECTOR)
 {
-	float vecOrigin[3];
+	if (amplitude <= 0.0)
+		return false;
+		
+	if (command == SHAKE_STOP)
+		amplitude = 0.0;
+	
+	bool pb = GetFeatureStatus(FeatureType_Native, "GetUserMessageType") == FeatureStatus_Available && GetUserMessageType() == UM_Protobuf;
+	
+	Handle userMessage; float vecOrigin[3];
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientInGame(i) && !IsFakeClient(i))
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+		
+		GetClientAbsOrigin(i, vecOrigin);
+			
+		if (distance > 0.0 && GetVectorDistance(origin, vecOrigin) > distance)
+			continue;
+		
+		userMessage = StartMessageOne("Shake", i);
+
+		if (pb)
 		{
-			GetClientAbsOrigin(i, vecOrigin);
-			
-			if (distance > 0.0 && GetVectorDistance(origin, vecOrigin) > distance)
-				continue;
-			
-			ScreenShake(i, command, amplitude, frequency, duration);
+			PbSetInt(userMessage, "command", command);
+			PbSetFloat(userMessage, "local_amplitude", amplitude);
+			PbSetFloat(userMessage, "frequency", frequency);
+			PbSetFloat(userMessage, "duration", duration);
 		}
+		else
+		{
+			BfWriteByte(userMessage, command);		// Shake Command
+			BfWriteFloat(userMessage, amplitude);	// shake magnitude/amplitude
+			BfWriteFloat(userMessage, frequency);	// shake noise frequency
+			BfWriteFloat(userMessage, duration);	// shake lasts this long
+		}
+
+		EndMessage();
 	}
+	
+	return true;
 }
 
 stock bool ScreenShake(int client, int command = SHAKE_START, float amplitude = 50.0, float frequency = 150.0, float duration = 3.0)
@@ -1598,7 +1718,10 @@ stock void ClearOverlay(int client)
 	if (client == 0 || client > MaxClients)
 		return;
 
-	ShowOverlay(client, "0");
+	int iFlags = GetCommandFlags("r_screenoverlay");
+	SetCommandFlags("r_screenoverlay", iFlags & ~FCVAR_CHEAT);
+	ClientCommand(client, "r_screenoverlay \"0\"");
+	SetCommandFlags("r_screenoverlay", iFlags);
 }
 
 stock float GetVotePercent(int votes, int totalVotes)
@@ -1841,10 +1964,10 @@ stock void SQL_FetchClientName(int client, Database database, char[] buffer, int
 stock bool GetGroundCoordinates(int entity, float buffer[3], float distance = 0.0, float offset[3] = {0.0, 0.0, 0.0})
 {
 	float vecOrigin[3];
-	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
+	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vecOrigin);
 
 	float vecLook[3] = {90.0, 0.0, 0.0};
-	Handle trace = TR_TraceRayEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite);
+	Handle trace = TR_TraceRayFilterEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite, ___TraceEntityFilter_NoPlayers);
 
 	if (TR_DidHit(trace))
 	{
@@ -1862,10 +1985,10 @@ stock bool GetGroundCoordinates(int entity, float buffer[3], float distance = 0.
 stock bool GetCeilingCoordinates(int entity, float buffer[3], float distance = 0.0, float offset[3] = {0.0, 0.0, 0.0})
 {
 	float vecOrigin[3];
-	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
+	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vecOrigin);
 
 	float vecLook[3] = {-90.0, 0.0, 0.0};
-	Handle trace = TR_TraceRayEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite);
+	Handle trace = TR_TraceRayFilterEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite, ___TraceEntityFilter_NoPlayers);
 
 	if (TR_DidHit(trace))
 	{
@@ -1878,6 +2001,11 @@ stock bool GetCeilingCoordinates(int entity, float buffer[3], float distance = 0
 
 	delete trace;
 	return false;
+}
+
+public bool ___TraceEntityFilter_NoPlayers(int entity, int contentsMask, any data)
+{
+	return entity > MaxClients;
 }
 
 stock bool TeleportToDestination(int client, const char[] name, bool keep_velocity = false)
@@ -2206,6 +2334,16 @@ stock bool DispatchKeyValueInt(int entity, const char[] keyName, const int value
 	char sValue[64];
 	IntToString(value, sValue, sizeof(sValue));
 	return DispatchKeyValue(entity, keyName, sValue);
+}
+
+stock void ZeroVector(float vec[3])
+{
+	vec[0] = vec[1] = vec[2] = 0.0;
+}
+
+stock bool IsVectorZero(float vec[3])
+{
+    return vec[0] == 0.0 && vec[1] == 0.0 && vec[2] == 0.0;
 }
 
 stock void SetEntityRenderColorEx(int entity, int color[4])
@@ -2702,7 +2840,7 @@ stock bool EmitSoundToClientSafe(int client, char sample[PLATFORM_MAX_PATH], int
 	}
 	
 	if (StrContains(sample, "sound/") == 0)
-		RemoveFrontString(sample, sizeof(sample), 6);
+		strcopy(sample, sizeof(sample), sample[6]);
 		
 	if (IsSoundPrecached(sample))
 		EmitSoundToClient(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
@@ -2783,7 +2921,7 @@ stock bool EmitSoundToAllSafe(char sample[PLATFORM_MAX_PATH], int entity = SOUND
 	}
 	
 	if (StrContains(sample, "sound/") == 0)
-		RemoveFrontString(sample, sizeof(sample), 6);
+		strcopy(sample, sizeof(sample), sample[6]);
 		
 	if (IsSoundPrecached(sample))
 		EmitSoundToAll(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
@@ -2923,7 +3061,7 @@ stock bool PrepareSound(const char[] sample, bool preload = false, bool download
 	}
 	
 	if (StrContains(sSound, "sound/") == 0)
-		RemoveFrontString(sSound, sizeof(sSound), 6);
+		strcopy(sample, sizeof(sample), sample[6]);
 		
 	if (GetEngineVersion() == Engine_CSGO)
 	{
@@ -4682,8 +4820,15 @@ stock void TF2_RemovePlayerHealth(int client, int amount, float overheal = 1.5, 
 	if (iHealth < iMax)
 	{
 		if (iNewHealth < 1)
-			iNewHealth = 1;
-		else if (iNewHealth > iMax)
+		{
+			if (event)
+				TF2_ShowHealthGain(client, iNewHealth - iHealth);
+			
+			ForcePlayerSuicide(client);
+			return;
+		}
+		
+		if (iNewHealth > iMax)
 			iNewHealth = iMax;
 
 		if (event)
@@ -6046,6 +6191,44 @@ stock void TF2_RemoveConditionTeam(TFTeam team, TFCond condition)
 }
 
 /**
+*	Retrieves a wearable assigned to a weapon such as the Razorback or Demo Shields.
+*
+*	weapon	Weapon index.
+*
+*	return	Wearable index.
+**/
+stock int TF2_GetWeaponWearable(int weapon) 
+{
+	return GetEntPropEnt(weapon, Prop_Send, "m_hExtraWearable");
+}
+
+/**
+*	Creates a weapon entity and gives it to a client.
+*
+*	client	Client index.
+*	index	Index of the weapon.
+*	quality	Quality of the weapon.
+*	level	Level of the weapon.
+*
+*	return	Entity index.
+**/
+stock int TF2_GiveWeapon(int client, char[] classname, int index, int quality = 9, int level = 0) 
+{
+	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES);	//Keep reserve attributes otherwise random issues will occur... including crashes.
+	TF2Items_SetClassname(item, classname);
+	TF2Items_SetItemIndex(item, index);
+	TF2Items_SetQuality(item, quality);
+	TF2Items_SetLevel(item, level);
+
+	int weapon = TF2Items_GiveNamedItem(client, item);
+	delete item;
+	
+	EquipPlayerWeapon(client, weapon);
+	
+	return weapon;
+}
+
+/**
 *	Creates a viewmodel entity and sets it on the client.
 *
 *	client	Client index.
@@ -6053,7 +6236,7 @@ stock void TF2_RemoveConditionTeam(TFTeam team, TFCond condition)
 *
 *	return	Entity index.
 **/
-stock int TF2_CreateViewmodel(int client, const char[] viewmodel)
+stock int TF2_GiveViewmodel(int client, const char[] viewmodel)
 {
 	int entity = CreateEntityByName("tf_wearable_vm");
 	
@@ -6072,6 +6255,31 @@ stock int TF2_CreateViewmodel(int client, const char[] viewmodel)
 	ActivateEntity(entity);
 	
 	return entity;
+}
+
+/**
+*	Creates a wearable entity and gives it to a client.
+*
+*	client	Client index.
+*	index	Index of the wearable.
+*	quality	Quality of the wearable.
+*	level	Level of the wearable.
+*
+*	return	Entity index.
+**/
+stock int TF2_GiveWearable(int client, int index, int quality = 9, int level = 0) 
+{
+	Handle item = TF2Items_CreateItem(OVERRIDE_ALL || FORCE_GENERATION);
+	TF2Items_SetClassname(item, "tf_wearable");
+	TF2Items_SetItemIndex(item, index);
+	TF2Items_SetQuality(item, quality);
+	TF2Items_SetLevel(item, level);
+	TF2Items_SetNumAttributes(item, 0);
+
+	int wearable = TF2Items_GiveNamedItem(client, item);
+	delete item;
+	
+	return wearable;
 }
 
 /*--------------------------------------------------------->
@@ -6237,6 +6445,29 @@ stock void CSGO_StripToKnife(int client)
 			continue;
 		}
 
+		if ((weapon = GetPlayerWeaponSlot(client, i)) != -1)
+		{
+			if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
+				SetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity", client);
+
+			SDKHooks_DropWeapon(client, weapon, NULL_VECTOR, NULL_VECTOR);
+			AcceptEntityInput(weapon, "Kill");
+		}
+	}
+}
+
+/**
+*	Strip and kill all weapons on a client.
+*
+*	client	Client index.
+*
+*	return	void
+**/
+stock void CSGO_StripAllWeapons(int client)
+{
+	int weapon;
+	for (int i = 0; i < 3; i++)
+	{
 		if ((weapon = GetPlayerWeaponSlot(client, i)) != -1)
 		{
 			if (GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity") != client)
@@ -6547,6 +6778,79 @@ stock bool IsDrixevel(int client)
 	return GetSteamAccountID(client) == 76528750;
 }
 /* End of private stocks. */
+/*--------------------------------------------------------->*/
+
+/*--------------------------------------------------------->*/
+/* Confirmation Menu */
+/* Adds functionality to allow for confirmations to be made with callbacks easily.*/
+
+typeset Callback_Confirmation
+{
+	function void (int client, bool confirmed, Handle data);
+	function void (int client, bool confirmed, any data);
+	function void (int client, bool confirmed);
+}
+
+static Callback_Confirmation g_ConfirmationCall[MAXPLAYERS + 1];
+static ReplySource g_ConfirmReplySource[MAXPLAYERS + 1];
+
+stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char[] title = "", any data = 0)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client))
+		return false;
+	
+	g_ConfirmationCall[client] = callback;
+	g_ConfirmReplySource[client] = GetCmdReplySource();
+	
+	Menu menu = new Menu(___MenuHandler_SendConfirmation);
+	menu.SetTitle(strlen(title) > 0 ? title : "Are you sure you want to do this?");
+	
+	menu.AddItem("", "---", ITEMDRAW_DISABLED);
+	menu.AddItem("yes", "Yes");
+	menu.AddItem("no", "No");
+	
+	char sBuffer[256];
+	IntToString(data, sBuffer, sizeof(sBuffer));
+	menu.AddItem("data", sBuffer, ITEMDRAW_IGNORE);
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+	return true;
+}
+
+public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char sInfo[12];
+			menu.GetItem(param2, sInfo, sizeof(sInfo));
+			
+			any data; char info[128]; char datastring[128];
+			for (int i = 0; i < menu.ItemCount; i++)
+			{
+				if (menu.GetItem(i, info, sizeof(info), _, datastring, sizeof(datastring)) && StrEqual(info, "data"))
+				{
+					data = StringToInt(datastring);
+					break;
+				}
+			}
+			
+			ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+			
+			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			Call_PushCell(StrEqual(sInfo, "yes"));
+			Call_PushCell(data);
+			Call_Finish();
+			
+			SetCmdReplySource(reply);
+		}
+		case MenuAction_End:
+			delete menu;
+	}
+}
+
 /*--------------------------------------------------------->*/
 
 /*--------------------------------------------------------->*/
