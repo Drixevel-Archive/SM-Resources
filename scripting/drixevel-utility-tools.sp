@@ -72,7 +72,7 @@ public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& dam
 			GetClientEyePosition(victim, vecPos);
 			vecPos[2] += 10.0;
 		
-			CreateTempParticle("miss_text", vecPos);
+			TE_Particle("miss_text", vecPos);
 		}
 		
 		damage = 0.0;

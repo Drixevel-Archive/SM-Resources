@@ -378,6 +378,27 @@ stock bool StringToVector(const char[] explode, float buffer[3], float defaultve
 	return true;
 }
 
+stock bool StringToVector2D(const char[] explode, float buffer[2], float defaultvector[2] = {0.0, 0.0})
+{
+	if (strlen(explode) == 0)
+	{
+		buffer[0] = defaultvector[0]; buffer[1] = defaultvector[1];
+		return false;
+	}
+
+	char sPart[2][32];
+	int iReturned = ExplodeString(explode, StrContains(explode, ", ") != -1 ? ", " : " ", sPart, 2, 32);
+
+	if (iReturned != 2)
+	{
+		buffer[0] = defaultvector[0]; buffer[1] = defaultvector[1];
+		return false;
+	}
+
+	buffer[0] = StringToFloat(sPart[0]); buffer[1] = StringToFloat(sPart[1]);
+	return true;
+}
+
 stock bool StringToColor(const char[] explode, int buffer[4], int defaultvalues[4] = {255, 255, 255, 255})
 {
 	if (strlen(explode) == 0)
@@ -491,6 +512,14 @@ stock bool CheckAdminFlagsByString(int client, const char[] flags)
 stock bool GetRandomBool()
 {
 	return view_as<bool>(GetRandomInt(0, 1));
+}
+
+stock bool AcceptEntityInputSafe(int dest, const char[] input, int activator = -1, int caller = -1, int outputid = 0)
+{
+	if (!IsValidEntity(dest) || dest < 1 && StrEqual(input, "kill", false))
+		return false;
+	
+	return AcceptEntityInput(dest, input, activator, caller, outputid);
 }
 
 stock bool AddFileToDownloadsTableEx(const char[] format, any ...)
@@ -786,6 +815,110 @@ public bool TraceEntityFilterNone(int entity, int contentsMask, any data)
 	return entity != data;
 }
 
+stock bool IsTargetInSightRange(int client, int target, float angle = 90.0, float distance = 0.0, bool heightcheck = true, bool negativeangle = false)
+{
+	if (angle > 360.0 || angle < 0.0)
+		angle = 180.0;
+	
+	float anglevector[3];
+	GetClientEyeAngles(client, anglevector);
+	
+	anglevector[0] = anglevector[2] = 0.0;
+	
+	GetAngleVectors(anglevector, anglevector, NULL_VECTOR, NULL_VECTOR);
+	NormalizeVector(anglevector, anglevector);
+	
+	if (negativeangle)
+		NegateVector(anglevector);
+	
+	float clientpos[3];
+	GetClientAbsOrigin(client, clientpos);
+	
+	float targetpos[3];
+	GetClientAbsOrigin(target, targetpos);
+	
+	float resultdistance;
+	if (heightcheck && distance > 0)
+		resultdistance = GetVectorDistance(clientpos, targetpos);
+	
+	clientpos[2] = targetpos[2] = 0.0;
+	
+	float targetvector[3];
+	MakeVectorFromPoints(clientpos, targetpos, targetvector);
+	NormalizeVector(targetvector, targetvector);
+	
+	float resultangle = RadToDeg(ArcCosine(GetVectorDotProduct(targetvector, anglevector)));
+	
+	if (resultangle <= angle / 2)	
+	{
+		if(distance > 0)
+		{
+			if(!heightcheck)
+				resultdistance = GetVectorDistance(clientpos, targetpos);
+			if(distance >= resultdistance)
+				return true;
+			else
+				return false;
+		}
+		else
+			return true;
+	}
+	else
+		return false;
+}
+
+stock bool IsEntityInSightRange(int client, int entity, float angle = 90.0, float distance = 0.0, bool heightcheck = true, bool negativeangle = false)
+{
+	if (angle > 360.0 || angle < 0.0)
+		angle = 180.0;
+	
+	float anglevector[3];
+	GetClientEyeAngles(client, anglevector);
+	
+	anglevector[0] = anglevector[2] = 0.0;
+	
+	GetAngleVectors(anglevector, anglevector, NULL_VECTOR, NULL_VECTOR);
+	NormalizeVector(anglevector, anglevector);
+	
+	if (negativeangle)
+		NegateVector(anglevector);
+	
+	float clientpos[3];
+	GetClientAbsOrigin(client, clientpos);
+	
+	float targetpos[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", targetpos);
+	
+	float resultdistance;
+	if (heightcheck && distance > 0)
+		resultdistance = GetVectorDistance(clientpos, targetpos);
+	
+	clientpos[2] = targetpos[2] = 0.0;
+	
+	float targetvector[3];
+	MakeVectorFromPoints(clientpos, targetpos, targetvector);
+	NormalizeVector(targetvector, targetvector);
+	
+	float resultangle = RadToDeg(ArcCosine(GetVectorDotProduct(targetvector, anglevector)));
+	
+	if (resultangle <= angle / 2)	
+	{
+		if(distance > 0)
+		{
+			if(!heightcheck)
+				resultdistance = GetVectorDistance(clientpos, targetpos);
+			if(distance >= resultdistance)
+				return true;
+			else
+				return false;
+		}
+		else
+			return true;
+	}
+	else
+		return false;
+}
+
 stock int TE_LookupParticle(const char[] name)
 {
 	int tblidx = FindStringTable("ParticleEffectNames");
@@ -1079,6 +1212,27 @@ stock int GetMaxAmmo(int weapon)
 		return -1;
 
 	return GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
+}
+
+stock void RefillAmmo(int client, int weapon)
+{
+	int max = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
+	SetEntData(client, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), max, 4, true);
+}
+
+stock void RefillWeapons(int client)
+{
+	int weapon; int max;
+	for (int i = 0; i < 5; i++)
+	{
+		weapon = GetPlayerWeaponSlot(client, i);
+		
+		if (!IsValidEntity(weapon))
+			continue;
+		
+		max = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
+		SetEntData(i, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), max, 4, true);
+	}
 }
 
 stock bool KillTimerSafe(Handle &timer)
@@ -1429,7 +1583,14 @@ stock void PrintTopText(int client, int color[4], const char[] format, any ...)
 	delete kv;
 }
 
-stock bool SendClientError(int client, int error_code, char[] format, any ...)
+enum ErrorCode
+{
+	Error_SQLDisconnected,
+	Error_SQLResults,
+	Error_InvalidTarget
+}
+
+stock bool SendClientError(int client, ErrorCode error_code, char[] format = "", any ...)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client))
 		return false;
@@ -1437,7 +1598,18 @@ stock bool SendClientError(int client, int error_code, char[] format, any ...)
 	char sBuffer[255];
 	VFormat(sBuffer, sizeof(sBuffer), format, 4);
 	
-	PrintToChat(client, "Error Generated: %s [ERROR CODE: %i]", sBuffer, error_code);
+	if (strlen(sBuffer) == 0)
+	{
+		switch (error_code)
+		{
+			case Error_SQLDisconnected: strcopy(sBuffer, sizeof(sBuffer), "Not Connected");
+			case Error_SQLResults: strcopy(sBuffer, sizeof(sBuffer), "Invalid database results.");
+			case Error_InvalidTarget: strcopy(sBuffer, sizeof(sBuffer), "Target not found.");
+			default: strcopy(sBuffer, sizeof(sBuffer), "Unknown Error");
+		}
+	}
+	
+	ReplyToCommand(client, "Error Reported: %s [ERROR CODE: %i]", sBuffer, error_code);
 	return true;
 }
 
@@ -1692,6 +1864,33 @@ stock void String_ToUpper(const char[] input, char[] output, int size)
 	}
 
 	output[x] = '\0';
+}
+
+stock bool String_IsNumeric(const char[] buffer)
+{
+	int x; int dotsFound; int numbersFound;
+
+	if (buffer[x] == '+' || buffer[x] == '-')
+		x++;
+
+	while (buffer[x] != '\0')
+	{
+
+		if (IsCharNumeric(buffer[x]))
+			numbersFound++;
+		else if (buffer[x] == '.') {
+			dotsFound++;
+
+			if (dotsFound > 1)
+				return false;
+		}
+		else
+			return false;
+
+		x++;
+	}
+
+	return numbersFound > 0;
 }
 
 stock void ShowOverlay(int client, const char[] overlay, float duration = 0.0)
@@ -2155,6 +2354,20 @@ stock int SetEntityName(int entity, const char[] name)
 	return SetEntPropString(entity, Prop_Data, "m_iName", name);
 }
 
+stock int FindEntityByName(const char[] name)
+{
+	int entity = -1; char temp[64];
+	while ((entity = FindEntityByClassname(entity, "*")) != -1)
+	{
+		GetEntPropString(entity, Prop_Data, "m_iName", temp, sizeof(temp));
+		
+		if (StrEqual(temp, name, false))
+			return entity;
+	}
+	
+	return entity;
+}
+
 stock void GetEntityModel(int entity, char[] buffer, int size)
 {
 	GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, size);
@@ -2325,6 +2538,8 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 
 	float fOrigin2[3];
 	GetEntPropVector(entity2, Prop_Send, "m_vecOrigin", fOrigin2);
+	
+	//PrintToChatAll("entity1: %.2f/%.2f/%.2f - entity2: %.2f/%.2f/%.2f", fOrigin1[0], fOrigin1[1], fOrigin1[2], fOrigin2[0], fOrigin2[1], fOrigin2[2]);
 
 	return GetVectorDistance(fOrigin1, fOrigin2);
 }
@@ -3179,225 +3394,6 @@ stock void Effect_DrawRangedBeamBox(float origin[3], const float bottomCorner[3]
 		TE_SendToAllInRange(origin, RangeType_Audibility);
 	}
 }
-
-/*--------------------------------------------------------->*/
-//TIMER
-/*--------------------------------------------------------->*/
-methodmap SMTimer < Handle
-{
-	/**
-	 * Creates a basic timer.  Calling .Kill() on a timer will kill the timer. Do not .Kill(), .Close(),
-	 * or delete in a callback! Make sure to null timer in callback if global!
-	 *
-	 * @param interval			Interval from the current game time to execute the given function.
-	 * @param func				Function to execute once the given interval has elapsed.
-	 * @param data				Handle or value to pass through to the timer callback function.
-	 * @param flags				Flags to set (such as repeatability or auto-Handle closing).
-	 * @return					Handle to the timer object.  You do not need to call CloseHandle().
-	 *							If the timer could not be created, null will be returned.
-	 */
-	public SMTimer(float interval, Timer func, any data=INVALID_HANDLE, int flags=0)
-	{
-		return view_as<SMTimer>(CreateTimer(interval, func, data, flags));
-	}
-
-	/**
-	 * Kills a timer.  Use this instead of delete if you need more options. Do not use in a timer's callback!
-	 *
-	 * @param autoClose			If autoClose is true, the data that was passed to CreateTimer() will
-	 *							be closed as a handle if TIMER_DATA_HNDL_CLOSE was not specified.
-	 * @error					Invalid handles will cause a run time error.
-	 */
-	public void Kill(bool autoClose=false)
-	{
-		KillTimer(this, autoClose);
-		delete this;
-	}
-
-	/**
-	 * Closes a timer. A clone of .Kill() if autoClose is true. Do not use in a timer's callback!
-	 *
-	 * @param autoClose			If autoClose is true, the data that was passed to new SMTimer() will
-	 *							be deleted as a handle if TIMER_DATA_HNDL_CLOSE was not specified.
-	 * @error					Invalid handles will cause a run time error.
-	 */
-	public void Close(bool autoClose=false)
-	{
-		if (autoClose)
-			this.Kill(autoClose);
-		else
-			delete this;
-	}
-
-	/**
-	 * Manually triggers a timer so its function will be called.
-	 *
-	 * @param reset				If reset is true, the elapsed time counter is reset
-	 *							so the full interval must pass again.
-	 */
-	public void Trigger(bool reset=false)
-	{
-		TriggerTimer(this, reset);
-	}
-}
-
-methodmap SMDataTimer < SMTimer
-{
-	/**
-	 * Creates a timer associated with a new datapack if needed.
-	 * @note The datapack is automatically freed when the timer ends.
-	 * @note The position of the datapack is not reset or changed for the timer function.
-	 *
-	 * @param interval			Interval from the current game time to execute the given function.
-	 * @param func				Function to execute once the given interval has elapsed.
-	 * @param datapack			The newly created datapack is passed through this by-reference
-	 *							parameter to the timer callback function.
-	 * @param flags				Timer flags.
-	 * @return					Handle to the timer object.  You do not need to call CloseHandle().
-	 */
-	public SMDataTimer(float interval, Timer func, DataPack &datapack, int flags=0)
-	{
-		if (datapack == null)
-			datapack = new DataPack();
-		
-		flags |= TIMER_DATA_HNDL_CLOSE;
-		return view_as<SMDataTimer>(new SMTimer(interval, func, datapack, flags));
-	}
-}
-
-/*--------------------------------------------------------->*/
-//TF2ITEMS METHODMAPS (Xeon)
-/*--------------------------------------------------------->*/
-
-
-
-/*--------------------------------------------------------->*/
-//COOKIES
-/*--------------------------------------------------------->*/
-#if defined _clientprefs_included
-// Cookie Methodmaps! (yay)
-methodmap Cookie < Handle
-{
-	/**
-	 * Creates a new Client preference cookie.
-	 *
-	 * Cookies can be closed via delete when
-	 * no longer needed.
-	 *
-	 * @param name			Name of the new preference cookie.
-	 * @param description	Optional description of the preference cookie.
-	 * @param access		What CookieAccess level to assign to this cookie.
-	 * @return				A handle to the newly created cookie. If the cookie already
-	 *                      exists, a handle to it will still be returned.
-	 * @error				Cookie name is blank.
-	 */
-	public Cookie(const char[] name, const char[] description, CookieAccess access)
-		return view_as<Cookie>(RegClientCookie(name, description, access));
-
-	/**
-	 * Searches for a Client preference cookie. Use as Cookie.Find
-	 *
-	 * Cookies can be closed via delete when
-	 * no longer needed.
-	 *
-	 * @param name			Name of cookie to find.
-	 * @return				A cookie if it is found. null otherwise.
-	 */
-	public static Cookie Find(const char[] name)
-		return view_as<Cookie>(FindClientCookie(name));
-
-	/**
-	 * Set the value of a Client preference cookie.
-	 *
-	 * @param client		Client index.
-	 * @param value			String value to set.
-	 * @error				Invalid cookie handle or invalid client index.
-	 */
-	public void SetValue(int client, const char[] value)
-		SetClientCookie(client, this, value);
-
-	/**
-	 * Retrieve the value of a Client preference cookie.
-	 *
-	 * @param client		Client index.
-	 * @param buffer		Copyback buffer for value.
-	 * @param maxlen		Maximum length of the buffer.
-	 * @error				Invalid cookie handle or invalid client index.
-	 */
-	public void GetValue(int client, char[] buffer, int maxlen)
-		GetClientCookie(client, this, buffer, maxlen);
-
-	/**
-	 * Sets the value of a Client preference cookie based on an authID string.
-	 *
-	 * @param authID		String Auth/STEAM ID of player to set.
-	 * @param value			String value to set.
-	 * @error			Invalid cookie handle.
-	 */
-	public void SetByAuth(const char[] authID, const char[] value)
-		SetAuthIdCookie(authID, this, value);
-
-	/**
-	 * Add a new prefab item to the client cookie settings menu.
-	 *
-	 * Note: This handles everything automatically and does not require a callback
-	 *
-	 * @param type			A CookieMenu prefab menu type.
-	 * @param display		Text to show on the menu.
-	 * @param handler		Optional handler callback for translations and output on selection
-	 * @param info			Info data to pass to the callback.
-	 * @error				Invalid cookie handle.
-	 */
-	public void SetMenu(CookieMenu type, const char[] display, CookieMenuHandler handler=INVALID_FUNCTION, any info=0)
-		SetCookiePrefabMenu(this, type, display, handler, info);
-
-	/**
-	 * Returns the access level of a cookie
-	 *
-	 * @return				CookieAccess access level.
-	 * @error				Invalid cookie handle.
-	 */
-	property CookieAccess Access
-	{
-		public get()
-			return GetCookieAccess(this);
-	}
-
-	/**
-	 * Returns the last updated timestamp for a client cookie
-	 *
-	 * @param client		Client index.
-	 * @return			Last updated timestamp.
-	 */
-	public int GetTime(int client)
-		return GetClientCookieTime(client, this);
-}
-
-methodmap CookieIterator < Handle
-{
-	/**
-	* Gets a cookie iterator.  Must be freed with delete.
-	*
-	* @return				A new cookie iterator.
-	*/
-	public CookieIterator()
-		return view_as<CookieIterator>(GetCookieIterator());
-
-	/**
-	* Reads a cookie iterator, then advances to the next cookie if any.
-	*
-	* @param name			Name buffer.
-	* @param nameLen		Name buffer size.
-	* @param access		Access level of the cookie.
-	* @param desc			Cookie description buffer.
-	* @param descLen		Cookie description buffer size.
-	* @return				True on success, false if there are no more commands.
-	*/
-	public bool Read(char[] name, int nameLen, CookieAccess &access, char[] desc="", int descLen=0)
-		return ReadCookieIterator(this, name, nameLen, access, desc, descLen);
-}
-#endif
-
 
 /*--------------------------------------------------------->*/
 //Pelipoika Stocks (He sometimes randomly sends me these)
@@ -6282,6 +6278,82 @@ stock int TF2_GiveWearable(int client, int index, int quality = 9, int level = 0
 	return wearable;
 }
 
+stock void TF2_ResetCaber(int weapon)
+{
+	SetEntProp(weapon, Prop_Send, "m_bBroken", 0);
+	SetEntProp(weapon, Prop_Send, "m_iDetonated", 0);
+}
+
+stock void TF2_SetDrinkMeter(int client, float value = 100.0)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flEnergyDrinkMeter", value);
+}
+
+stock float TF2_GetDrinkMeter(int client)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flEnergyDrinkMeter");
+}
+
+stock void TF2_SetHypeMeter(int client, float value = 100.0)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flHypeMeter", value);
+}
+
+stock float TF2_GetHypeMeter(int client)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flHypeMeter");
+}
+
+stock void TF2_SetRageMeter(int client, float value = 100.0)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flRageMeter", value);
+}
+
+stock float TF2_GetRageMeter(int client)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flRageMeter");
+}
+
+stock void TF2_SetChargeMeter(int client, float value = 100.0)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flChargeMeter", value);
+}
+
+stock float TF2_GetChargeMeter(int client)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flChargeMeter");
+}
+
+stock void TF2_SetSniperRifleCharge(int weapon, float value = 150.0)
+{
+	SetEntPropFloat(weapon, Prop_Send, "m_flChargedDamage", value);
+}
+
+stock float TF2_GetSniperRifleCharge(int weapon)
+{
+	return GetEntPropFloat(weapon, Prop_Send, "m_flChargedDamage");
+}
+
+stock void TF2_SetRevengeCrits(int client, int value = 99)
+{
+	SetEntProp(client, Prop_Send, "m_iRevengeCrits", value);
+}
+
+stock int TF2_GetRevengeCrits(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iRevengeCrits");
+}
+
+stock int TF2_GetDecapitations(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iDecapitations");
+}
+
+stock void TF2_SetDecapitations(int client, int value = 99)
+{
+	SetEntProp(client, Prop_Send, "m_iDecapitations", value);
+}
+
 /*--------------------------------------------------------->
 .--.                    .-.                  .--.  .-.       _ .-.
 : .--'                  .' `.                : .--'.' `.     :_;: :.-.       _
@@ -6487,9 +6559,41 @@ stock void CSGO_StripAllWeapons(int client)
 *
 *	return	void
 **/
-stock void CSGO_SetClientArmor(int client, int amount = 100)
+stock void CSGO_SetClientArmor(int client, int amount)
 {
 	SetEntProp(client, Prop_Data, "m_ArmorValue", amount);
+}
+
+/**
+*	Adds to clients current armor value.
+*
+*	client	Client index.
+*	amount	Amount of armor to add.
+*
+*	return	void
+**/
+stock void CSGO_AddClientArmor(int client, int amount)
+{
+	int current = GetEntProp(client, Prop_Data, "m_ArmorValue");
+	SetEntProp(client, Prop_Data, "m_ArmorValue", current + amount);
+}
+
+/**
+*	Remove from a clients current armor value.
+*
+*	client	Client index.
+*	amount	Amount of armor to remove.
+*
+*	return	void
+**/
+stock void CSGO_RemoveClientArmor(int client, int amount)
+{
+	int current = GetEntProp(client, Prop_Data, "m_ArmorValue") - amount;
+	
+	if (current < 1)
+		current = 1;
+	
+	SetEntProp(client, Prop_Data, "m_ArmorValue", current);
 }
 
 /**
@@ -6760,6 +6864,21 @@ stock void PrintToDrixevel(const char[] format, any ...)
 	}
 }
 
+stock void DrixConsole(const char[] format, any ...)
+{
+	char sBuffer[255];
+	VFormat(sBuffer, sizeof(sBuffer), format, 2);
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || GetSteamAccountID(i) != 76528750)
+			continue;
+
+		PrintToConsole(i, "[DRIXEVEL] %s", sBuffer);
+		break;
+	}
+}
+
 stock int GetDrixevel()
 {
 	for (int i = 1; i <= MaxClients; i++)
@@ -6784,17 +6903,26 @@ stock bool IsDrixevel(int client)
 /* Confirmation Menu */
 /* Adds functionality to allow for confirmations to be made with callbacks easily.*/
 
+enum ConfirmationResponses
+{
+	Confirm_Yes,			//Client said yes.
+	Confirm_No,				//Client said no.
+	Confirm_Disconnected,	//Client disconnected with the question active.
+	Confirm_Interrupted,	//Client either couldn't receive the question was active or was interrupted with another menu.
+	Confirm_Timeout,		//Client didn't answer the question in time.
+}
+
 typeset Callback_Confirmation
 {
-	function void (int client, bool confirmed, Handle data);
-	function void (int client, bool confirmed, any data);
-	function void (int client, bool confirmed);
+	function void (int client, ConfirmationResponses response, Handle data);
+	function void (int client, ConfirmationResponses response, any data);
+	function void (int client, ConfirmationResponses response);
 }
 
 static Callback_Confirmation g_ConfirmationCall[MAXPLAYERS + 1];
 static ReplySource g_ConfirmReplySource[MAXPLAYERS + 1];
 
-stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char[] title = "", any data = 0)
+stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char[] title = "", int time = MENU_TIME_FOREVER, any data = 0)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client))
 		return false;
@@ -6819,6 +6947,18 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 
 public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int param1, int param2)
 {
+	any data; char info[128]; char datastring[128];
+	for (int i = 0; i < menu.ItemCount; i++)
+	{
+		if (menu.GetItem(i, info, sizeof(info), _, datastring, sizeof(datastring)) && StrEqual(info, "data"))
+		{
+			data = StringToInt(datastring);
+			break;
+		}
+	}
+	
+	ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+	
 	switch (action)
 	{
 		case MenuAction_Select:
@@ -6826,29 +6966,74 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 			char sInfo[12];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
 			
-			any data; char info[128]; char datastring[128];
-			for (int i = 0; i < menu.ItemCount; i++)
-			{
-				if (menu.GetItem(i, info, sizeof(info), _, datastring, sizeof(datastring)) && StrEqual(info, "data"))
-				{
-					data = StringToInt(datastring);
-					break;
-				}
-			}
-			
-			ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
-			
 			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
 			Call_PushCell(param1);
-			Call_PushCell(StrEqual(sInfo, "yes"));
+			Call_PushCell(StrEqual(sInfo, "yes") ? Confirm_Yes : Confirm_No);
 			Call_PushCell(data);
 			Call_Finish();
-			
-			SetCmdReplySource(reply);
+		}
+		case MenuCancel_Disconnected:
+		{
+			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			Call_PushCell(Confirm_Disconnected);
+			Call_PushCell(data);
+			Call_Finish();
+		}
+		case MenuCancel_Interrupted, MenuCancel_NoDisplay:
+		{
+			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			Call_PushCell(Confirm_Interrupted);
+			Call_PushCell(data);
+			Call_Finish();
+		}
+		case MenuCancel_Exit:
+		{
+			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			Call_PushCell(Confirm_No);
+			Call_PushCell(data);
+			Call_Finish();
+		}
+		case MenuCancel_Timeout:
+		{
+			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			Call_PushCell(Confirm_Timeout);
+			Call_PushCell(data);
+			Call_Finish();
 		}
 		case MenuAction_End:
 			delete menu;
 	}
+	
+	SetCmdReplySource(reply);
+}
+
+
+stock DataPack AnyString(const char[] buffer)
+{
+	if (strlen(buffer) < 1)
+		return null;
+	
+	DataPack pack = new DataPack();
+	pack.WriteString(buffer);
+	
+	return pack;
+}
+
+stock bool ReadAnyString(DataPack pack, char[] buffer, int size)
+{
+	if (pack == null)
+		return false;
+	
+	pack.Reset();
+	pack.ReadString(buffer, size);
+	delete pack;
+	
+	return true;
+}
 }
 
 /*--------------------------------------------------------->*/

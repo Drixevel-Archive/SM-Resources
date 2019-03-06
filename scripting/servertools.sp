@@ -13,6 +13,7 @@
 #include <adminmenu>
 
 //Globals
+EngineVersion game;
 ArrayList g_Commands;
 StringMap g_CachedTimes;
 
@@ -42,6 +43,8 @@ public Plugin myinfo =
 public void OnPluginStart()
 {
 	LoadTranslations("common.phrases");
+	
+	game = GetEngineVersion();
 
 	g_Commands = new ArrayList(ByteCountToCells(128));
 	g_CachedTimes = new StringMap();
@@ -543,7 +546,7 @@ public Action Command_RemoveHealth(int client, int args)
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_AddPlayerHealth(targets_list[i], health);
+		TF2_RemovePlayerHealth(targets_list[i], health);
 		CPrintToChat(targets_list[i], "%s Your health has been deducted by {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, health, client);
 	}
 
@@ -562,6 +565,11 @@ public Action Command_SetClass(int client, int args)
 	else if (args == 1)
 	{
 		CReplyToCommand(client, "%s You must specify a class to set.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		CReplyToCommand(client, "%s This command is for Team Fortress 2 only.", COLORED_CHAT_TAG);
 		return Plugin_Handled;
 	}
 
@@ -635,21 +643,35 @@ public Action Command_SetTeam(int client, int args)
 
 	char sTeam[32];
 	GetCmdArg(2, sTeam, sizeof(sTeam));
- 	TFTeam team = IsStringNumeric(sTeam) ? view_as<TFTeam>(StringToInt(sTeam)) : TF2_GetTeam(sTeam);
+ 	int team = StringToInt(sTeam);
 
-	if (team == TFTeam_Unassigned)
+	if (team < 1 || team > 3)
 	{
 		CReplyToCommand(client, "%s You have specified an invalid team.", COLORED_CHAT_TAG);
 		return Plugin_Handled;
 	}
 
 	char sTeamName[32];
-	GetTeamName(view_as<int>(team), sTeamName, sizeof(sTeamName));
+	GetTeamName(team, sTeamName, sizeof(sTeamName));
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_ChangeClientTeam(targets_list[i], team);
-		TF2_RegeneratePlayer(targets_list[i]);
+		switch (game)
+		{
+			case Engine_TF2:
+			{
+				TF2_ChangeClientTeam(targets_list[i], view_as<TFTeam>(team));
+				TF2_RegeneratePlayer(targets_list[i]);
+			}
+			
+			case Engine_CSS, Engine_CSGO:
+			{
+				CS_SwitchTeam(targets_list[i]);
+				CS_UpdateClientModel(targets_list[i]);
+			}
+			default: ChangeClientTeam(targets_list[i]);
+		}
+		
 		CPrintToChat(targets_list[i], "%s Your team has been set to {chartreuse}%s {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, sTeamName, client);
 	}
 
@@ -683,7 +705,12 @@ public Action Command_Respawn(int client, int args)
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_RespawnPlayer(targets_list[i]);
+		switch (game)
+		{
+			case Engine_TF2: TF2_RespawnPlayer(targets_list[i]);
+			case Engine_CSS, Engine_CSGO: CS_RespawnPlayer(targets_list[i]);
+		}
+		
 		CPrintToChat(targets_list[i], "%s Your have been respawned by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
 	}
 
@@ -755,9 +782,7 @@ public Action Command_RefillAmunition(int client, int args)
 		for (int x = 0; x < TF_MAX_SLOTS; x++)
 		{
 			if ((weapon2 = GetPlayerWeaponSlot(targets_list[i], i)) != INVALID_ENT_INDEX && IsValidEntity(weapon2) && g_iAmmo[weapon2] > 0)
-			{
 				SetAmmo(targets_list[i], weapon2, g_iAmmo[weapon2]);
-			}
 		}
 
 		CPrintToChat(targets_list[i], "%s Your weapons ammunitions have been refilled by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
