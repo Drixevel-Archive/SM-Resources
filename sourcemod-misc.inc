@@ -774,7 +774,7 @@ stock void CopyArrayToArray(const any[] array, any[] newArray, int size)
 		newArray[i] = array[i];
 }
 
-stock bool GetClientCrosshairOrigin(int client, float pOrigin[3], bool filter_players = true, float distance = -35.0)
+stock bool GetClientCrosshairOrigin(int client, float pOrigin[3], bool filter_players = true, float distance = 35.0)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client))
 		return false;
@@ -796,13 +796,28 @@ stock bool GetClientCrosshairOrigin(int client, float pOrigin[3], bool filter_pl
 		float vBuffer[3];
 		GetAngleVectors(vAngles, vBuffer, NULL_VECTOR, NULL_VECTOR);
 
-		pOrigin[0] = vStart[0] + (vBuffer[0] * distance);
-		pOrigin[1] = vStart[1] + (vBuffer[1] * distance);
-		pOrigin[2] = vStart[2] + (vBuffer[2] * distance);
+		pOrigin[0] = vStart[0] + (vBuffer[0] * -distance);
+		pOrigin[1] = vStart[1] + (vBuffer[1] * -distance);
+		pOrigin[2] = vStart[2] + (vBuffer[2] * -distance);
 	}
 
 	delete trace;
 	return bReturn;
+}
+
+stock bool IsPlayerStuck(int client)
+{
+	float vecMin[3];
+	GetEntPropVector(client, Prop_Send, "m_vecMins", vecMin);
+	
+	float vecMax[3];
+	GetEntPropVector(client, Prop_Send, "m_vecMaxs", vecMax);
+	
+	float vecOrigin[3];
+	GetEntPropVector(client, Prop_Send, "m_vecOrigin", vecOrigin);
+	
+	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_SOLID, TraceEntityFilterNone, client);
+	return (TR_DidHit());
 }
 
 public bool TraceEntityFilterPlayer(int entity, int contentsMask, any data)
@@ -1585,8 +1600,9 @@ stock void PrintTopText(int client, int color[4], const char[] format, any ...)
 
 enum ErrorCode
 {
+	Error_Unknown,
 	Error_SQLDisconnected,
-	Error_SQLResults,
+	Error_SQLInvalidResults,
 	Error_InvalidTarget
 }
 
@@ -1613,13 +1629,8 @@ stock bool SendClientError(int client, ErrorCode error_code, char[] format = "",
 	return true;
 }
 
-stock bool IsValidEntityRef(int ref)
-{
-	return IsValidEntity(EntRefToEntIndex(ref));
-}
-
 //WARNING: Don't call this inside of the 'player_death' event, it'll crash. (May also apply to some OnTakeDamage hooks as well)
-stock void DamageArea(float origin[3], float distance = 500.0, float damage = 500.0, int attacker = 0, int inflictor = 0, int damagetype = DMG_GENERIC, int weapon = -1, float damageforce[3] = NULL_VECTOR)
+stock void DamageRadius(float origin[3], float distance = 500.0, float damage = 500.0, int attacker = 0, int inflictor = 0, int damagetype = DMG_GENERIC, int weapon = -1, float damageforce[3] = NULL_VECTOR)
 {
 	if (distance <= 0.0 || damage <= 0.0)
 		return;
@@ -1641,7 +1652,7 @@ stock void DamageArea(float origin[3], float distance = 500.0, float damage = 50
 	int entity = -1;
 	while ((entity = FindEntityByClassname(entity, "*")) != -1)
 	{
-		if (!HasEntProp(entity, Prop_Send, "m_vecOrigin") || attacker > 0 && attacker == entity)
+		if (!HasEntProp(entity, Prop_Send, "m_vecOrigin") || entity < MaxClients)
 			continue;
 
 		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vecOrigin);
@@ -1830,6 +1841,20 @@ stock void KnockbackClient(int client, float scale = 50.0, int dir = DIR_BACKWAR
 	}
 
 	TeleportEntity(client, (z_offset > 0.0 ? vecOrigin : NULL_VECTOR), NULL_VECTOR, pResults);
+}
+
+stock void BlinkClient(int client, float distance = 35.0)
+{
+	float vecOrigin[3];
+	GetClientAbsOrigin(client, vecOrigin);
+
+	float vecPosition[3];
+	GetClientCrosshairOrigin(client, vecPosition, true, distance);
+	
+	TeleportEntity(client, vecPosition, NULL_VECTOR, NULL_VECTOR);
+	
+	if (IsPlayerStuck(client))
+		TeleportEntity(client, vecOrigin, NULL_VECTOR, NULL_VECTOR);
 }
 
 stock void AnglesToVelocity(const float pAngles[3], float pScale, float pResults[3])
@@ -3485,18 +3510,39 @@ stock void EquipWeapon(int client, int weapon)
 }
 /* */
 
+stock bool HasClassname(int entity, const char[] name, bool caseSensitive = true)
+{
+	char sBuffer[256];
+	GetEntityClassname(entity, sBuffer, sizeof(sBuffer));
+	return StrEqual(sBuffer, name, caseSensitive);
+}
+
 /*--------------------------------------------------------->
 //CONVARS
 --------------------------------------------------------->*/
 
-stock bool SetConVarFlag(ConVar convar, bool add, int set)
+stock bool SetConVarFlag(ConVar convar, bool add, int flag)
 {
 	int flags = convar.Flags;
 	
 	if (add)
-		flags |= set;
+		flags |= flag;
 	else
-		flags &= ~set;
+		flags &= ~flag;
+	
+	convar.Flags = flags;
+}
+
+stock bool SetConVarFlagByName(const char[] name, bool add, int flag)
+{
+	ConVar convar = FindConVar(name);
+	
+	int flags = convar.Flags;
+	
+	if (add)
+		flags |= flag;
+	else
+		flags &= ~flag;
 	
 	convar.Flags = flags;
 }
@@ -6758,6 +6804,32 @@ stock void CSGO_AddMoney(int client, int amount)
 }
 
 /**
+*	A simple stock to add money to a client.
+*
+*	client	Client index.
+*	amount	Amount of money to add.
+*
+*	return	void
+**/
+stock bool CSGO_RemoveMoney(int client, int amount, bool force = true)
+{
+	int new_amount = GetEntProp(client, Prop_Send, "m_iAccount") - amount;
+	
+	if (force)
+	{
+		if (new_amount < 0)
+			new_amount = 0;
+		
+		SetEntProp(client, Prop_Send, "m_iAccount", new_amount);
+		return true;
+	}
+	else if (new_amount < 0)
+		return false;
+	
+	return true;
+}
+
+/**
 *	Retrieves the current maximim amount of money allowed.
 *
 *	return	Maximum amount of money.
@@ -7033,7 +7105,6 @@ stock bool ReadAnyString(DataPack pack, char[] buffer, int size)
 	delete pack;
 	
 	return true;
-}
 }
 
 /*--------------------------------------------------------->*/
