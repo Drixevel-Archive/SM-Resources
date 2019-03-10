@@ -1,5 +1,11 @@
 /**
-*
+*   _____                                              _        __  __ _
+*  / ____|                                            | |      |  \/  (_)         
+* | (___   ___  _   _ _ __ ___ ___ _ __ ___   ___   __| |______| \  / |_ ___  ___ 
+*  \___ \ / _ \| | | | '__/ __/ _ \ '_ ` _ \ / _ \ / _` |______| |\/| | / __|/ __|
+*  ____) | (_) | |_| | | | (_|  __/ | | | | | (_) | (_| |      | |  | | \__ \ (__ 
+* |_____/ \___/ \__,_|_|  \___\___|_| |_| |_|\___/ \__,_|      |_|  |_|_|___/\___|
+*                                                                                
 *	This include contains a ton of useful stocks and functions you can use.
 *	I made this include considering I feel like most of this stuff should be built into Sourcemod anyways.
 *	Author: Keith Warren (Drixevel)
