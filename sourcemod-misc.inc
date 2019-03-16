@@ -836,58 +836,6 @@ public bool TraceEntityFilterNone(int entity, int contentsMask, any data)
 	return entity != data;
 }
 
-stock bool IsTargetInSightRange(int client, int target, float angle = 90.0, float distance = 0.0, bool heightcheck = true, bool negativeangle = false)
-{
-	if (angle > 360.0 || angle < 0.0)
-		angle = 180.0;
-	
-	float anglevector[3];
-	GetClientEyeAngles(client, anglevector);
-	
-	anglevector[0] = anglevector[2] = 0.0;
-	
-	GetAngleVectors(anglevector, anglevector, NULL_VECTOR, NULL_VECTOR);
-	NormalizeVector(anglevector, anglevector);
-	
-	if (negativeangle)
-		NegateVector(anglevector);
-	
-	float clientpos[3];
-	GetClientAbsOrigin(client, clientpos);
-	
-	float targetpos[3];
-	GetClientAbsOrigin(target, targetpos);
-	
-	float resultdistance;
-	if (heightcheck && distance > 0)
-		resultdistance = GetVectorDistance(clientpos, targetpos);
-	
-	clientpos[2] = targetpos[2] = 0.0;
-	
-	float targetvector[3];
-	MakeVectorFromPoints(clientpos, targetpos, targetvector);
-	NormalizeVector(targetvector, targetvector);
-	
-	float resultangle = RadToDeg(ArcCosine(GetVectorDotProduct(targetvector, anglevector)));
-	
-	if (resultangle <= angle / 2)	
-	{
-		if(distance > 0)
-		{
-			if(!heightcheck)
-				resultdistance = GetVectorDistance(clientpos, targetpos);
-			if(distance >= resultdistance)
-				return true;
-			else
-				return false;
-		}
-		else
-			return true;
-	}
-	else
-		return false;
-}
-
 stock bool IsEntityInSightRange(int client, int entity, float angle = 90.0, float distance = 0.0, bool heightcheck = true, bool negativeangle = false)
 {
 	if (angle > 360.0 || angle < 0.0)
@@ -908,7 +856,11 @@ stock bool IsEntityInSightRange(int client, int entity, float angle = 90.0, floa
 	GetClientAbsOrigin(client, clientpos);
 	
 	float targetpos[3];
-	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", targetpos);
+	
+	if (HasEntProp(entity, Prop_Data, "m_vecAbsOrigin"))
+		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", targetpos);
+	else
+		GetClientAbsOrigin(entity, targetpos);
 	
 	float resultdistance;
 	if (heightcheck && distance > 0)
