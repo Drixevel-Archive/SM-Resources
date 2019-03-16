@@ -4,18 +4,18 @@
 #define _sourcemod_colors_included "1.0"
 
 /*
-   _____                                              _    _____      _                
-  / ____|                                            | |  / ____|    | |               
- | (___   ___  _   _ _ __ ___ ___ _ __ ___   ___   __| | | |     ___ | | ___  _ __ ___ 
-  \___ \ / _ \| | | | '__/ __/ _ \ '_ ` _ \ / _ \ / _` | | |    / _ \| |/ _ \| '__/ __|
-  ____) | (_) | |_| | | | (_|  __/ | | | | | (_) | (_| | | |___| (_) | | (_) | |  \__ \
- |_____/ \___/ \__,_|_|  \___\___|_| |_| |_|\___/ \__,_|  \_____\___/|_|\___/|_|  |___/
-                                                                                       
-                                                                                       
- - Author: Keith Warren (Drixevel)
- - Original By: Raska aka KissLick (ColorVariables)
- 
- This is meant to be a drop-in replacement for every Source Engine game to add colors to chat and more cheat features.
+*   _____                                              _    _____      _
+*  / ____|                                            | |  / ____|    | |               
+* | (___   ___  _   _ _ __ ___ ___ _ __ ___   ___   __| | | |     ___ | | ___  _ __ ___ 
+*  \___ \ / _ \| | | | '__/ __/ _ \ '_ ` _ \ / _ \ / _` | | |    / _ \| |/ _ \| '__/ __|
+*  ____) | (_) | |_| | | | (_|  __/ | | | | | (_) | (_| | | |___| (_) | | (_) | |  \__ \
+* |_____/ \___/ \__,_|_|  \___\___|_| |_| |_|\___/ \__,_|  \_____\___/|_|\___/|_|  |___/
+* 
+* 
+* - Author: Keith Warren (Drixevel)
+* - Original By: Raska aka KissLick (ColorVariables)
+* 
+* This is meant to be a drop-in replacement for every Source Engine game to add colors to chat and more cheat features.
 */
 
 // ----------------------------------------------------------------------------------------

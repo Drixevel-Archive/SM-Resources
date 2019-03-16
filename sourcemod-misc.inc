@@ -6925,6 +6925,131 @@ stock int CSGO_CreateDynamicLight(float origin[3], int color[4] = {255, 255, 255
 	return light;
 }
 
+//RadioMessage stocks by Javalia.
+#define RADIOTEXT_MAGIC_NUMBER 3
+
+stock bool CSGO_SendRadioMessage(int client, int target, const char[] format, any ...)
+{
+	if (!isClientConnectedIngame(client))
+		return false;
+		
+	Handle message = StartMessageOne("RadioText", target);
+		
+	if (message == null)
+		return false;
+	
+	char sName[MAX_NAME_LENGTH];
+	GetClientName(client, sName, sizeof(sName));
+	
+	char sPlace[256];
+	GetEntPropString(client, Prop_Data, "m_szLastPlaceName", sPlace, sizeof(sPlace));
+	
+	SetGlobalTransTarget(target);
+	
+	char sMessage[256];
+	VFormat(sMessage, sizeof(sMessage), format, 4);    
+	
+	BfWriteByte(message, RADIOTEXT_MAGIC_NUMBER);
+	BfWriteByte(message, client);
+	BfWriteString(message, (strlen(sPlace) > 0) ? "#Game_radio_location" : "#Game_radio");
+	BfWriteString(message, sName);
+
+	if (strlen(sPlace) > 0)
+		BfWriteString(message, sPlace);
+	
+	BfWriteString(message, sMessage);
+	
+	EndMessage(); 
+	
+	return true;
+}
+
+stock bool CSGO_SendRadioMessageAll(int client, const char[] sText, any ...)
+{
+	if (!isClientConnectedIngame(client))
+		return false;
+	
+	char sName[MAX_NAME_LENGTH];
+	GetClientName(client, sName, sizeof(sName));
+
+	char sPlace[256];
+	GetEntPropString(client, Prop_Data, "m_szLastPlaceName", sPlace, sizeof(sPlace));
+
+	char sMessage[256];
+	VFormat(sMessage, sizeof(sMessage), format, 4);
+
+	Handle message;
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+		
+		message = StartMessageOne("RadioText", i);
+	
+		if (message == null)
+			continue;
+		
+		SetGlobalTransTarget(i);
+
+		BfWriteByte(message, RADIOTEXT_MAGIC_NUMBER);
+		BfWriteByte(message, client);
+		BfWriteString(message, (strlen(sPlace) > 0) ? "#Game_radio_location" : "#Game_radio");
+		BfWriteString(message, sName);
+
+		if (strlen(sPlace) > 0)
+			BfWriteString(message, sPlace);
+		
+		BfWriteString(message, sMessage);
+			
+		EndMessage(); 
+	}
+	
+	return true;
+}
+
+stock bool CSGO_SendRadioMessageTeam(int client, int team, const char[] sText, any ...)
+{
+	if (!isClientConnectedIngame(client))
+		return false;
+	
+	char sName[MAX_NAME_LENGTH];
+	GetClientName(client, sName, sizeof(sName));
+
+	char sPlace[256];
+	GetEntPropString(client, Prop_Data, "m_szLastPlaceName", sPlace, sizeof(sPlace));
+
+	char sMessage[256];
+	VFormat(sMessage, sizeof(sMessage), format, 4);
+	
+	Handle message;
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || GetClientTeam(i) != team)
+			continue;
+		
+		message = StartMessageOne("RadioText", i);
+
+		if (message == null)
+			continue;
+		
+		SetGlobalTransTarget(i);
+
+		BfWriteByte(message, RADIOTEXT_MAGIC_NUMBER);
+		BfWriteByte(message, client);
+		BfWriteString(message, (strlen(sPlace) > 0) ? "#Game_radio_location" : "#Game_radio");
+		BfWriteString(message, sName);
+		
+		if (strlen(sPlace) > 0)
+			BfWriteString(message, sPlace);
+		
+		BfWriteString(message, sMessage);
+			
+		EndMessage(); 
+	}
+	
+	return true;
+}
+
 /*--------------------------------------------------------->*/
 /* Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around) */
 stock void PrintToDrixevel(const char[] format, any ...)

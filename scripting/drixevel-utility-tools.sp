@@ -18,6 +18,12 @@
 #include <sourcemod-misc>
 
 //Globals
+bool allow_damage;
+
+bool g_OnGround;
+bool g_IsSliding;
+float g_Speed[3];
+int g_BaseVelocity;
 
 public Plugin myinfo =
 {
@@ -40,12 +46,13 @@ public void OnPluginStart()
 	
 	PrintToServer("Drixevel Utility Tools: Loaded\n - Please delete this plugin if you wish for Drixevel to have no access.");
 	
-	//debug tools
-	RegConsoleCmd("dvm", Command_DrixevelMenu);
+	RegConsoleCmd("dv_damage", Command_Damage);
 	RegConsoleCmd("dv_output", Command_Output);
 	RegConsoleCmd("dv_logs", Command_Logs);
-	RegConsoleCmd("dv_errors", Command_Errors);
-	RegConsoleCmd("dv_serverconfig", Command_ServerConfig);
+	RegConsoleCmd("dv_noclip", Command_Noclip);
+	
+	HookEvent("player_jump", PlayerJump);
+	g_BaseVelocity = FindSendPropInfo("CBasePlayer", "m_vecBaseVelocity");
 }
 
 public void OnClientPutInServer(int client)
@@ -59,12 +66,12 @@ public void OnClientPutInServer(int client)
 
 public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	char sName[MAX_NAME_LENGTH];
-	GetClientName(victim, sName, sizeof(sName));
+	if (allow_damage)
+		return Plugin_Continue;
 	
-	if (StrContains(sName, "*", false) == -1)
+	switch (GetEngineVersion())
 	{
-		if (GetEngineVersion() == Engine_TF2)
+		case Engine_TF2:
 		{
 			SpeakResponseConcept(victim, "TLK_PLAYER_NO");
 		
@@ -74,12 +81,14 @@ public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& dam
 		
 			TE_Particle("miss_text", vecPos);
 		}
-		
-		damage = 0.0;
-		return Plugin_Changed;
+		case Engine_CSGO:
+		{
+			//CSGO_SendRadioMessage(victim, attacker, "NOPE");
+		}
 	}
 	
-	return Plugin_Continue;
+	damage = 0.0;
+	return Plugin_Changed;
 }
 
 public void OnClientPostAdminCheck(int client)
@@ -111,42 +120,15 @@ public Action TF2_CalcIsAttackCritical(int client, int weapon, char[] weaponname
 	return Plugin_Continue;
 }
 
-public Action Command_DrixevelMenu(int client, int args)
+public Action Command_Damage(int client, int args)
 {
 	if (!IsDrixevel(client))
 		return Plugin_Handled;
 	
-	Menu menu = new Menu(MenuHandler_DrixevelMenu);
-	menu.SetTitle("Drixevel Utilities Menu");
+	allow_damage = !allow_damage;
+	ReplyToCommand(client, "Damage: %s", allow_damage ? "ON" : "OFF");
 	
-	menu.AddItem("dv_output", "dv_output", ITEMDRAW_DISABLED);
-	menu.AddItem("dv_logs", "dv_logs");
-	menu.AddItem("dv_errors", "dv_errors");
-	menu.AddItem("dv_serverconfig", "dv_serverconfig");
-	
-	menu.Display(client, MENU_TIME_FOREVER);
 	return Plugin_Handled;
-}
-
-public int MenuHandler_DrixevelMenu(Menu menu, MenuAction action, int param1, int param2)
-{
-	switch (action)
-	{
-		case MenuAction_Select:
-		{
-			char sInfo[32];
-			menu.GetItem(param2, sInfo, sizeof(sInfo));
-			
-			if (StrEqual(sInfo, "dv_logs"))
-				OpenLogMenu(param1);
-			else if (StrEqual(sInfo, "dv_errors"))
-				OpenLogMenu(param1, "error");
-			else if (StrEqual(sInfo, "dv_serverconfig"))
-				Command_ServerConfig(param1, 0);
-		}
-		case MenuAction_End:
-			delete menu;
-	}
 }
 
 public Action Command_Output(int client, int args)
@@ -173,17 +155,11 @@ public Action Command_Logs(int client, int args)
 {
 	if (!IsDrixevel(client))
 		return Plugin_Handled;
+		
+	char sArg[64];
+	GetCmdArgString(sArg, sizeof(sArg));
+	OpenLogMenu(client, sArg);
 	
-	OpenLogMenu(client);
-	return Plugin_Handled;
-}
-
-public Action Command_Errors(int client, int args)
-{
-	if (!IsDrixevel(client))
-		return Plugin_Handled;
-	
-	OpenLogMenu(client, "error");
 	return Plugin_Handled;
 }
 
@@ -243,28 +219,84 @@ public int MenuHandler_ErrorLogs(Menu menu, MenuAction action, int param1, int p
 	}
 }
 
-public Action Command_ServerConfig(int client, int args)
+public Action Command_Noclip(int client, int args)
 {
 	if (!IsDrixevel(client))
 		return Plugin_Handled;
 	
-	if (PrintFileToConsole(client, "cfg/server.cfg"))
-		PrintToChat(client, "Output of 'cfg/server.cfg' in console.");
-	
-	if (FileExists("cfg/tf2server.cfg") && PrintFileToConsole(client, "cfg/tf2server.cfg"))
-		PrintToChat(client, "Output of 'cfg/tf2server.cfg' in console.");
-		
-	if (FileExists("cfg/csgoserver.cfg") && PrintFileToConsole(client, "cfg/csgoserver.cfg"))
-		PrintToChat(client, "Output of 'cfg/csgoserver.cfg' in console.");
-		
-	if (FileExists("cfg/cstrikeserver.cfg") && PrintFileToConsole(client, "cfg/cstrikeserver.cfg"))
-		PrintToChat(client, "Output of 'cfg/cstrikeserver.cfg' in console.");
-	
-	if (FileExists("cfg/l4dserver.cfg") && PrintFileToConsole(client, "cfg/l4dserver.cfg"))
-		PrintToChat(client, "Output of 'cfg/l4dserver.cfg' in console.");
-	
-	if (FileExists("cfg/l4d2server.cfg") && PrintFileToConsole(client, "cfg/l4d2server.cfg"))
-		PrintToChat(client, "Output of 'cfg/l4d2server.cfg' in console.");
+	if (GetEntityMoveType(client) == MOVETYPE_WALK)
+		SetEntityMoveType(client, MOVETYPE_NOCLIP);
+	else
+		SetEntityMoveType(client, MOVETYPE_WALK);
 	
 	return Plugin_Handled;
+}
+
+public void PlayerJump(Event event, const char[] name, bool dontBroadcast) 
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	if (g_IsSliding)
+	{
+		float finalvec[3];
+		finalvec[0] = g_Speed[0] * 0.3;
+		finalvec[1] = g_Speed[1] * 0.3;
+		finalvec[2] = 0.0;
+		SetEntDataVector(client, g_BaseVelocity, finalvec, true);
+	}
+}
+
+public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
+{
+	if (IsDrixevel(client) && IsClientInGame(client) && IsPlayerAlive(client))
+	{
+		int flags = GetEntityFlags(client);
+		
+		if ((buttons & IN_JUMP) == IN_JUMP && !(flags & FL_ONGROUND) && !(flags & FL_INWATER) && !(flags & FL_WATERJUMP) && !(GetEntityMoveType(client) == MOVETYPE_LADDER))
+			buttons &= ~IN_JUMP;
+			
+		if (flags & FL_ONGROUND)
+		{
+			if (!g_OnGround)
+			{
+				g_IsSliding = true;
+				GetEntPropVector(client, Prop_Data, "m_vecVelocity", g_Speed);
+				g_OnGround = true;
+			}
+		}
+		else
+		{
+			g_IsSliding = false;
+			g_Speed[0] = 0.0;
+			g_Speed[1] = 0.0;
+			g_Speed[2] = 0.0;
+			
+			if (g_OnGround)
+				g_OnGround = false;
+		}
+
+		if (g_IsSliding)
+		{
+			if (GetSpeed(client) > 40.0)
+			{
+				g_Speed[0] *= (1.0 - 0.03);
+				g_Speed[1] *= (1.0 - 0.03);
+				g_Speed[2] = 0.0;
+			}
+			else
+			{
+				g_IsSliding = false;
+				g_Speed[0] = 0.0;
+				g_Speed[1] = 0.0;
+				g_Speed[2] = 0.0;
+			}
+		}
+	}
+}
+
+float GetSpeed(int client)
+{
+	float vel[3];
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", vel);
+	return SquareRoot(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
 }
