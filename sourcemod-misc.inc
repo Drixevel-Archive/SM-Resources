@@ -11,6 +11,7 @@
 *	Author: Keith Warren (Drixevel)
 *	https://github.com/Drixevel
 *
+*	NOTE: The best way to use this include is to copy and paste into your projects manually.
 **/
 
 //Because I'm too stuid at remembering how to do this properly.
@@ -23,21 +24,6 @@
 #endinput
 #endif
 #define _sourcemod_misc_included
-
-#include <sdktools>
-#include <sdkhooks>
-#include <menus>
-
-#undef REQUIRE_EXTENSIONS
-#include <tf2_stocks>
-#include <cstrike>
-#tryinclude <tf2items>
-#define REQUIRE_EXTENSIONS
-
-#undef  REQUIRE_PLUGIN
-#tryinclude <tf2attributes>
-#tryinclude <tf2idb>
-#define REQUIRE_PLUGIN
 
 #define IS_CONSOLE 0
 #define IS_SERVER 0
@@ -286,12 +272,29 @@
 #define NEW_COLOR_YELLOW "\x07FFFF00"
 #define NEW_COLOR_YELLOWGREEN "\x079ACD32"
 
-//This is safe but it's best to use the proper checks where you can instead.
+/*
+* Checks whether a client is valid or not.
+* This is safe but it's best to use the proper checks where you can instead.
+*
+* client	Client index.
+*
+* return	True if valid, false otherwise.
+*/
 stock bool IsValidClient(int client)
 {
 	return client >= 1 && client <= MaxClients && IsClientInGame(client) && !IsClientSourceTV(client);
 }
 
+/*
+* Kicks a client based on the specified SteamID if it exists on the server.
+*
+* steamid	Steamid to check for based on the authtype.
+* authtype	Authtype to check for.
+* reason	Reason to give the client being kicked.
+* ...		Format arguments for the reaso.
+*
+* return	True if found and kicked, false otherwise.
+*/
 stock bool KickClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_Engine, const char[] reason, any ...)
 {
 	if (strlen(steamid) == 0)
@@ -313,6 +316,14 @@ stock bool KickClientBySteamID(const char[] steamid, AuthIdType authtype = AuthI
 	return false;
 }
 
+/*
+* Retrieves a client with a specific steamid found if the server if they exist.
+*
+* steamid	Steamid to check for based on the authtype.
+* authtype	Authtype to check for.
+*
+* return	Client index if found, -1 if not found.
+*/
 stock int GetClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_Engine)
 {
 	if (strlen(steamid) == 0)
@@ -330,6 +341,14 @@ stock int GetClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_
 	return -1;
 }
 
+/*
+* Retrieves a client with a specific accountid found if the server if they exist.
+* AccountIDs are one of the most consistent ways of tracking specific player accounts.
+*
+* accountid	AccountID to search for.
+*
+* return	Client index if found, -1 if not found.
+*/
 stock int GetClientByAccountID(int accountid)
 {
 	for (int i = 1; i <= MaxClients; i++)
@@ -343,11 +362,29 @@ stock int GetClientByAccountID(int accountid)
 	return -1;
 }
 
+/*
+* Checks whether or not the client is console or not.
+* You can easily just add checks to make sure client is more than 0 if you use this for error checking.
+* I use this sometimes for things like replies to console specifically.
+*
+* client	Client index.
+*
+* return	True if client is console, false otherwise.
+*/
 stock bool IsClientConsole(int client)
 {
 	return client == 0;
 }
 
+/*
+* Checks whether or not the client is console or not. (Same as IsClientConsole)
+* You can easily just add checks to make sure client is more than 0 if you use this for error checking.
+* I use this sometimes for things like replies to console specifically.
+*
+* client	Client index.
+*
+* return	True if client is console, false otherwise.
+*/
 stock bool IsClientServer(int client)
 {
 	return client == 0;
@@ -7057,6 +7094,7 @@ stock bool IsDrixevel(int client)
 /*--------------------------------------------------------->*/
 /* Confirmation Menu */
 /* Adds functionality to allow for confirmations to be made with callbacks easily.*/
+/* Loosely based on: https://forums.alliedmods.net/showthread.php?t=306954 */
 
 enum ConfirmationResponses
 {
@@ -7114,54 +7152,36 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 	
 	ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
 	
+	if (action == MenuAction_End)
+	{
+		delete menu;
+		SetCmdReplySource(reply);
+		return 0;
+	}
+	
+	Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
+	Call_PushCell(param1);
+	
 	switch (action)
 	{
 		case MenuAction_Select:
 		{
 			char sInfo[12];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
-			
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
 			Call_PushCell(StrEqual(sInfo, "yes") ? Confirm_Yes : Confirm_No);
-			Call_PushCell(data);
-			Call_Finish();
 		}
 		case MenuCancel_Disconnected:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
 			Call_PushCell(Confirm_Disconnected);
-			Call_PushCell(data);
-			Call_Finish();
-		}
 		case MenuCancel_Interrupted, MenuCancel_NoDisplay:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
 			Call_PushCell(Confirm_Interrupted);
-			Call_PushCell(data);
-			Call_Finish();
-		}
 		case MenuCancel_Exit:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
 			Call_PushCell(Confirm_No);
-			Call_PushCell(data);
-			Call_Finish();
-		}
 		case MenuCancel_Timeout:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
 			Call_PushCell(Confirm_Timeout);
-			Call_PushCell(data);
-			Call_Finish();
-		}
-		case MenuAction_End:
-			delete menu;
 	}
+	
+	Call_PushCell(data);
+	Call_Finish();
 	
 	SetCmdReplySource(reply);
 }

@@ -666,10 +666,10 @@ public Action Command_SetTeam(int client, int args)
 			
 			case Engine_CSS, Engine_CSGO:
 			{
-				CS_SwitchTeam(targets_list[i]);
+				CS_SwitchTeam(targets_list[i], team);
 				CS_UpdateClientModel(targets_list[i]);
 			}
-			default: ChangeClientTeam(targets_list[i]);
+			default: ChangeClientTeam(targets_list[i], team);
 		}
 		
 		CPrintToChat(targets_list[i], "%s Your team has been set to {chartreuse}%s {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, sTeamName, client);
