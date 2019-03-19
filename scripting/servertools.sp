@@ -96,6 +96,10 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_particle", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
 	RegAdminCmd("sm_spawnparticle", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
 	RegAdminCmd("sm_p", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
+	RegAdminCmd2("sm_listparticles", Command_ListParticles, ADMFLAG_SLAY, "List particles by name and click on them to test them.");
+	RegAdminCmd("sm_lp", Command_ListParticles, ADMFLAG_SLAY, "List particles by name and click on them to test them.");
+	RegAdminCmd("sm_generateparticles", Command_GenerateParticles, ADMFLAG_SLAY, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
+	RegAdminCmd("sm_gp", Command_GenerateParticles, ADMFLAG_SLAY, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
 	RegAdminCmd2("sm_spewsounds", Command_SpewSounds, ADMFLAG_SLAY, "Logs all sounds played live into chat.");
 	RegAdminCmd2("sm_spewambients", Command_SpewAmbients, ADMFLAG_SLAY, "Logs all ambient sounds played live into chat.");
 	RegAdminCmd2("sm_spewentities", Command_SpewEntities, ADMFLAG_SLAY, "Logs all entities created live into chat.");
@@ -2212,6 +2216,103 @@ public Action Command_Particle(int client, int args)
 	
 	CreateParticle(sParticle, time, vecOrigin);
 	CReplyToCommand(client, "%s Particle %s has been spawned for %.2f second(s).", COLORED_CHAT_TAG, sParticle, time);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_ListParticles(int client, int args)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+	
+	if (tblidx == INVALID_STRING_TABLE)
+	{
+		CReplyToCommand(client, "Could not find string table: ParticleEffectNames");
+		return Plugin_Handled;
+	}
+	
+	Menu menu = new Menu(MenuHandler_Particles);
+	menu.SetTitle("Available particles:");
+	
+	char sParticle[256];
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, sParticle, sizeof(sParticle));
+		menu.AddItem(sParticle, sParticle);
+	}
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char sParticle[256];
+			menu.GetItem(param2, sParticle, sizeof(sParticle));
+			
+			float vecOrigin[3];
+			GetClientCrosshairOrigin(param1, vecOrigin);
+			
+			CreateParticle(sParticle, 2.0, vecOrigin);
+			CReplyToCommand(param1, "%s Particle %s has been spawned for 2.0 seconds.", COLORED_CHAT_TAG, sParticle);
+			
+			Command_ListParticles(param1, 0);
+		}
+		case MenuAction_End:
+			delete menu;
+	}
+}
+
+public Action Command_GenerateParticles(int client, int args)
+{
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "data/particles/");
+	
+	if (!DirExists(sPath))
+	{
+		CreateDirectory(sPath, 511);
+		
+		if (!DirExists(sPath))
+		{
+			CReplyToCommand(client, "%s Error finding and creating directory: %s", COLORED_CHAT_TAG, sPath);
+			return Plugin_Handled;
+		}
+	}
+	
+	char sGame[32];
+	GetGameFolderName(sGame, sizeof(sGame));
+	
+	BuildPath(Path_SM, sPath, sizeof(sPath), "data/particles/%s.txt", sGame);
+	
+	File file = OpenFile(sPath, "w");
+	
+	if (file == null)
+	{
+		CReplyToCommand(client, "%s Error opening up file for writing: %s", COLORED_CHAT_TAG, sPath);
+		return Plugin_Handled;
+	}
+	
+	int tblidx = FindStringTable("ParticleEffectNames");
+	
+	if (tblidx == INVALID_STRING_TABLE)
+	{
+		CReplyToCommand(client, "%s Could not find string table: ParticleEffectNames", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+	
+	char name[256];
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, name, sizeof(name));
+		file.WriteLine(name);
+	}
+	
+	delete file;
+	CReplyToCommand(client, "%s Particles file generated successfully for %s at: %s", COLORED_CHAT_TAG, sGame, sPath);
 	
 	return Plugin_Handled;
 }
