@@ -30,6 +30,7 @@ ArrayList g_OwnedEntities[MAXPLAYERS + 1];
 int g_iTarget[MAXPLAYERS + 1] = {INVALID_ENT_REFERENCE, ...};
 
 bool g_Locked;
+ArrayList g_HookEvents;
 
 public Plugin myinfo =
 {
@@ -110,9 +111,7 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_createprop", Command_CreateProp, ADMFLAG_SLAY, "Create a dynamic prop entity.");
 	RegAdminCmd2("sm_animateprop", Command_AnimateProp, ADMFLAG_SLAY, "Animate a dynamic prop entity.");
 	RegAdminCmd2("sm_deleteprop", Command_DeleteProp, ADMFLAG_SLAY, "Delete a dynamic prop entity.");
-	
-	//simple noclip
-	RegAdminCmd("noclip", Noclip, ADMFLAG_SLAY);
+	RegAdminCmd2("sm_debugevents", Command_DebugEvents, ADMFLAG_SLAY, "Easily debug events as they fire.");
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_SLAY, "Create an entity.");
@@ -131,6 +130,7 @@ public void OnPluginStart()
 		OnAdminMenuReady(topmenu);
 		
 	CreateTimer(1.0, Timer_CheckForUpdates, _, TIMER_REPEAT);
+	g_HookEvents = new ArrayList(ByteCountToCells(256));
 }
 
 void RegAdminCmd2(const char[] cmd, ConCmd callback, int adminflags, const char[] description = "", const char[] group = "", int flags = 0)
@@ -2881,13 +2881,58 @@ public Action Command_DeleteProp(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action Noclip(int client, int args)
+public Action Command_DebugEvents(int client, int args)
 {
-	ToggleNoclip(client);
+	if (g_HookEvents.Length > 0)
+	{
+		char sName[256];
+		for (int i = 0; i < g_HookEvents.Length; i++)
+		{
+			g_HookEvents.GetString(i, sName, sizeof(sName));
+			UnhookEvent(sName, Event_Debug);
+		}
+		
+		g_HookEvents.Clear();
+		CReplyToCommand(client, "Event debugging: OFF");
+		
+		return Plugin_Handled;
+	}
+	
+	char sPath[PLATFORM_MAX_PATH];
+	FormatEx(sPath, sizeof(sPath), "resources/modevents.res");
+	
+	KeyValues kv = new KeyValues("ModEvents");
+	
+	if (!kv.ImportFromFile(sPath))
+	{
+		delete kv;
+		CPrintToChat(client, "Error finding file: %s", sPath);
+		return Plugin_Handled;
+	}
+	
+	if (!kv.GotoFirstSubKey())
+	{
+		delete kv;
+		CPrintToChat(client, "Error parsing file: %s", sPath);
+		return Plugin_Handled;
+	}
+	
+	char sName[256];
+	do
+	{
+		kv.GetSectionName(sName, sizeof(sName));
+		HookEventEx(sName, Event_Debug);
+		g_HookEvents.PushString(sName);
+	}
+	while (kv.GotoNextKey());
+	
+	delete kv;
+	CReplyToCommand(client, "Event debugging: ON");
+	
 	return Plugin_Handled;
 }
 
-void ToggleNoclip(int client)
+public void Event_Debug(Event event, const char[] name, bool dontBroadcast)
 {
-	SetEntityMoveType(client, (GetEntityMoveType(client) == MOVETYPE_NOCLIP) ? MOVETYPE_ISOMETRIC : MOVETYPE_NOCLIP);
+	PrintToConsoleAll("[EVENT DEBUGGING] FIRED: %s", name);
 }
