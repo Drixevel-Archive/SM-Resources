@@ -14,11 +14,11 @@
 *	NOTE: The best way to use this include is to copy and paste into your projects manually.
 **/
 
-//Because I'm too stuid at remembering how to do this properly.
-//Apply Bit: damagetype |= DMG_CRIT;
-//Apply Multi Bit: damagetype |= (DMG_CRIT | DMG_BURN);
-//Remove Bit: damagetype &= ~DMG_BURN;
-//Remove Multi Bit: damagetype &= ~(DMG_CRIT | DMG_BURN);
+//Because I'm too stupid at remembering how to do this properly.
+//Apply Bit: bitbuffer |= BIT_1;
+//Apply Multi Bit: bitbuffer |= (BIT_1 | BIT_2);
+//Remove Bit: bitbuffer &= ~BIT_2;
+//Remove Multi Bit: bitbuffer &= ~(BIT_1 | BIT_2);
 
 #if defined _sourcemod_misc_included
 #endinput
@@ -388,11 +388,6 @@ stock bool IsClientConsole(int client)
 stock bool IsClientServer(int client)
 {
 	return client == 0;
-}
-
-stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVal_Error)
-{
-	return view_as<bool>(results.FetchInt(field, status));
 }
 
 stock bool StringToBool(const char[] buffer)
@@ -1267,49 +1262,6 @@ stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = fa
 	}
 
 	return clients[GetRandomInt(0, amount)];
-}
-
-stock void SQL_VoidQueryF(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
-{
-	char query[8192];
-	VFormat(query, sizeof(query), format, 4);
-
-	DataPack pack = new DataPack();
-	pack.WriteString(query);
-
-	database.Query(TQuery_Void, query, pack, prio);
-}
-
-stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
-{
-	DataPack pack = new DataPack();
-	pack.WriteString(query);
-
-	database.Query(TQuery_Void, query, pack, prio);
-}
-
-public void TQuery_Void(Database owner, DBResultSet hndl, const char[] error, DataPack data)
-{
-	if (hndl == null)
-	{
-		data.Reset();
-
-		char sQuery[8192];
-		data.ReadString(sQuery, sizeof(sQuery));
-
-		LogError("Error executing void query: %s", error);
-		LogError("Query Output: %s", sQuery);
-	}
-
-	delete data;
-}
-
-stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
-{
-	char query[8192];
-	VFormat(query, sizeof(query), format, 6);
-
-	database.Query(callback, query, data, priority);
 }
 
 stock int GetSlotIDFromName(const char[] name)
@@ -2602,6 +2554,8 @@ stock RenderMode GetRenderModeByName(const char[] name)
 	return RENDER_NORMAL;
 }
 
+//List provided by: https://www.december.com/html/spec/colorrgbadec.html
+//I just simply referenced it for this function.
 stock int[] GetColorByName(const char[] name)
 {
 	int color[4]; color[3] = 255;
@@ -2609,17 +2563,68 @@ stock int[] GetColorByName(const char[] name)
 	if (StringToColor(name, color, view_as<int>({255, 255, 255, 255})))
 		return color;
 	
-	if (StrEqual(name, "red", false))
+	if (StrEqual(name, "white", false))
+		return color;
+	
+	if (StrEqual(name, "black", false))
 	{
-		color[0] = 255;
+		color[0] = 0; color[1] = 0; color[2] = 0;
 	}
-	else if (StrEqual(name, "green", false))
+	else if (StrEqual(name, "navy", false))
 	{
-		color[1] = 255;
+		color[0] = 0; color[1] = 0; color[2] = 128;
 	}
 	else if (StrEqual(name, "blue", false))
 	{
-		color[2] = 255;
+		color[0] = 0; color[1] = 0; color[2] = 255;
+	}
+	else if (StrEqual(name, "green", false))
+	{
+		color[0] = 0; color[1] = 128; color[2] = 0;
+	}
+	else if (StrEqual(name, "teal", false))
+	{
+		color[0] = 0; color[1] = 128; color[2] = 128;
+	}
+	else if (StrEqual(name, "lime", false))
+	{
+		color[0] = 0; color[1] = 255; color[2] = 0;
+	}
+	else if (StrEqual(name, "aqua", false))
+	{
+		color[0] = 0; color[1] = 255; color[2] = 255;
+	}
+	else if (StrEqual(name, "maroon", false))
+	{
+		color[0] = 128; color[1] = 0; color[2] = 0;
+	}
+	else if (StrEqual(name, "purple", false))
+	{
+		color[0] = 128; color[1] = 0; color[2] = 128;
+	}
+	else if (StrEqual(name, "olive", false))
+	{
+		color[0] = 128; color[1] = 128; color[2] = 0;
+	}
+	else if (StrEqual(name, "gray", false))
+	{
+		color[0] = 128; color[1] = 128; color[2] = 128;
+	}
+	else if (StrEqual(name, "silver", false))
+	{
+		color[0] = 192; color[1] = 192; color[2] = 192;
+	}
+	else if (StrEqual(name, "red", false))
+	{
+		color[0] = 255; color[1] = 0; color[2] = 0;
+	}
+	else if (StrEqual(name, "fuchsia", false))
+	{
+		color[0] = 255; color[1] = 0; color[2] = 255;
+	}
+	else if (StrEqual(name, "yellow", false))
+	{
+		color[0] = 255; color[1] = 255; color[2] = 0;
 	}
 	
 	return color;
@@ -2969,6 +2974,57 @@ stock int GetCmdArgTargetEx(int client, int argnum, bool nobots = false, bool im
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(argnum, sTarget, sizeof(sTarget));
 	return FindTargetEx(client, sTarget, nobots, immunity);
+}
+
+/*---------------------------------------------------------*/
+//MYSQL / SQLITE
+/*---------------------------------------------------------*/
+stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVal_Error)
+{
+	return view_as<bool>(results.FetchInt(field, status));
+}
+
+stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
+{
+	DataPack pack = new DataPack();
+	pack.WriteString(query);
+
+	database.Query(TQuery_Void, query, pack, prio);
+}
+
+stock void SQL_VoidQueryF(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
+{
+	char query[8192];
+	VFormat(query, sizeof(query), format, 4);
+
+	DataPack pack = new DataPack();
+	pack.WriteString(query);
+
+	database.Query(TQuery_Void, query, pack, prio);
+}
+
+public void TQuery_Void(Database owner, DBResultSet hndl, const char[] error, DataPack data)
+{
+	if (hndl == null)
+	{
+		data.Reset();
+
+		char sQuery[8192];
+		data.ReadString(sQuery, sizeof(sQuery));
+
+		LogError("Error executing void query: %s", error);
+		LogError("Query Output: %s", sQuery);
+	}
+
+	delete data;
+}
+
+stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
+{
+	char query[8192];
+	VFormat(query, sizeof(query), format, 6);
+
+	database.Query(callback, query, data, priority);
 }
 
 /*---------------------------------------------------------*/
@@ -7174,6 +7230,7 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 	SetCmdReplySource(reply);
 }
 
+/* Easily pass strings through data parameters. */
 
 stock DataPack AnyString(const char[] buffer)
 {
