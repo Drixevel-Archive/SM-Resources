@@ -9,7 +9,7 @@
 //Sourcemod Includes
 #include <sourcemod>
 #include <sourcemod-misc>
-#include <colorvariables>
+#include <sourcemod-colors>
 #include <adminmenu>
 
 //Globals

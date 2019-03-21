@@ -1245,18 +1245,6 @@ stock void RefillWeapons(int client)
 	}
 }
 
-stock bool KillTimerSafe(Handle &timer)
-{
-	if (timer != null)
-	{
-		KillTimer(timer);
-		timer = null;
-		return true;
-	}
-
-	return false;
-}
-
 stock int GetActiveWeapon(int client)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))

