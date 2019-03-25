@@ -4644,7 +4644,7 @@ stock int TF2_GetHealingTarget(int client)
 {
 	int weapon = GetPlayerWeaponSlot(client, 1);
 
-	if (!IsValidEntity(weapon) || weapon != GetActiveWeapon(client))
+	if (!IsValidEntity(weapon) || weapon != GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon"))
 		return -1;
 
 	char sClassname[32];
