@@ -12,7 +12,7 @@
             },
 
             "windows":{
-                 "command": "C:\\Users\\Keith\\Google Drive\\SourcePawn\\Sourcemod-Resources\\scripting\\spcomp.exe",
+                 "command": "${workspaceFolder}\\scripting\\spcomp.exe",
             },
 
             "args": [
@@ -20,7 +20,7 @@
                 "-E",
                 "-O2",
                 "-v2",
-                "-iC:\\Users\\Keith\\Google Drive\\SourcePawn\\Sourcemod-Resources\\scripting",
+                "-i${workspaceFolder}\\scripting",
                 "-i${workspaceFolder}\\include",
                 "-o${workspaceFolder}\\plugins\\${fileBasenameNoExtension}.smx"
             ],

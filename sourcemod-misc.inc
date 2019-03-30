@@ -25,6 +25,13 @@
 #endif
 #define _sourcemod_misc_included
 
+#undef REQUIRE_EXTENSIONS
+#include <sdktools>
+#include <sdkhooks>
+#include <tf2_stocks>
+#include <cstrike>
+#define REQUIRE_EXTENSIONS
+
 #define IS_CONSOLE 0
 #define IS_SERVER 0
 
@@ -1554,7 +1561,7 @@ stock bool SendClientError(int client, ErrorCode error_code, char[] format = "",
 		switch (error_code)
 		{
 			case Error_SQLDisconnected: strcopy(sBuffer, sizeof(sBuffer), "Not Connected");
-			case Error_SQLResults: strcopy(sBuffer, sizeof(sBuffer), "Invalid database results.");
+			case Error_SQLInvalidResults: strcopy(sBuffer, sizeof(sBuffer), "Invalid database results.");
 			case Error_InvalidTarget: strcopy(sBuffer, sizeof(sBuffer), "Target not found.");
 			default: strcopy(sBuffer, sizeof(sBuffer), "Unknown Error");
 		}
@@ -2499,8 +2506,6 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 	float fOrigin2[3];
 	GetEntPropVector(entity2, Prop_Send, "m_vecOrigin", fOrigin2);
 	
-	//PrintToChatAll("entity1: %.2f/%.2f/%.2f - entity2: %.2f/%.2f/%.2f", fOrigin1[0], fOrigin1[1], fOrigin1[2], fOrigin2[0], fOrigin2[1], fOrigin2[2]);
-
 	return GetVectorDistance(fOrigin1, fOrigin2);
 }
 
@@ -4201,6 +4206,46 @@ stock bool RemoveMenuItemByName(Menu menu, const char[] name)
 	return false;
 }
 
+stock bool ChangeItemText(Menu menu, int position, const char[] display)
+{
+	if  (menu == null || strlen(display) == 0)
+		return false;
+	
+	char info[1024]; int style;
+	menu.GetItem(position, info, sizeof(info), style);
+	
+	if (!menu.RemoveItem(position) || !menu.InsertItem(position, info, display, style))
+		return false;
+	
+	return true;
+}
+
+//This stocks broken, read below.
+stock bool ChangeItemTextByName(Menu menu, const char[] name, const char[] display)
+{
+	if  (menu == null || strlen(name) == 0 || strlen(display) == 0)
+		return false;
+	
+	int position; char info[1024]; int style; char data[1024];
+	for (int i = 0; i < menu.ItemCount; i++)
+	{
+		if (menu.GetItem(i, info, sizeof(info), style, data, sizeof(data)) && StrEqual(data, name, false))
+		{
+			position = i;
+			break;
+		}
+	}
+	
+	if (!menu.RemoveItem(position))
+		return false;
+	
+	//Returns false, does not work.
+	//if (!menu.InsertItem(position, info, display, style))
+	//	return false;
+	
+	return true;
+}
+
 /*--------------------------------------------------------->
 .-----.                      .---.         .-.                          .---.
 `-. .-'                      : .--'       .' `.                         `--. :
@@ -5481,11 +5526,10 @@ stock int TF2_GetHealerByIndex(int client, int index)
 		return 0;
 
 	int m_aHealers = FindSendProinfo("CTFPlayer", "m_nNumHealers") + 12;
-
 	Address m_Shared = GetEntityAddress(client) + view_as<Address>(m_aHealers);
 	Address aHealers = view_as<Address>(LoadFromAddress(m_Shared, NumberType_Int32));
 
-	return (LoadFromAddress(aHealers + view_as<Address>(index * 0x24), NumberType_Int32) & 0xFFF);
+	return LoadFromAddress(aHealers + view_as<Address>(index * 0x24), NumberType_Int32) & 0xFFF;
 }
 
 /**
@@ -5520,7 +5564,7 @@ stock bool TF2_IsCurrentHealer(int client, int healer)
 
 	if ((healers = GetEntProp(client, Prop_Send, "m_nNumHealers")) == 0)
 		return false;
-
+	
 	for (int i = 0; i < healers; i++)
 	{
 		if (TF2_GetHealerByIndex(client, i) == healer)
@@ -5946,11 +5990,11 @@ stock int TF2_SpawnTeleporter(int builder, float Position[3], float Angle[3], TF
 *	Destroys all buildings owned by a player.
 *
 *	builder		Builder index.
-*	damage		Whether to damage the building to 0 health or to just kill the entity.
+*	destroy		Whether to destroy the building or to just kill the entity.
 *
 *	return	N/A
 **/
-stock void TF2_DestroyBuildings(int builder, bool damage = true)
+stock void TF2_DestroyBuildings(int builder, bool destroy = true)
 {
 	int entity = -1;
 	while ((entity = FindEntityByClassname(entity, "obj_*")) != -1)
@@ -5958,7 +6002,7 @@ stock void TF2_DestroyBuildings(int builder, bool damage = true)
 		if (GetEntPropEnt(entity, Prop_Send, "m_hBuilder") != builder)
 			continue;
 		
-		if (damage)
+		if (destroy)
 			SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 		else
 			AcceptEntityInput(entity, "Kill");
@@ -5969,11 +6013,11 @@ stock void TF2_DestroyBuildings(int builder, bool damage = true)
 *	Destroys all buildings owned by a team.
 *
 *	team		Team index.
-*	damage		Whether to damage the building to 0 health or to just kill the entity.
+*	destroy		Whether to destroy the building or to just kill the entity.
 *
 *	return	N/A
 **/
-stock void TF2_DestroyBuildingsTeam(TFTeam team, bool damage = true)
+stock void TF2_DestroyBuildingsTeam(TFTeam team, bool destroy = true)
 {
 	int entity = -1; int builder = -1;
 	while ((entity = FindEntityByClassname(entity, "obj_*")) != -1)
@@ -5983,7 +6027,7 @@ stock void TF2_DestroyBuildingsTeam(TFTeam team, bool damage = true)
 		if (builder < 1 || builder > MaxClients|| TF2_GetClientTeam(builder) != team)
 			continue;
 		
-		if (damage)
+		if (destroy)
 			SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 		else
 			AcceptEntityInput(entity, "Kill");
@@ -5993,16 +6037,16 @@ stock void TF2_DestroyBuildingsTeam(TFTeam team, bool damage = true)
 /**
 *	Destroys all buildings.
 *
-*	damage		Whether to damage the building to 0 health or to just kill the entity.
+*	destroy		Whether to destroy the building or to just kill the entity.
 *
 *	return	N/A
 **/
-stock void TF2_DestroyBuildingsAll(bool damage = true)
+stock void TF2_DestroyBuildingsAll(bool destroy = true)
 {
 	int entity = -1; int builder = -1;
 	while ((entity = FindEntityByClassname(entity, "obj_*")) != -1)
 	{
-		if (damage)
+		if (destroy)
 			SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 		else
 			AcceptEntityInput(entity, "Kill");
@@ -6823,6 +6867,7 @@ stock void CSGO_SetMoney(int client, int amount)
 		amount = 0;
 	
 	int max = FindConVar("mp_maxmoney").IntValue;
+	
 	if (amount > max)
 		amount = max;
 	
@@ -6963,7 +7008,7 @@ stock int CSGO_CreateDynamicLight(float origin[3], int color[4] = {255, 255, 255
 
 stock bool CSGO_SendRadioMessage(int client, int target, const char[] format, any ...)
 {
-	if (!isClientConnectedIngame(client))
+	if (!IsClientInGame(client))
 		return false;
 		
 	Handle message = StartMessageOne("RadioText", target);
@@ -6999,7 +7044,7 @@ stock bool CSGO_SendRadioMessage(int client, int target, const char[] format, an
 
 stock bool CSGO_SendRadioMessageAll(int client, const char[] sText, any ...)
 {
-	if (!isClientConnectedIngame(client))
+	if (!IsClientInGame(client))
 		return false;
 	
 	char sName[MAX_NAME_LENGTH];
@@ -7042,7 +7087,7 @@ stock bool CSGO_SendRadioMessageAll(int client, const char[] sText, any ...)
 
 stock bool CSGO_SendRadioMessageTeam(int client, int team, const char[] sText, any ...)
 {
-	if (!isClientConnectedIngame(client))
+	if (!IsClientInGame(client))
 		return false;
 	
 	char sName[MAX_NAME_LENGTH];
@@ -7228,6 +7273,7 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 	Call_Finish();
 	
 	SetCmdReplySource(reply);
+	return 0;
 }
 
 /* Easily pass strings through data parameters. */
