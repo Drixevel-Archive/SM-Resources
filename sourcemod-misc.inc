@@ -293,6 +293,20 @@ stock bool IsValidClient(int client)
 }
 
 /*
+* Stops the timer and sets it to null.
+*
+* return	N/A
+*/
+stock void StopTimer(Handle& timer)
+{
+	if (timer != null)
+	{
+		KillTimer(timer);
+		timer = null;
+	}
+}
+
+/*
 * Kicks a client based on the specified SteamID if it exists on the server.
 *
 * steamid	Steamid to check for based on the authtype.
