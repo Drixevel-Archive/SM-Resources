@@ -1269,6 +1269,19 @@ stock int GetActiveWeapon(int client)
 	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 }
 
+stock int GetActiveWeaponIndex(int client)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
+		return 0;
+	
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	
+	if (!IsValidEntity(weapon))
+		return 0;
+	
+	return GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
+}
+
 stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = false, int team = 0)
 {
 	int[] clients = new int[MaxClients];
