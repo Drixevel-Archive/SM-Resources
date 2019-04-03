@@ -30,6 +30,7 @@
 #include <sdkhooks>
 #include <tf2_stocks>
 #include <cstrike>
+#include <regex>
 #define REQUIRE_EXTENSIONS
 
 #define IS_CONSOLE 0
@@ -1280,6 +1281,20 @@ stock int GetActiveWeaponIndex(int client)
 		return 0;
 	
 	return GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
+}
+
+stock bool IsValidHex(const char[] strHex)
+{
+	if (strlen(strHex) != 6)
+		return false;
+	
+	Handle g_hRegexHex = CompileRegex("([A-Fa-f0-9]{6})");
+	int captures = MatchRegex(g_hRegexHex, strHex);
+	
+	if (strlen(strHex) == 6 && captures > 0)
+		return true;
+	
+	return false;
 }
 
 stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = false, int team = 0)
