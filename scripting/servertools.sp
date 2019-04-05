@@ -112,6 +112,9 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_animateprop", Command_AnimateProp, ADMFLAG_SLAY, "Animate a dynamic prop entity.");
 	RegAdminCmd2("sm_deleteprop", Command_DeleteProp, ADMFLAG_SLAY, "Delete a dynamic prop entity.");
 	RegAdminCmd2("sm_debugevents", Command_DebugEvents, ADMFLAG_SLAY, "Easily debug events as they fire.");
+	RegAdminCmd2("sm_setrendercolor", Command_SetRenderColor, ADMFLAG_SLAY, "Sets you current render color.");
+	RegAdminCmd2("sm_setrenderfx", Command_SetRenderFx, ADMFLAG_SLAY, "Sets you current render fx.");
+	RegAdminCmd2("sm_setrendermode", Command_SetRenderMode, ADMFLAG_SLAY, "Sets you current render mode.");
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_SLAY, "Create an entity.");
@@ -326,7 +329,7 @@ public Action Command_Teleport(int client, int args)
 
 	if (!IsPlayerAlive(target))
 	{
-		CPrintToChat(client, "%s {chartreuse}%N {honeydew}isn't currently alive.", COLORED_CHAT_TAG, target);
+		CPrintToChat(client, "%s %N isn't currently alive.", COLORED_CHAT_TAG, target);
 		return Plugin_Handled;
 	}
 
@@ -338,8 +341,8 @@ public Action Command_Teleport(int client, int args)
 
 	TeleportEntity(client, vecOrigin, vecAngles, NULL_VECTOR);
 
-	CPrintToChat(target, "%s {chartreuse}%N {honeydew}teleported themselves to you.", COLORED_CHAT_TAG, client);
-	CPrintToChat(client, "%s You have teleported yourself to {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, target);
+	CPrintToChat(target, "%s %N teleported themselves to you.", COLORED_CHAT_TAG, client);
+	CPrintToChat(client, "%s You have teleported yourself to %N.", COLORED_CHAT_TAG, target);
 
 	return Plugin_Handled;
 }
@@ -388,10 +391,10 @@ public Action Command_Bring(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TeleportEntity(targets_list[i], vecOrigin, vecAngles, NULL_VECTOR);
-		CPrintToChat(targets_list[i], "%s You have been teleported to {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s You have been teleported to %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CPrintToChat(client, "%s You have teleported {chartreuse}%s {honeydew}to you.", COLORED_CHAT_TAG, sTargetName);
+	CPrintToChat(client, "%s You have teleported %s to you.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -437,10 +440,10 @@ public Action Command_Port(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TeleportEntity(targets_list[i], vecOrigin, NULL_VECTOR, NULL_VECTOR);
-		CPrintToChat(targets_list[i], "%s You have been ported by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s You have been ported by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CPrintToChat(client, "%s You have ported {chartreuse}%s {honeydew}to your look position.", COLORED_CHAT_TAG, sTargetName);
+	CPrintToChat(client, "%s You have ported %s to your look position.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -475,10 +478,10 @@ public Action Command_SetHealth(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetPlayerHealth(targets_list[i], health);
-		CPrintToChat(targets_list[i], "%s Your health has been set to {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, health, client);
+		CPrintToChat(targets_list[i], "%s Your health has been set to %i by %N.", COLORED_CHAT_TAG, health, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the health of {chartreuse}%s {honeydew}to {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, sTargetName, health);
+	CReplyToCommand(client, "%s You have set the health of %s to %i.", COLORED_CHAT_TAG, sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -513,10 +516,10 @@ public Action Command_AddHealth(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_AddPlayerHealth(targets_list[i], health);
-		CPrintToChat(targets_list[i], "%s Your health has been increased by {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, health, client);
+		CPrintToChat(targets_list[i], "%s Your health has been increased by %i by %N.", COLORED_CHAT_TAG, health, client);
 	}
 
-	CReplyToCommand(client, "%s You have increased the health of {chartreuse}%s {honeydew}by {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, sTargetName, health);
+	CReplyToCommand(client, "%s You have increased the health of %s by %i.", COLORED_CHAT_TAG, sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -551,10 +554,10 @@ public Action Command_RemoveHealth(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_RemovePlayerHealth(targets_list[i], health);
-		CPrintToChat(targets_list[i], "%s Your health has been deducted by {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, health, client);
+		CPrintToChat(targets_list[i], "%s Your health has been deducted by %i by %N.", COLORED_CHAT_TAG, health, client);
 	}
 
-	CReplyToCommand(client, "%s You have deducted health of {chartreuse}%s {honeydew}by {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, sTargetName, health);
+	CReplyToCommand(client, "%s You have deducted health of %s by %i.", COLORED_CHAT_TAG, sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -609,10 +612,10 @@ public Action Command_SetClass(int client, int args)
 	{
 		TF2_SetPlayerClass(targets_list[i], class, false, true);
 		TF2_RegeneratePlayer(targets_list[i]);
-		CPrintToChat(targets_list[i], "%s Your class has been set to {chartreuse}%s {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, sClassName, client);
+		CPrintToChat(targets_list[i], "%s Your class has been set to %s by %N.", COLORED_CHAT_TAG, sClassName, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the class of {chartreuse}%s {honeydew}to {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName, sClassName);
+	CReplyToCommand(client, "%s You have set the class of %s to %s.", COLORED_CHAT_TAG, sTargetName, sClassName);
 
 	return Plugin_Handled;
 }
@@ -676,10 +679,10 @@ public Action Command_SetTeam(int client, int args)
 			default: ChangeClientTeam(targets_list[i], team);
 		}
 		
-		CPrintToChat(targets_list[i], "%s Your team has been set to {chartreuse}%s {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, sTeamName, client);
+		CPrintToChat(targets_list[i], "%s Your team has been set to %s by %N.", COLORED_CHAT_TAG, sTeamName, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the team of {chartreuse}%s {honeydew}to {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName, sTeamName);
+	CReplyToCommand(client, "%s You have set the team of %s to %s.", COLORED_CHAT_TAG, sTargetName, sTeamName);
 
 	return Plugin_Handled;
 }
@@ -715,10 +718,10 @@ public Action Command_Respawn(int client, int args)
 			case Engine_CSS, Engine_CSGO: CS_RespawnPlayer(targets_list[i]);
 		}
 		
-		CPrintToChat(targets_list[i], "%s Your have been respawned by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been respawned by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have respawned {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have respawned %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -749,10 +752,10 @@ public Action Command_Regenerate(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_RegeneratePlayer(targets_list[i]);
-		CPrintToChat(targets_list[i], "%s Your have been regenerated by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been regenerated by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have regenerated {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have regenerated %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -789,10 +792,10 @@ public Action Command_RefillAmunition(int client, int args)
 				SetAmmo(targets_list[i], weapon2, g_iAmmo[weapon2]);
 		}
 
-		CPrintToChat(targets_list[i], "%s Your weapons ammunitions have been refilled by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your weapons ammunitions have been refilled by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have refilled the ammunition ammo for {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have refilled the ammunition ammo for %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -829,10 +832,10 @@ public Action Command_RefillClip(int client, int args)
 				SetClip(weapon2, g_iClip[weapon2]);
 		}
 
-		CPrintToChat(targets_list[i], "%s Your weapons clips have been refilled by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your weapons clips have been refilled by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have refilled the clip ammo for {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have refilled the clip ammo for %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -908,7 +911,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 
 			if (StrEqual(sInfo, "spawn"))
 			{
-				CPrintToChatAll("%s {chartreuse}%N {honeydew}has spawned a bot.", COLORED_CHAT_TAG, param1);
+				CPrintToChatAll("%s %N has spawned a bot.", COLORED_CHAT_TAG, param1);
 				ServerCommand("tf_bot_add");
 
 				OpenManageBotsMenu(param1);
@@ -924,7 +927,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 					return;
 				}
 
-				CPrintToChatAll("%s {chartreuse}%N {honeydew}has kicked the bot {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, param1, target);
+				CPrintToChatAll("%s %N has kicked the bot %N.", COLORED_CHAT_TAG, param1, target);
 				ServerCommand("tf_bot_kick \"%N\"", target);
 
 				OpenManageBotsMenu(param1);
@@ -962,7 +965,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 				blind.SetBool(!blind.BoolValue);
 				SetConVarFlag(blind, true, FCVAR_CHEAT);
 
-				CPrintToChatAll("%s {chartreuse}%N {honeydew}has toggled bot movement {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, param1, !blind.BoolValue ? "on" : "off");
+				CPrintToChatAll("%s %N has toggled bot movement %s.", COLORED_CHAT_TAG, param1, !blind.BoolValue ? "on" : "off");
 
 				OpenManageBotsMenu(param1);
 			}
@@ -1143,7 +1146,7 @@ public Action Command_Password(int client, int args)
 		}
 
 		password.SetString("");
-		CPrintToChatAll("%s {chartreuse}%N {honeydew}has removed the password unlocking the server.", COLORED_CHAT_TAG, client);
+		CPrintToChatAll("%s %N has removed the password unlocking the server.", COLORED_CHAT_TAG, client);
 
 		return Plugin_Handled;
 	}
@@ -1171,8 +1174,8 @@ public Action Command_Password(int client, int args)
 
 	password.SetString(sPassword);
 
-	CPrintToChatAll("%s {chartreuse}%N {honeydew}has set a password on the server locking it.", COLORED_CHAT_TAG, client);
-	CReplyToCommand(client, "%s You have set the server password locking it to {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG);
+	CPrintToChatAll("%s %N has set a password on the server locking it.", COLORED_CHAT_TAG, client);
+	CReplyToCommand(client, "%s You have set the server password locking it to %s.", COLORED_CHAT_TAG);
 
 	return Plugin_Handled;
 }
@@ -1189,7 +1192,7 @@ public Action Command_EndRound(int client, int args)
 	}
 
 	TF2_ForceRoundWin(team);
-	CPrintToChatAll("%s {chartreuse}%N {honeydew}has ended the current round.", COLORED_CHAT_TAG, client);
+	CPrintToChatAll("%s %N has ended the current round.", COLORED_CHAT_TAG, client);
 
 	return Plugin_Handled;
 }
@@ -1251,10 +1254,10 @@ public Action Command_SetCondition(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_AddCondition(targets_list[i], condition, time, client);
-		CPrintToChat(targets_list[i], "%s Your have gained a new condition from {chartreuse}%N {honeydew}for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, client, time);
+		CPrintToChat(targets_list[i], "%s Your have gained a new condition from %N for %.2f seconds.", COLORED_CHAT_TAG, client, time);
 	}
 
-	CReplyToCommand(client, "%s You have set a new condition on {chartreuse}%s {honeydew}for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	CReplyToCommand(client, "%s You have set a new condition on %s for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1303,10 +1306,10 @@ public Action Command_RemoveCondition(int client, int args)
 			continue;
 
 		TF2_RemoveCondition(targets_list[i], condition);
-		CPrintToChat(targets_list[i], "%s Your have been stripped of a condition by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been stripped of a condition by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have been stripped of a condition by {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have been stripped of a condition by %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1344,10 +1347,10 @@ public Action Command_SetUbercharge(int client, int args)
 			continue;
 
 		TF2_SetUberLevel(targets_list[i], uber);
-		CPrintToChat(targets_list[i], "%s Your ubercharge has been set to {chartreuse}%.2f {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, uber, client);
+		CPrintToChat(targets_list[i], "%s Your ubercharge has been set to %.2f by %N.", COLORED_CHAT_TAG, uber, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the ubercharge of {chartreuse}%s {honeydew}to {chartreuse}%.2f{honeydew}.", COLORED_CHAT_TAG, sTargetName, uber);
+	CReplyToCommand(client, "%s You have set the ubercharge of %s to %.2f.", COLORED_CHAT_TAG, sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1385,10 +1388,10 @@ public Action Command_AddUbercharge(int client, int args)
 			continue;
 
 		TF2_AddUberLevel(targets_list[i], uber);
-		CPrintToChat(targets_list[i], "%s Your ubercharge has been increased by {chartreuse}%.2f {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, uber, client);
+		CPrintToChat(targets_list[i], "%s Your ubercharge has been increased by %.2f by %N.", COLORED_CHAT_TAG, uber, client);
 	}
 
-	CReplyToCommand(client, "%s You have increased the ubercharge of {chartreuse}%s {honeydew}by {chartreuse}%.2f{honeydew}.", COLORED_CHAT_TAG, sTargetName, uber);
+	CReplyToCommand(client, "%s You have increased the ubercharge of %s by %.2f.", COLORED_CHAT_TAG, sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1426,10 +1429,10 @@ public Action Command_RemoveUbercharge(int client, int args)
 			continue;
 
 		TF2_RemoveUberLevel(targets_list[i], uber);
-		CPrintToChat(targets_list[i], "%s Your ubercharge has been deducted by {chartreuse}%.2f {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, uber, client);
+		CPrintToChat(targets_list[i], "%s Your ubercharge has been deducted by %.2f by %N.", COLORED_CHAT_TAG, uber, client);
 	}
 
-	CReplyToCommand(client, "%s You have deducted ubercharge of {chartreuse}%s {honeydew}by {chartreuse}%.2f{honeydew}.", COLORED_CHAT_TAG, sTargetName, uber);
+	CReplyToCommand(client, "%s You have deducted ubercharge of %s by %.2f.", COLORED_CHAT_TAG, sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1467,10 +1470,10 @@ public Action Command_SetMetal(int client, int args)
 			continue;
 
 		TF2_SetMetal(targets_list[i], metal);
-		CPrintToChat(targets_list[i], "%s Your metal has been set to {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, metal, client);
+		CPrintToChat(targets_list[i], "%s Your metal has been set to %i by %N.", COLORED_CHAT_TAG, metal, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the metal of {chartreuse}%s {honeydew}to {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, sTargetName, metal);
+	CReplyToCommand(client, "%s You have set the metal of %s to %i.", COLORED_CHAT_TAG, sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -1508,10 +1511,10 @@ public Action Command_AddMetal(int client, int args)
 			continue;
 
 		TF2_AddMetal(targets_list[i], metal);
-		CPrintToChat(targets_list[i], "%s Your metal has been increased by {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, metal, client);
+		CPrintToChat(targets_list[i], "%s Your metal has been increased by %i by %N.", COLORED_CHAT_TAG, metal, client);
 	}
 
-	CReplyToCommand(client, "%s You have increased the metal of {chartreuse}%s {honeydew}by {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, sTargetName, metal);
+	CReplyToCommand(client, "%s You have increased the metal of %s by %i.", COLORED_CHAT_TAG, sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -1549,10 +1552,10 @@ public Action Command_RemoveMetal(int client, int args)
 			continue;
 
 		TF2_RemoveMetal(targets_list[i], metal);
-		CPrintToChat(targets_list[i], "%s Your metal has been deducted by {chartreuse}%i {honeydew}by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, metal, client);
+		CPrintToChat(targets_list[i], "%s Your metal has been deducted by %i by %N.", COLORED_CHAT_TAG, metal, client);
 	}
 
-	CReplyToCommand(client, "%s You have deducted metal of {chartreuse}%s {honeydew}by {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, sTargetName, metal);
+	CReplyToCommand(client, "%s You have deducted metal of %s by %i.", COLORED_CHAT_TAG, sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -1583,7 +1586,7 @@ public Action Command_SetTime(int client, int args)
 		delete timelimit;
 	}
 
-	CPrintToChatAll("%s {chartreuse}%N {honeydew}has set the time to {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, client, time);
+	CPrintToChatAll("%s %N has set the time to %i.", COLORED_CHAT_TAG, client, time);
 
 	return Plugin_Handled;
 }
@@ -1628,7 +1631,7 @@ public Action Command_AddTime(int client, int args)
 		delete timelimit;
 	}
 
-	CPrintToChatAll("%s {chartreuse}%N {honeydew}has added time to {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, client, time);
+	CPrintToChatAll("%s %N has added time to %i.", COLORED_CHAT_TAG, client, time);
 
 	return Plugin_Handled;
 }
@@ -1673,7 +1676,7 @@ public Action Command_RemoveTime(int client, int args)
 		delete timelimit;
 	}
 
-	CPrintToChatAll("%s {chartreuse}%N {honeydew}has removed time from {chartreuse}%i{honeydew}.", COLORED_CHAT_TAG, client, time);
+	CPrintToChatAll("%s %N has removed time from %i.", COLORED_CHAT_TAG, client, time);
 
 	return Plugin_Handled;
 }
@@ -1720,10 +1723,10 @@ public Action Command_SetCrits(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_AddCondition(targets_list[i], TFCond_CritOnWin, time, client);
-		CPrintToChat(targets_list[i], "%s Your have gained crits from {chartreuse}%N {honeydew}for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, client, time);
+		CPrintToChat(targets_list[i], "%s Your have gained crits from %N for %.2f seconds.", COLORED_CHAT_TAG, client, time);
 	}
 
-	CReplyToCommand(client, "%s You have set crits on {chartreuse}%s {honeydew}for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	CReplyToCommand(client, "%s You have set crits on %s for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1757,10 +1760,10 @@ public Action Command_RemoveCrits(int client, int args)
 			continue;
 
 		TF2_RemoveCondition(targets_list[i], TFCond_CritOnWin);
-		CPrintToChat(targets_list[i], "%s Your have been stripped of crits by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been stripped of crits by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have stripped crits from {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have stripped crits from %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1791,10 +1794,10 @@ public Action Command_SetGod(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetGodmode(targets_list[i], TFGod_God);
-		CPrintToChat(targets_list[i], "%s Your have been set to godmode by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been set to godmode by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have set godmode on {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have set godmode on %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1825,10 +1828,10 @@ public Action Command_SetBuddha(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetGodmode(targets_list[i], TFGod_Buddha);
-		CPrintToChat(targets_list[i], "%s Your have been set to buddhamode by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been set to buddhamode by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have set buddhamode on {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have set buddhamode on %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1859,10 +1862,10 @@ public Action Command_SetMortal(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetGodmode(targets_list[i], TFGod_Mortal);
-		CPrintToChat(targets_list[i], "%s Your have been set to mortalmode by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been set to mortalmode by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have set mortalmode on {chartreuse}%s{honeydew}.", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have set mortalmode on %s.", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1925,10 +1928,10 @@ public Action Command_StunPlayer(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_StunPlayer(targets_list[i], time, slowdown, TF_STUNFLAGS_SMALLBONK, client);
-		CPrintToChat(targets_list[i], "%s Your have been stunned by {chartreuse}%N {honeydew} for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, client, time);
+		CPrintToChat(targets_list[i], "%s Your have been stunned by %N  for %.2f seconds.", COLORED_CHAT_TAG, client, time);
 	}
 
-	CReplyToCommand(client, "%s You have stunned {chartreuse}%s {honeydew} for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	CReplyToCommand(client, "%s You have stunned %s  for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1975,10 +1978,10 @@ public Action Command_BleedPlayer(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_MakeBleed(targets_list[i], client, time);
-		CPrintToChat(targets_list[i], "%s Your have been cut by {chartreuse}%N {honeydew} for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, client, time);
+		CPrintToChat(targets_list[i], "%s Your have been cut by %N  for %.2f seconds.", COLORED_CHAT_TAG, client, time);
 	}
 
-	CReplyToCommand(client, "%s You have cut {chartreuse}%s {honeydew} for {chartreuse}%.2f {honeydew}seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	CReplyToCommand(client, "%s You have cut %s  for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -2009,10 +2012,10 @@ public Action Command_IgnitePlayer(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_IgnitePlayer(targets_list[i], client);
-		CPrintToChat(targets_list[i], "%s Your have been ignited by {chartreuse}%N{honeydew}.", COLORED_CHAT_TAG, client);
+		CPrintToChat(targets_list[i], "%s Your have been ignited by %N.", COLORED_CHAT_TAG, client);
 	}
 
-	CReplyToCommand(client, "%s You have ignited {chartreuse}%s{honeydew}", COLORED_CHAT_TAG, sTargetName);
+	CReplyToCommand(client, "%s You have ignited %s", COLORED_CHAT_TAG, sTargetName);
 
 	return Plugin_Handled;
 }
@@ -2025,7 +2028,7 @@ public Action Command_ReloadMap(int client, int args)
 
 	char sMap[MAX_MAP_NAME_LENGTH];
 	GetMapName(sMap, sizeof(sMap));
-	CPrintToChatAll("%s {chartreuse}%N {honeydew}has initiated a map reload.", COLORED_CHAT_TAG, client);
+	CPrintToChatAll("%s %N has initiated a map reload.", COLORED_CHAT_TAG, client);
 
 	return Plugin_Handled;
 }
@@ -2039,9 +2042,9 @@ public Action Command_MapName(int client, int args)
 	GetMapDisplayName(sCurrentMap, sMap, sizeof(sMap));
 
 	if (StrContains(sCurrentMap, "workshop/", false) == 0)
-		CReplyToCommand(client, "%s Name: {chartreuse}%s {honeydew}[{chartreuse}%s{honeydew}]", COLORED_CHAT_TAG, sMap, sCurrentMap);
+		CReplyToCommand(client, "%s Name: %s [%s]", COLORED_CHAT_TAG, sMap, sCurrentMap);
 	else
-		CReplyToCommand(client, "%s Name: {chartreuse}%s", COLORED_CHAT_TAG, sCurrentMap);
+		CReplyToCommand(client, "%s Name: %s", COLORED_CHAT_TAG, sCurrentMap);
 
 	return Plugin_Handled;
 }
@@ -2222,12 +2225,19 @@ public Action Command_Particle(int client, int args)
 
 public Action Command_ListParticles(int client, int args)
 {
+	int item = GetCmdArgInt(1);
+	ListParticles(client, item);
+	return Plugin_Handled;
+}
+
+void ListParticles(int client, int item)
+{
 	int tblidx = FindStringTable("ParticleEffectNames");
 	
 	if (tblidx == INVALID_STRING_TABLE)
 	{
 		CReplyToCommand(client, "Could not find string table: ParticleEffectNames");
-		return Plugin_Handled;
+		return;
 	}
 	
 	Menu menu = new Menu(MenuHandler_Particles);
@@ -2240,9 +2250,7 @@ public Action Command_ListParticles(int client, int args)
 		menu.AddItem(sParticle, sParticle);
 	}
 	
-	menu.Display(client, MENU_TIME_FOREVER);
-	
-	return Plugin_Handled;
+	menu.DisplayAt(client, item, MENU_TIME_FOREVER);
 }
 
 public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int param2)
@@ -2260,7 +2268,7 @@ public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int p
 			CreateParticle(sParticle, 2.0, vecOrigin);
 			CReplyToCommand(param1, "%s Particle %s has been spawned for 2.0 seconds.", COLORED_CHAT_TAG, sParticle);
 			
-			Command_ListParticles(param1, 0);
+			ListParticles(param1, param2);
 		}
 		case MenuAction_End:
 			delete menu;
@@ -2899,7 +2907,7 @@ public Action Command_DebugEvents(int client, int args)
 	}
 	
 	char sPath[PLATFORM_MAX_PATH];
-	FormatEx(sPath, sizeof(sPath), "resources/modevents.res");
+	FormatEx(sPath, sizeof(sPath), "resource/modevents.res");
 	
 	KeyValues kv = new KeyValues("ModEvents");
 	
@@ -2927,7 +2935,7 @@ public Action Command_DebugEvents(int client, int args)
 	while (kv.GotoNextKey());
 	
 	delete kv;
-	CReplyToCommand(client, "Event debugging: ON");
+	CReplyToCommand(client, "Event %i debugging: ON", g_HookEvents.Length);
 	
 	return Plugin_Handled;
 }
@@ -2935,4 +2943,39 @@ public Action Command_DebugEvents(int client, int args)
 public void Event_Debug(Event event, const char[] name, bool dontBroadcast)
 {
 	PrintToConsoleAll("[EVENT DEBUGGING] FIRED: %s", name);
+}
+
+public Action Command_SetRenderColor(int client, int args)
+{
+	int red = GetCmdArgInt(1);
+	int green = GetCmdArgInt(2);
+	int blue = GetCmdArgInt(3);
+	int alpha = GetCmdArgInt(4);
+	
+	SetEntityRenderColor(client, red, green, blue, alpha);
+	CPrintToChat(client, "%s Render color set to '%i/%i/%i/%i'.", COLORED_CHAT_TAG, red, green, blue, alpha);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_SetRenderFx(int client, int args)
+{
+	char sArg[64];
+	GetCmdArgString(sArg, sizeof(sArg));
+	
+	SetEntityRenderFx(client, GetRenderFxByName(sArg));
+	CPrintToChat(client, "%s Render fx set to '%s'.", COLORED_CHAT_TAG, sArg);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_SetRenderMode(int client, int args)
+{
+	char sArg[64];
+	GetCmdArgString(sArg, sizeof(sArg));
+	
+	SetEntityRenderMode(client, GetRenderModeByName(sArg));
+	CPrintToChat(client, "%s Render mode set to '%s'.", COLORED_CHAT_TAG, sArg);
+	
+	return Plugin_Handled;
 }

@@ -51,7 +51,7 @@ public void OnPluginStart()
 	RegConsoleCmd("dv_logs", Command_Logs);
 	RegConsoleCmd("dv_noclip", Command_Noclip);
 	
-	HookEvent("player_jump", PlayerJump);
+	HookEventEx("player_jump", PlayerJump);
 	g_BaseVelocity = FindSendPropInfo("CBasePlayer", "m_vecBaseVelocity");
 }
 
