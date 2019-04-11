@@ -12,6 +12,10 @@
 #include <sourcemod-colors>
 #include <adminmenu>
 
+#undef REQUIRE_PLUGIN
+#include <tf2attributes>
+#define REQUIRE_PLUGIN
+
 //Globals
 EngineVersion game;
 ArrayList g_Commands;
@@ -115,6 +119,8 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_setrendercolor", Command_SetRenderColor, ADMFLAG_SLAY, "Sets you current render color.");
 	RegAdminCmd2("sm_setrenderfx", Command_SetRenderFx, ADMFLAG_SLAY, "Sets you current render fx.");
 	RegAdminCmd2("sm_setrendermode", Command_SetRenderMode, ADMFLAG_SLAY, "Sets you current render mode.");
+	RegAdminCmd2("sm_applyattribute", Command_ApplyAttribute, ADMFLAG_SLAY, "Apply an attribute to you or your weapons.");
+	RegAdminCmd2("sm_removeattribute", Command_RemoveAttribute, ADMFLAG_SLAY, "Remove an attribute from you or your weapons.");
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_SLAY, "Create an entity.");
@@ -2976,6 +2982,108 @@ public Action Command_SetRenderMode(int client, int args)
 	
 	SetEntityRenderMode(client, GetRenderModeByName(sArg));
 	CPrintToChat(client, "%s Render mode set to '%s'.", COLORED_CHAT_TAG, sArg);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_ApplyAttribute(int client, int args)
+{
+	if (client == 0)
+		return Plugin_Handled;
+	
+	if (!IsPlayerAlive(client))
+	{
+		CPrintToChat(client, "%s You must be alive to apply attributes.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+	
+	if (args < 2)
+	{
+		char sCommand[64];
+		GetCommandName(sCommand, sizeof(sCommand));
+		CPrintToChat(client, "%s Usage: %s <attribute> <value> <0/1 weapons>", COLORED_CHAT_TAG, sCommand);
+		return Plugin_Handled;
+	}
+	
+	char sArg1[64];
+	GetCmdArg(1, sArg1, sizeof(sArg1));
+	
+	char sArg2[64];
+	GetCmdArg(2, sArg2, sizeof(sArg2));
+	float value = StringToFloat(sArg2);
+	
+	if (IsStringNumeric(sArg1))
+	{
+		int index = StringToInt(sArg1);
+		TF2Attrib_SetByDefIndex(client, index, value);
+		CPrintToChat(client, "%s Applying attribute index '%i' to yourself with the value: %.2f", COLORED_CHAT_TAG, index, value);
+		
+		if (args >= 3)
+		{
+			TF2Attrib_SetByDefIndex_Weapons(client, -1, index, value, GetCmdArgBool(4));
+			CPrintToChat(client, "%s Applying attribute index '%i' to your weapons with the value: %.2f", COLORED_CHAT_TAG, index, value);
+		}
+	}
+	else
+	{
+		TF2Attrib_SetByName(client, sArg1, value);
+		CPrintToChat(client, "%s Applying attribute '%s' to yourself with the value: %.2f", COLORED_CHAT_TAG, sArg1, value);
+		
+		if (args >= 3)
+		{
+			TF2Attrib_SetByName_Weapons(client, -1, sArg1, value);
+			CPrintToChat(client, "%s Applying attribute '%s' to your weapons with the value: %.2f", COLORED_CHAT_TAG, sArg1, value);
+		}
+	}
+	
+	return Plugin_Handled;
+}
+
+public Action Command_RemoveAttribute(int client, int args)
+{
+	if (client == 0)
+		return Plugin_Handled;
+	
+	if (!IsPlayerAlive(client))
+	{
+		CPrintToChat(client, "%s You must be alive to remove attributes.", COLORED_CHAT_TAG);
+		return Plugin_Handled;
+	}
+	
+	if (args < 2)
+	{
+		char sCommand[64];
+		GetCommandName(sCommand, sizeof(sCommand));
+		CPrintToChat(client, "%s Usage: %s <attribute> <0/1 weapons>", COLORED_CHAT_TAG, sCommand);
+		return Plugin_Handled;
+	}
+	
+	char sArg1[64];
+	GetCmdArg(1, sArg1, sizeof(sArg1));
+	
+	if (IsStringNumeric(sArg1))
+	{
+		int index = StringToInt(sArg1);
+		TF2Attrib_RemoveByDefIndex(client, index);
+		CPrintToChat(client, "%s Removing attribute index '%i' from yourself.", COLORED_CHAT_TAG, index);
+		
+		if (args >= 2)
+		{
+			TF2Attrib_RemoveByDefIndex_Weapons(client, -1, index);
+			CPrintToChat(client, "%s Removing attribute index '%i' from your weapons.", COLORED_CHAT_TAG, index);
+		}
+	}
+	else
+	{
+		TF2Attrib_RemoveByName(client, sArg1);
+		CPrintToChat(client, "%s Removing attribute '%s' from yourself.", COLORED_CHAT_TAG, sArg1);
+		
+		if (args >= 2)
+		{
+			TF2Attrib_RemoveByName_Weapons(client, -1, sArg1);
+			CPrintToChat(client, "%s Removing attribute '%s' from your weapons.", COLORED_CHAT_TAG, sArg1);
+		}
+	}
 	
 	return Plugin_Handled;
 }

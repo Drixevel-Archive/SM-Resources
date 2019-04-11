@@ -11,32 +11,32 @@
 *	Author: Keith Warren (Drixevel)
 *	https://github.com/Drixevel
 *
+*	NOTE: The best way to use this include is to copy and paste into your projects manually.
 **/
 
-//Because I'm too stuid at remembering how to do this properly.
-//Apply Bit: damagetype |= DMG_CRIT;
-//Apply Multi Bit: damagetype |= (DMG_CRIT | DMG_BURN);
-//Remove Bit: damagetype &= ~DMG_BURN;
-//Remove Multi Bit: damagetype &= ~(DMG_CRIT | DMG_BURN);
+//Because I'm too stupid at remembering how to do this properly.
+//Apply Bit: bitbuffer |= BIT_1;
+//Apply Multi Bit: bitbuffer |= (BIT_1 | BIT_2);
+//Remove Bit: bitbuffer &= ~BIT_2;
+//Remove Multi Bit: bitbuffer &= ~(BIT_1 | BIT_2);
 
 #if defined _sourcemod_misc_included
 #endinput
 #endif
 #define _sourcemod_misc_included
 
-#include <sdktools>
-#include <sdkhooks>
-#include <menus>
-
 #undef REQUIRE_EXTENSIONS
-#include <tf2_stocks>
-#include <cstrike>
+#tryinclude <sdktools>
+#tryinclude <sdkhooks>
+#tryinclude <tf2_stocks>
+#tryinclude <cstrike>
+#tryinclude <regex>
+#tryinclude <clientprefs>
 #tryinclude <tf2items>
 #define REQUIRE_EXTENSIONS
 
-#undef  REQUIRE_PLUGIN
+#undef REQUIRE_PLUGIN
 #tryinclude <tf2attributes>
-#tryinclude <tf2idb>
 #define REQUIRE_PLUGIN
 
 #define IS_CONSOLE 0
@@ -46,7 +46,7 @@
 #define INVALID_ENT_INDEX -1
 #define INVALID_ARRAY_INDEX -1
 
-#define MAX_ENTITY_LIMIT 4096 + 1
+#define MAX_ENTITY_LIMIT 4096
 #define MAX_QUERY_LENGTH 8192
 #define MAX_BUTTONS 25
 #define MAX_IP_LENGTH 64
@@ -286,12 +286,43 @@
 #define NEW_COLOR_YELLOW "\x07FFFF00"
 #define NEW_COLOR_YELLOWGREEN "\x079ACD32"
 
-//This is safe but it's best to use the proper checks where you can instead.
+/*
+* Checks whether a client is valid or not.
+* This is safe but it's best to use the proper checks where you can instead.
+*
+* client	Client index.
+*
+* return	True if valid, false otherwise.
+*/
 stock bool IsValidClient(int client)
 {
 	return client >= 1 && client <= MaxClients && IsClientInGame(client) && !IsClientSourceTV(client);
 }
 
+/*
+* Stops the timer and sets it to null.
+*
+* return	N/A
+*/
+stock void StopTimer(Handle& timer)
+{
+	if (timer != null)
+	{
+		KillTimer(timer);
+		timer = null;
+	}
+}
+
+/*
+* Kicks a client based on the specified SteamID if it exists on the server.
+*
+* steamid	Steamid to check for based on the authtype.
+* authtype	Authtype to check for.
+* reason	Reason to give the client being kicked.
+* ...		Format arguments for the reaso.
+*
+* return	True if found and kicked, false otherwise.
+*/
 stock bool KickClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_Engine, const char[] reason, any ...)
 {
 	if (strlen(steamid) == 0)
@@ -313,6 +344,14 @@ stock bool KickClientBySteamID(const char[] steamid, AuthIdType authtype = AuthI
 	return false;
 }
 
+/*
+* Retrieves a client with a specific steamid found if the server if they exist.
+*
+* steamid	Steamid to check for based on the authtype.
+* authtype	Authtype to check for.
+*
+* return	Client index if found, -1 if not found.
+*/
 stock int GetClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_Engine)
 {
 	if (strlen(steamid) == 0)
@@ -330,6 +369,14 @@ stock int GetClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_
 	return -1;
 }
 
+/*
+* Retrieves a client with a specific accountid found if the server if they exist.
+* AccountIDs are one of the most consistent ways of tracking specific player accounts.
+*
+* accountid	AccountID to search for.
+*
+* return	Client index if found, -1 if not found.
+*/
 stock int GetClientByAccountID(int accountid)
 {
 	for (int i = 1; i <= MaxClients; i++)
@@ -343,19 +390,32 @@ stock int GetClientByAccountID(int accountid)
 	return -1;
 }
 
+/*
+* Checks whether or not the client is console or not.
+* You can easily just add checks to make sure client is more than 0 if you use this for error checking.
+* I use this sometimes for things like replies to console specifically.
+*
+* client	Client index.
+*
+* return	True if client is console, false otherwise.
+*/
 stock bool IsClientConsole(int client)
 {
 	return client == 0;
 }
 
+/*
+* Checks whether or not the client is console or not. (Same as IsClientConsole)
+* You can easily just add checks to make sure client is more than 0 if you use this for error checking.
+* I use this sometimes for things like replies to console specifically.
+*
+* client	Client index.
+*
+* return	True if client is console, false otherwise.
+*/
 stock bool IsClientServer(int client)
 {
 	return client == 0;
-}
-
-stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVal_Error)
-{
-	return view_as<bool>(results.FetchInt(field, status));
 }
 
 stock bool StringToBool(const char[] buffer)
@@ -836,58 +896,6 @@ public bool TraceEntityFilterNone(int entity, int contentsMask, any data)
 	return entity != data;
 }
 
-stock bool IsTargetInSightRange(int client, int target, float angle = 90.0, float distance = 0.0, bool heightcheck = true, bool negativeangle = false)
-{
-	if (angle > 360.0 || angle < 0.0)
-		angle = 180.0;
-	
-	float anglevector[3];
-	GetClientEyeAngles(client, anglevector);
-	
-	anglevector[0] = anglevector[2] = 0.0;
-	
-	GetAngleVectors(anglevector, anglevector, NULL_VECTOR, NULL_VECTOR);
-	NormalizeVector(anglevector, anglevector);
-	
-	if (negativeangle)
-		NegateVector(anglevector);
-	
-	float clientpos[3];
-	GetClientAbsOrigin(client, clientpos);
-	
-	float targetpos[3];
-	GetClientAbsOrigin(target, targetpos);
-	
-	float resultdistance;
-	if (heightcheck && distance > 0)
-		resultdistance = GetVectorDistance(clientpos, targetpos);
-	
-	clientpos[2] = targetpos[2] = 0.0;
-	
-	float targetvector[3];
-	MakeVectorFromPoints(clientpos, targetpos, targetvector);
-	NormalizeVector(targetvector, targetvector);
-	
-	float resultangle = RadToDeg(ArcCosine(GetVectorDotProduct(targetvector, anglevector)));
-	
-	if (resultangle <= angle / 2)	
-	{
-		if(distance > 0)
-		{
-			if(!heightcheck)
-				resultdistance = GetVectorDistance(clientpos, targetpos);
-			if(distance >= resultdistance)
-				return true;
-			else
-				return false;
-		}
-		else
-			return true;
-	}
-	else
-		return false;
-}
-
 stock bool IsEntityInSightRange(int client, int entity, float angle = 90.0, float distance = 0.0, bool heightcheck = true, bool negativeangle = false)
 {
 	if (angle > 360.0 || angle < 0.0)
@@ -908,7 +916,11 @@ stock bool IsEntityInSightRange(int client, int entity, float angle = 90.0, floa
 	GetClientAbsOrigin(client, clientpos);
 	
 	float targetpos[3];
-	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", targetpos);
+	
+	if (HasEntProp(entity, Prop_Data, "m_vecAbsOrigin"))
+		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", targetpos);
+	else
+		GetClientAbsOrigin(entity, targetpos);
 	
 	float resultdistance;
 	if (heightcheck && distance > 0)
@@ -1256,24 +1268,39 @@ stock void RefillWeapons(int client)
 	}
 }
 
-stock bool KillTimerSafe(Handle &timer)
-{
-	if (timer != null)
-	{
-		KillTimer(timer);
-		timer = null;
-		return true;
-	}
-
-	return false;
-}
-
 stock int GetActiveWeapon(int client)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
 		return 0;
 
 	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+}
+
+stock int GetActiveWeaponIndex(int client)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
+		return 0;
+	
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	
+	if (!IsValidEntity(weapon))
+		return 0;
+	
+	return GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
+}
+
+stock bool IsValidHex(const char[] strHex)
+{
+	if (strlen(strHex) != 6)
+		return false;
+	
+	Handle g_hRegexHex = CompileRegex("([A-Fa-f0-9]{6})");
+	int captures = MatchRegex(g_hRegexHex, strHex);
+	
+	if (strlen(strHex) == 6 && captures > 0)
+		return true;
+	
+	return false;
 }
 
 stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = false, int team = 0)
@@ -1290,49 +1317,6 @@ stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = fa
 	}
 
 	return clients[GetRandomInt(0, amount)];
-}
-
-stock void SQL_VoidQueryF(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
-{
-	char query[8192];
-	VFormat(query, sizeof(query), format, 4);
-
-	DataPack pack = new DataPack();
-	pack.WriteString(query);
-
-	database.Query(TQuery_Void, query, pack, prio);
-}
-
-stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
-{
-	DataPack pack = new DataPack();
-	pack.WriteString(query);
-
-	database.Query(TQuery_Void, query, pack, prio);
-}
-
-public void TQuery_Void(Database owner, DBResultSet hndl, const char[] error, DataPack data)
-{
-	if (hndl == null)
-	{
-		data.Reset();
-
-		char sQuery[8192];
-		data.ReadString(sQuery, sizeof(sQuery));
-
-		LogError("Error executing void query: %s", error);
-		LogError("Query Output: %s", sQuery);
-	}
-
-	delete data;
-}
-
-stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
-{
-	char query[8192];
-	VFormat(query, sizeof(query), format, 6);
-
-	database.Query(callback, query, data, priority);
 }
 
 stock int GetSlotIDFromName(const char[] name)
@@ -1469,34 +1453,94 @@ stock bool ChangeClientTeam_Alive(int client, int team)
 	return true;
 }
 
-stock int GetTotalAliveCount()
+stock int GetClientAbsCount()
 {
-	int amount;
+	int count;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || !IsPlayerAlive(i))
+		if (!IsClientInGame(i) || IsClientSourceTV(i))
 			continue;
 
-		amount++;
+		count++;
 	}
 
-	return amount;
+	return count;
 }
 
-stock int GetTeamAliveClientCount(int team)
+stock int GetTeamAbsCount(int team)
 {
-	int amount;
+	int count;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || !IsPlayerAlive(i) || GetClientTeam(i) != team)
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || GetClientTeam(i) != team)
 			continue;
 
-		amount++;
+		count++;
 	}
 
-	return amount;
+	return count;
+}
+
+stock int GetClientAliveCount()
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || !IsPlayerAlive(i))
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+stock int GetTeamAliveCount(int team)
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || !IsPlayerAlive(i) || GetClientTeam(i) != team)
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+stock int GetClientDeadCount()
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || IsPlayerAlive(i))
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+stock int GetTeamDeadCount(int team)
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || IsPlayerAlive(i) || GetClientTeam(i) != team)
+			continue;
+
+		count++;
+	}
+
+	return count;
 }
 
 stock int GetClientsNearEntity(int entity, float distance = 1000.0, int team = 0, bool fake = true)
@@ -1625,7 +1669,7 @@ stock bool SendClientError(int client, ErrorCode error_code, char[] format = "",
 		switch (error_code)
 		{
 			case Error_SQLDisconnected: strcopy(sBuffer, sizeof(sBuffer), "Not Connected");
-			case Error_SQLResults: strcopy(sBuffer, sizeof(sBuffer), "Invalid database results.");
+			case Error_SQLInvalidResults: strcopy(sBuffer, sizeof(sBuffer), "Invalid database results.");
 			case Error_InvalidTarget: strcopy(sBuffer, sizeof(sBuffer), "Target not found.");
 			default: strcopy(sBuffer, sizeof(sBuffer), "Unknown Error");
 		}
@@ -2526,6 +2570,17 @@ stock float CalculateKDR(int kills, int deaths)
 	return rate;
 }
 
+stock void CreatePlayerSpray(int client, float origin[3])
+{
+	TE_Start("Player Decal");
+	TE_WriteVector("m_vecOrigin", origin);
+	TE_WriteNum("m_nPlayer", client);
+	TE_SendToAll();
+	
+	if (IsSoundPrecached("player/sprayer.wav"))
+		EmitSoundToAll("player/sprayer.wav", client, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.6);
+}
+
 stock void RemovePlayerSpray(int client)
 {
 	TE_Start("Player Decal");
@@ -2570,8 +2625,6 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 	float fOrigin2[3];
 	GetEntPropVector(entity2, Prop_Send, "m_vecOrigin", fOrigin2);
 	
-	//PrintToChatAll("entity1: %.2f/%.2f/%.2f - entity2: %.2f/%.2f/%.2f", fOrigin1[0], fOrigin1[1], fOrigin1[2], fOrigin2[0], fOrigin2[1], fOrigin2[2]);
-
 	return GetVectorDistance(fOrigin1, fOrigin2);
 }
 
@@ -2625,6 +2678,8 @@ stock RenderMode GetRenderModeByName(const char[] name)
 	return RENDER_NORMAL;
 }
 
+//List provided by: https://www.december.com/html/spec/colorrgbadec.html
+//I just simply referenced it for this function.
 stock int[] GetColorByName(const char[] name)
 {
 	int color[4]; color[3] = 255;
@@ -2632,17 +2687,68 @@ stock int[] GetColorByName(const char[] name)
 	if (StringToColor(name, color, view_as<int>({255, 255, 255, 255})))
 		return color;
 	
-	if (StrEqual(name, "red", false))
+	if (StrEqual(name, "white", false))
+		return color;
+	
+	if (StrEqual(name, "black", false))
 	{
-		color[0] = 255;
+		color[0] = 0; color[1] = 0; color[2] = 0;
 	}
-	else if (StrEqual(name, "green", false))
+	else if (StrEqual(name, "navy", false))
 	{
-		color[1] = 255;
+		color[0] = 0; color[1] = 0; color[2] = 128;
 	}
 	else if (StrEqual(name, "blue", false))
 	{
-		color[2] = 255;
+		color[0] = 0; color[1] = 0; color[2] = 255;
+	}
+	else if (StrEqual(name, "green", false))
+	{
+		color[0] = 0; color[1] = 128; color[2] = 0;
+	}
+	else if (StrEqual(name, "teal", false))
+	{
+		color[0] = 0; color[1] = 128; color[2] = 128;
+	}
+	else if (StrEqual(name, "lime", false))
+	{
+		color[0] = 0; color[1] = 255; color[2] = 0;
+	}
+	else if (StrEqual(name, "aqua", false))
+	{
+		color[0] = 0; color[1] = 255; color[2] = 255;
+	}
+	else if (StrEqual(name, "maroon", false))
+	{
+		color[0] = 128; color[1] = 0; color[2] = 0;
+	}
+	else if (StrEqual(name, "purple", false))
+	{
+		color[0] = 128; color[1] = 0; color[2] = 128;
+	}
+	else if (StrEqual(name, "olive", false))
+	{
+		color[0] = 128; color[1] = 128; color[2] = 0;
+	}
+	else if (StrEqual(name, "gray", false))
+	{
+		color[0] = 128; color[1] = 128; color[2] = 128;
+	}
+	else if (StrEqual(name, "silver", false))
+	{
+		color[0] = 192; color[1] = 192; color[2] = 192;
+	}
+	else if (StrEqual(name, "red", false))
+	{
+		color[0] = 255; color[1] = 0; color[2] = 0;
+	}
+	else if (StrEqual(name, "fuchsia", false))
+	{
+		color[0] = 255; color[1] = 0; color[2] = 255;
+	}
+	else if (StrEqual(name, "yellow", false))
+	{
+		color[0] = 255; color[1] = 255; color[2] = 0;
 	}
 	
 	return color;
@@ -2812,6 +2918,27 @@ stock int FindTargetEx(int client, const char[] target, bool nobots = false, boo
 		return target_list[0];
 	
 	return -1;
+}
+
+stock void SetClientCookieInt(int client, Handle cookie, int value)
+{
+	char sValue[5192];
+	IntToString(value, sValue, sizeof(sValue));
+	SetClientCookie(client, cookie, sValue);
+}
+
+stock void SetClientCookieFloat(int client, Handle cookie, float value)
+{
+	char sValue[5192];
+	FloatToString(value, sValue, sizeof(sValue));
+	SetClientCookie(client, cookie, sValue);
+}
+
+stock void SetClientCookieBool(int client, Handle cookie, bool value)
+{
+	char sValue[5192];
+	IntToString(value, sValue, sizeof(sValue));
+	SetClientCookie(client, cookie, sValue);
 }
 
 /*---------------------------------------------------------*/
@@ -2992,6 +3119,57 @@ stock int GetCmdArgTargetEx(int client, int argnum, bool nobots = false, bool im
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(argnum, sTarget, sizeof(sTarget));
 	return FindTargetEx(client, sTarget, nobots, immunity);
+}
+
+/*---------------------------------------------------------*/
+//MYSQL / SQLITE
+/*---------------------------------------------------------*/
+stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVal_Error)
+{
+	return view_as<bool>(results.FetchInt(field, status));
+}
+
+stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
+{
+	DataPack pack = new DataPack();
+	pack.WriteString(query);
+
+	database.Query(TQuery_Void, query, pack, prio);
+}
+
+stock void SQL_VoidQueryF(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
+{
+	char query[8192];
+	VFormat(query, sizeof(query), format, 4);
+
+	DataPack pack = new DataPack();
+	pack.WriteString(query);
+
+	database.Query(TQuery_Void, query, pack, prio);
+}
+
+public void TQuery_Void(Database owner, DBResultSet hndl, const char[] error, DataPack data)
+{
+	if (hndl == null)
+	{
+		data.Reset();
+
+		char sQuery[8192];
+		data.ReadString(sQuery, sizeof(sQuery));
+
+		LogError("Error executing void query: %s", error);
+		LogError("Query Output: %s", sQuery);
+	}
+
+	delete data;
+}
+
+stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
+{
+	char query[8192];
+	VFormat(query, sizeof(query), format, 6);
+
+	database.Query(callback, query, data, priority);
 }
 
 /*---------------------------------------------------------*/
@@ -4168,6 +4346,46 @@ stock bool RemoveMenuItemByName(Menu menu, const char[] name)
 	return false;
 }
 
+stock bool ChangeItemText(Menu menu, int position, const char[] display)
+{
+	if  (menu == null || strlen(display) == 0)
+		return false;
+	
+	char info[1024]; int style;
+	menu.GetItem(position, info, sizeof(info), style);
+	
+	if (!menu.RemoveItem(position) || !menu.InsertItem(position, info, display, style))
+		return false;
+	
+	return true;
+}
+
+//This stocks broken, read below.
+stock bool ChangeItemTextByName(Menu menu, const char[] name, const char[] display)
+{
+	if  (menu == null || strlen(name) == 0 || strlen(display) == 0)
+		return false;
+	
+	int position; char info[1024]; int style; char data[1024];
+	for (int i = 0; i < menu.ItemCount; i++)
+	{
+		if (menu.GetItem(i, info, sizeof(info), style, data, sizeof(data)) && StrEqual(data, name, false))
+		{
+			position = i;
+			break;
+		}
+	}
+	
+	if (!menu.RemoveItem(position))
+		return false;
+	
+	//Returns false, does not work.
+	//if (!menu.InsertItem(position, info, display, style))
+	//	return false;
+	
+	return true;
+}
+
 /*--------------------------------------------------------->
 .-----.                      .---.         .-.                          .---.
 `-. .-'                      : .--'       .' `.                         `--. :
@@ -4611,7 +4829,7 @@ stock int TF2_GetHealingTarget(int client)
 {
 	int weapon = GetPlayerWeaponSlot(client, 1);
 
-	if (!IsValidEntity(weapon) || weapon != GetActiveWeapon(client))
+	if (!IsValidEntity(weapon) || weapon != GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon"))
 		return -1;
 
 	char sClassname[32];
@@ -4998,6 +5216,29 @@ stock void TF2Attrib_SetByName_Weapons(int client, int weapon = -1, char[] attri
 	}
 }
 
+stock void TF2Attrib_SetByDefIndex_Weapons(int client, int weapon = -1, int index, float value, bool invert = false)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_SetByDefIndex(weapon, index, value);
+		return;
+	}
+
+	if (invert)
+		value = 1.0 + value;
+	else
+		value = 1.0 - value;
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+			TF2Attrib_SetByDefIndex(weapon2, index, value);
+	}
+}
+
 /**
 *	A simple stock to remove attributes from the weapons on a client.
 *
@@ -5022,6 +5263,24 @@ stock void TF2Attrib_RemoveByName_Weapons(int client, int weapon = -1, char[] at
 
 		if (IsValidEntity(weapon2))
 			TF2Attrib_RemoveByName(weapon2, attrib);
+	}
+}
+
+stock void TF2Attrib_RemoveByDefIndex_Weapons(int client, int weapon = -1, int index)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_RemoveByDefIndex(weapon, index);
+		return;
+	}
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+			TF2Attrib_RemoveByDefIndex(weapon2, index);
 	}
 }
 
@@ -5448,11 +5707,10 @@ stock int TF2_GetHealerByIndex(int client, int index)
 		return 0;
 
 	int m_aHealers = FindSendProinfo("CTFPlayer", "m_nNumHealers") + 12;
-
 	Address m_Shared = GetEntityAddress(client) + view_as<Address>(m_aHealers);
 	Address aHealers = view_as<Address>(LoadFromAddress(m_Shared, NumberType_Int32));
 
-	return (LoadFromAddress(aHealers + view_as<Address>(index * 0x24), NumberType_Int32) & 0xFFF);
+	return LoadFromAddress(aHealers + view_as<Address>(index * 0x24), NumberType_Int32) & 0xFFF;
 }
 
 /**
@@ -5487,7 +5745,7 @@ stock bool TF2_IsCurrentHealer(int client, int healer)
 
 	if ((healers = GetEntProp(client, Prop_Send, "m_nNumHealers")) == 0)
 		return false;
-
+	
 	for (int i = 0; i < healers; i++)
 	{
 		if (TF2_GetHealerByIndex(client, i) == healer)
@@ -5913,11 +6171,11 @@ stock int TF2_SpawnTeleporter(int builder, float Position[3], float Angle[3], TF
 *	Destroys all buildings owned by a player.
 *
 *	builder		Builder index.
-*	damage		Whether to damage the building to 0 health or to just kill the entity.
+*	destroy		Whether to destroy the building or to just kill the entity.
 *
 *	return	N/A
 **/
-stock void TF2_DestroyBuildings(int builder, bool damage = true)
+stock void TF2_DestroyBuildings(int builder, bool destroy = true)
 {
 	int entity = -1;
 	while ((entity = FindEntityByClassname(entity, "obj_*")) != -1)
@@ -5925,7 +6183,7 @@ stock void TF2_DestroyBuildings(int builder, bool damage = true)
 		if (GetEntPropEnt(entity, Prop_Send, "m_hBuilder") != builder)
 			continue;
 		
-		if (damage)
+		if (destroy)
 			SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 		else
 			AcceptEntityInput(entity, "Kill");
@@ -5936,11 +6194,11 @@ stock void TF2_DestroyBuildings(int builder, bool damage = true)
 *	Destroys all buildings owned by a team.
 *
 *	team		Team index.
-*	damage		Whether to damage the building to 0 health or to just kill the entity.
+*	destroy		Whether to destroy the building or to just kill the entity.
 *
 *	return	N/A
 **/
-stock void TF2_DestroyBuildingsTeam(TFTeam team, bool damage = true)
+stock void TF2_DestroyBuildingsTeam(TFTeam team, bool destroy = true)
 {
 	int entity = -1; int builder = -1;
 	while ((entity = FindEntityByClassname(entity, "obj_*")) != -1)
@@ -5950,7 +6208,7 @@ stock void TF2_DestroyBuildingsTeam(TFTeam team, bool damage = true)
 		if (builder < 1 || builder > MaxClients|| TF2_GetClientTeam(builder) != team)
 			continue;
 		
-		if (damage)
+		if (destroy)
 			SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 		else
 			AcceptEntityInput(entity, "Kill");
@@ -5960,16 +6218,16 @@ stock void TF2_DestroyBuildingsTeam(TFTeam team, bool damage = true)
 /**
 *	Destroys all buildings.
 *
-*	damage		Whether to damage the building to 0 health or to just kill the entity.
+*	destroy		Whether to destroy the building or to just kill the entity.
 *
 *	return	N/A
 **/
-stock void TF2_DestroyBuildingsAll(bool damage = true)
+stock void TF2_DestroyBuildingsAll(bool destroy = true)
 {
 	int entity = -1; int builder = -1;
 	while ((entity = FindEntityByClassname(entity, "obj_*")) != -1)
 	{
-		if (damage)
+		if (destroy)
 			SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 		else
 			AcceptEntityInput(entity, "Kill");
@@ -6260,12 +6518,12 @@ stock int TF2_GetWeaponWearable(int weapon)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveWeapon(int client, char[] classname, int index, int quality = 9, int level = 0) 
+stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0) 
 {
 	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES);	//Keep reserve attributes otherwise random issues will occur... including crashes.
 	TF2Items_SetClassname(item, classname);
 	TF2Items_SetItemIndex(item, index);
-	TF2Items_SetQuality(item, quality);
+	TF2Items_SetQuality(item, view_as<int>(quality));
 	TF2Items_SetLevel(item, level);
 
 	int weapon = TF2Items_GiveNamedItem(client, item);
@@ -6404,6 +6662,16 @@ stock int TF2_GetDecapitations(int client)
 stock void TF2_SetDecapitations(int client, int value = 99)
 {
 	SetEntProp(client, Prop_Send, "m_iDecapitations", value);
+}
+
+stock int TF2_GetTauntIndex(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iTauntIndex");
+}
+
+stock int TF2_GetTauntDefIndex(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
 }
 
 /*--------------------------------------------------------->
@@ -6790,6 +7058,7 @@ stock void CSGO_SetMoney(int client, int amount)
 		amount = 0;
 	
 	int max = FindConVar("mp_maxmoney").IntValue;
+	
 	if (amount > max)
 		amount = max;
 	
@@ -6930,7 +7199,7 @@ stock int CSGO_CreateDynamicLight(float origin[3], int color[4] = {255, 255, 255
 
 stock bool CSGO_SendRadioMessage(int client, int target, const char[] format, any ...)
 {
-	if (!isClientConnectedIngame(client))
+	if (!IsClientInGame(client))
 		return false;
 		
 	Handle message = StartMessageOne("RadioText", target);
@@ -6966,7 +7235,7 @@ stock bool CSGO_SendRadioMessage(int client, int target, const char[] format, an
 
 stock bool CSGO_SendRadioMessageAll(int client, const char[] sText, any ...)
 {
-	if (!isClientConnectedIngame(client))
+	if (!IsClientInGame(client))
 		return false;
 	
 	char sName[MAX_NAME_LENGTH];
@@ -7009,7 +7278,7 @@ stock bool CSGO_SendRadioMessageAll(int client, const char[] sText, any ...)
 
 stock bool CSGO_SendRadioMessageTeam(int client, int team, const char[] sText, any ...)
 {
-	if (!isClientConnectedIngame(client))
+	if (!IsClientInGame(client))
 		return false;
 	
 	char sName[MAX_NAME_LENGTH];
@@ -7048,6 +7317,11 @@ stock bool CSGO_SendRadioMessageTeam(int client, int team, const char[] sText, a
 	}
 	
 	return true;
+}
+
+stock bool CSGO_IsWarmup()
+{
+	return GameRules_GetProp("m_bWarmupPeriod");
 }
 
 /*--------------------------------------------------------->*/
@@ -7105,6 +7379,7 @@ stock bool IsDrixevel(int client)
 /*--------------------------------------------------------->*/
 /* Confirmation Menu */
 /* Adds functionality to allow for confirmations to be made with callbacks easily.*/
+/* Loosely based on: https://forums.alliedmods.net/showthread.php?t=306954 */
 
 enum ConfirmationResponses
 {
@@ -7133,7 +7408,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	g_ConfirmationCall[client] = callback;
 	g_ConfirmReplySource[client] = GetCmdReplySource();
 	
-	Menu menu = new Menu(___MenuHandler_SendConfirmation);
+	Menu menu = new Menu(___MenuHandler_SendConfirmation, MenuAction_Select|MenuAction_Cancel|MenuAction_End);
 	menu.SetTitle(strlen(title) > 0 ? title : "Are you sure you want to do this?");
 	
 	menu.AddItem("", "---", ITEMDRAW_DISABLED);
@@ -7144,7 +7419,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	IntToString(data, sBuffer, sizeof(sBuffer));
 	menu.AddItem("data", sBuffer, ITEMDRAW_IGNORE);
 	
-	menu.Display(client, MENU_TIME_FOREVER);
+	menu.Display(client, time);
 	return true;
 }
 
@@ -7160,60 +7435,84 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 		}
 	}
 	
-	ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
-	
 	switch (action)
 	{
 		case MenuAction_Select:
 		{
+			ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+			
+			Call_StartFunction(null, g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			
 			char sInfo[12];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
-			
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
 			Call_PushCell(StrEqual(sInfo, "yes") ? Confirm_Yes : Confirm_No);
+			
 			Call_PushCell(data);
 			Call_Finish();
+			
+			SetCmdReplySource(reply);
 		}
-		case MenuCancel_Disconnected:
+		case MenuAction_Cancel:
 		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
-			Call_PushCell(Confirm_Disconnected);
-			Call_PushCell(data);
-			Call_Finish();
-		}
-		case MenuCancel_Interrupted, MenuCancel_NoDisplay:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
-			Call_PushCell(Confirm_Interrupted);
-			Call_PushCell(data);
-			Call_Finish();
-		}
-		case MenuCancel_Exit:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
-			Call_PushCell(Confirm_No);
-			Call_PushCell(data);
-			Call_Finish();
-		}
-		case MenuCancel_Timeout:
-		{
-			Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-			Call_PushCell(param1);
-			Call_PushCell(Confirm_Timeout);
-			Call_PushCell(data);
-			Call_Finish();
+			switch (param2)
+			{
+				case MenuCancel_Disconnected:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_Disconnected);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+				case MenuCancel_Interrupted, MenuCancel_NoDisplay:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_Interrupted);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+				case MenuCancel_Exit:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_No);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+				case MenuCancel_Timeout:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_Timeout);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+			}
 		}
 		case MenuAction_End:
 			delete menu;
 	}
-	
-	SetCmdReplySource(reply);
 }
 
+/* Easily pass strings through data parameters. */
 
 stock DataPack AnyString(const char[] buffer)
 {

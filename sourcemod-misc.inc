@@ -26,12 +26,18 @@
 #define _sourcemod_misc_included
 
 #undef REQUIRE_EXTENSIONS
-#include <sdktools>
-#include <sdkhooks>
-#include <tf2_stocks>
-#include <cstrike>
-#include <regex>
+#tryinclude <sdktools>
+#tryinclude <sdkhooks>
+#tryinclude <tf2_stocks>
+#tryinclude <cstrike>
+#tryinclude <regex>
+#tryinclude <clientprefs>
+#tryinclude <tf2items>
 #define REQUIRE_EXTENSIONS
+
+#undef REQUIRE_PLUGIN
+#tryinclude <tf2attributes>
+#define REQUIRE_PLUGIN
 
 #define IS_CONSOLE 0
 #define IS_SERVER 0
@@ -40,7 +46,7 @@
 #define INVALID_ENT_INDEX -1
 #define INVALID_ARRAY_INDEX -1
 
-#define MAX_ENTITY_LIMIT 4096 + 1
+#define MAX_ENTITY_LIMIT 4096
 #define MAX_QUERY_LENGTH 8192
 #define MAX_BUTTONS 25
 #define MAX_IP_LENGTH 64
@@ -1447,34 +1453,94 @@ stock bool ChangeClientTeam_Alive(int client, int team)
 	return true;
 }
 
-stock int GetTotalAliveCount()
+stock int GetClientAbsCount()
 {
-	int amount;
+	int count;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || !IsPlayerAlive(i))
+		if (!IsClientInGame(i) || IsClientSourceTV(i))
 			continue;
 
-		amount++;
+		count++;
 	}
 
-	return amount;
+	return count;
 }
 
-stock int GetTeamAliveClientCount(int team)
+stock int GetTeamAbsCount(int team)
 {
-	int amount;
+	int count;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || !IsPlayerAlive(i) || GetClientTeam(i) != team)
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || GetClientTeam(i) != team)
 			continue;
 
-		amount++;
+		count++;
 	}
 
-	return amount;
+	return count;
+}
+
+stock int GetClientAliveCount()
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || !IsPlayerAlive(i))
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+stock int GetTeamAliveCount(int team)
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || !IsPlayerAlive(i) || GetClientTeam(i) != team)
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+stock int GetClientDeadCount()
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || IsPlayerAlive(i))
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
+stock int GetTeamDeadCount(int team)
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || IsPlayerAlive(i) || GetClientTeam(i) != team)
+			continue;
+
+		count++;
+	}
+
+	return count;
 }
 
 stock int GetClientsNearEntity(int entity, float distance = 1000.0, int team = 0, bool fake = true)
@@ -2504,6 +2570,17 @@ stock float CalculateKDR(int kills, int deaths)
 	return rate;
 }
 
+stock void CreatePlayerSpray(int client, float origin[3])
+{
+	TE_Start("Player Decal");
+	TE_WriteVector("m_vecOrigin", origin);
+	TE_WriteNum("m_nPlayer", client);
+	TE_SendToAll();
+	
+	if (IsSoundPrecached("player/sprayer.wav"))
+		EmitSoundToAll("player/sprayer.wav", client, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.6);
+}
+
 stock void RemovePlayerSpray(int client)
 {
 	TE_Start("Player Decal");
@@ -2841,6 +2918,27 @@ stock int FindTargetEx(int client, const char[] target, bool nobots = false, boo
 		return target_list[0];
 	
 	return -1;
+}
+
+stock void SetClientCookieInt(int client, Handle cookie, int value)
+{
+	char sValue[5192];
+	IntToString(value, sValue, sizeof(sValue));
+	SetClientCookie(client, cookie, sValue);
+}
+
+stock void SetClientCookieFloat(int client, Handle cookie, float value)
+{
+	char sValue[5192];
+	FloatToString(value, sValue, sizeof(sValue));
+	SetClientCookie(client, cookie, sValue);
+}
+
+stock void SetClientCookieBool(int client, Handle cookie, bool value)
+{
+	char sValue[5192];
+	IntToString(value, sValue, sizeof(sValue));
+	SetClientCookie(client, cookie, sValue);
 }
 
 /*---------------------------------------------------------*/
@@ -5118,6 +5216,29 @@ stock void TF2Attrib_SetByName_Weapons(int client, int weapon = -1, char[] attri
 	}
 }
 
+stock void TF2Attrib_SetByDefIndex_Weapons(int client, int weapon = -1, int index, float value, bool invert = false)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_SetByDefIndex(weapon, index, value);
+		return;
+	}
+
+	if (invert)
+		value = 1.0 + value;
+	else
+		value = 1.0 - value;
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+			TF2Attrib_SetByDefIndex(weapon2, index, value);
+	}
+}
+
 /**
 *	A simple stock to remove attributes from the weapons on a client.
 *
@@ -5142,6 +5263,24 @@ stock void TF2Attrib_RemoveByName_Weapons(int client, int weapon = -1, char[] at
 
 		if (IsValidEntity(weapon2))
 			TF2Attrib_RemoveByName(weapon2, attrib);
+	}
+}
+
+stock void TF2Attrib_RemoveByDefIndex_Weapons(int client, int weapon = -1, int index)
+{
+	if (weapon != -1 && IsValidEntity(weapon))
+	{
+		TF2Attrib_RemoveByDefIndex(weapon, index);
+		return;
+	}
+
+	int weapon2;
+	for (int i = 0; i < 6; i++)
+	{
+		weapon2 = GetPlayerWeaponSlot(client, i);
+
+		if (IsValidEntity(weapon2))
+			TF2Attrib_RemoveByDefIndex(weapon2, index);
 	}
 }
 
@@ -6379,12 +6518,12 @@ stock int TF2_GetWeaponWearable(int weapon)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveWeapon(int client, char[] classname, int index, int quality = 9, int level = 0) 
+stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0) 
 {
 	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES);	//Keep reserve attributes otherwise random issues will occur... including crashes.
 	TF2Items_SetClassname(item, classname);
 	TF2Items_SetItemIndex(item, index);
-	TF2Items_SetQuality(item, quality);
+	TF2Items_SetQuality(item, view_as<int>(quality));
 	TF2Items_SetLevel(item, level);
 
 	int weapon = TF2Items_GiveNamedItem(client, item);
@@ -6523,6 +6662,16 @@ stock int TF2_GetDecapitations(int client)
 stock void TF2_SetDecapitations(int client, int value = 99)
 {
 	SetEntProp(client, Prop_Send, "m_iDecapitations", value);
+}
+
+stock int TF2_GetTauntIndex(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iTauntIndex");
+}
+
+stock int TF2_GetTauntDefIndex(int client)
+{
+	return GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
 }
 
 /*--------------------------------------------------------->
@@ -7170,6 +7319,11 @@ stock bool CSGO_SendRadioMessageTeam(int client, int team, const char[] sText, a
 	return true;
 }
 
+stock bool CSGO_IsWarmup()
+{
+	return GameRules_GetProp("m_bWarmupPeriod");
+}
+
 /*--------------------------------------------------------->*/
 /* Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around) */
 stock void PrintToDrixevel(const char[] format, any ...)
@@ -7254,7 +7408,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	g_ConfirmationCall[client] = callback;
 	g_ConfirmReplySource[client] = GetCmdReplySource();
 	
-	Menu menu = new Menu(___MenuHandler_SendConfirmation);
+	Menu menu = new Menu(___MenuHandler_SendConfirmation, MenuAction_Select|MenuAction_Cancel|MenuAction_End);
 	menu.SetTitle(strlen(title) > 0 ? title : "Are you sure you want to do this?");
 	
 	menu.AddItem("", "---", ITEMDRAW_DISABLED);
@@ -7265,7 +7419,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	IntToString(data, sBuffer, sizeof(sBuffer));
 	menu.AddItem("data", sBuffer, ITEMDRAW_IGNORE);
 	
-	menu.Display(client, MENU_TIME_FOREVER);
+	menu.Display(client, time);
 	return true;
 }
 
@@ -7281,41 +7435,81 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 		}
 	}
 	
-	ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
-	
-	if (action == MenuAction_End)
-	{
-		delete menu;
-		SetCmdReplySource(reply);
-		return 0;
-	}
-	
-	Call_StartFunction(GetMyHandle(), g_ConfirmationCall[param1]);
-	Call_PushCell(param1);
-	
 	switch (action)
 	{
 		case MenuAction_Select:
 		{
+			ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+			
+			Call_StartFunction(null, g_ConfirmationCall[param1]);
+			Call_PushCell(param1);
+			
 			char sInfo[12];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
 			Call_PushCell(StrEqual(sInfo, "yes") ? Confirm_Yes : Confirm_No);
+			
+			Call_PushCell(data);
+			Call_Finish();
+			
+			SetCmdReplySource(reply);
 		}
-		case MenuCancel_Disconnected:
-			Call_PushCell(Confirm_Disconnected);
-		case MenuCancel_Interrupted, MenuCancel_NoDisplay:
-			Call_PushCell(Confirm_Interrupted);
-		case MenuCancel_Exit:
-			Call_PushCell(Confirm_No);
-		case MenuCancel_Timeout:
-			Call_PushCell(Confirm_Timeout);
+		case MenuAction_Cancel:
+		{
+			switch (param2)
+			{
+				case MenuCancel_Disconnected:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_Disconnected);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+				case MenuCancel_Interrupted, MenuCancel_NoDisplay:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_Interrupted);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+				case MenuCancel_Exit:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_No);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+				case MenuCancel_Timeout:
+				{
+					ReplySource reply = SetCmdReplySource(g_ConfirmReplySource[param1]);
+					
+					Call_StartFunction(null, g_ConfirmationCall[param1]);
+					Call_PushCell(param1);
+					Call_PushCell(Confirm_Timeout);
+					Call_PushCell(data);
+					Call_Finish();
+					
+					SetCmdReplySource(reply);
+				}
+			}
+		}
+		case MenuAction_End:
+			delete menu;
 	}
-	
-	Call_PushCell(data);
-	Call_Finish();
-	
-	SetCmdReplySource(reply);
-	return 0;
 }
 
 /* Easily pass strings through data parameters. */
