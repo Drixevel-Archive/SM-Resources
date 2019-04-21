@@ -2,10 +2,8 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-//Sourcemod Includes
+//Includes
 #include <sourcemod>
-
-//ConVars
 
 //Globals
 Database g_Database;
@@ -38,10 +36,7 @@ public void OnSQLConnect(Database db, const char[] error, any data)
 	//Check if we have a valid database connect.
 	//If not, give an error and don't store it globally.
 	if (db == null)
-	{
-		LogError("Error while connecting to database: %s", error);
-		return;
-	}
+		ThrowError("Error while connecting to database: %s", error);
 	
 	//This might be unnecessary but it's always best to be safe.
 	//Checks if we have a valid connection and deletes the connection we just made if so.
@@ -77,10 +72,7 @@ public void OnQueryFinished(Database db, DBResultSet results, const char[] error
 {
 	//No valid results for this query.
 	if (results == null)
-	{
-		LogError("Error while fetching results: %s", error);
-		return;
-	}
+		ThrowError("Error while fetching results: %s", error);
 	
 	//Create an integer to store the client index then turn the userid we passed into an index and see if it's still valid.
 	int client;

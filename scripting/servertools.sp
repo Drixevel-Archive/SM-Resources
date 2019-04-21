@@ -3,8 +3,7 @@
 #pragma newdecls required
 
 //Defines
-#define CHAT_TAG "[Tools]"
-#define COLORED_CHAT_TAG "[Tools]"
+#define CHAT_TAG "{lime}[Tools]{default}"
 
 //Sourcemod Includes
 #include <sourcemod>
@@ -18,6 +17,9 @@
 
 //Globals
 EngineVersion game;
+char g_ChatColor[32];
+char g_UniqueIdent[32];
+
 ArrayList g_Commands;
 StringMap g_CachedTimes;
 
@@ -50,6 +52,17 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	
 	game = GetEngineVersion();
+	
+	if (IsSource2009())
+	{
+		g_ChatColor = "{beige}";
+		g_UniqueIdent = "{ancient}";
+	}
+	else
+	{
+		g_ChatColor = "{yellow}";
+		g_UniqueIdent = "{lightred}";
+	}
 
 	g_Commands = new ArrayList(ByteCountToCells(128));
 	g_CachedTimes = new StringMap();
@@ -207,7 +220,7 @@ public void OnAllPluginsLoaded()
 			ReplaceString(sReload, sizeof(sReload), ".smx", "", true);
 			
 			ServerCommand("sm plugins reload %s", sReload);
-			PrintToChatAll("Plugin '%s' has been reloaded.", sName);
+			SendPrintAll("Plugin '{U}%s {D}' has been reloaded.", sName);
 			
 			if (GetPluginStatus(FindPluginByFile(sReload)) != Plugin_Running)
 				ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
@@ -268,11 +281,65 @@ public void OnClientDisconnect(int client)
 	g_iTarget[client] = INVALID_ENT_REFERENCE;
 }
 
+void SendPrintAll(char[] format, any ...)
+{
+	char sBuffer[255];
+	VFormat(sBuffer, sizeof(sBuffer), format, 3);
+	
+	char sChatColor[32]; char sUnique[32];
+	if (IsSource2009())
+	{
+		sChatColor = "{beige}";
+		sUnique = "{ancient}";
+	}
+	else
+	{
+		sChatColor = "{yellow}";
+		sUnique = "{lightred}";
+	}
+	
+	Format(sBuffer, sizeof(sBuffer), "%s%s%s", sChatColor, CHAT_TAG, sBuffer);
+	ReplaceString(sBuffer, sizeof(sBuffer), "{U}", sUnique, false);
+	ReplaceString(sBuffer, sizeof(sBuffer), "{D}", "{default}", false);
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i))
+			continue;
+		
+		CReplyToCommand(i, sBuffer);
+	}
+}
+
+void SendPrint(int client, char[] format, any ...)
+{
+	char sBuffer[255];
+	VFormat(sBuffer, sizeof(sBuffer), format, 3);
+	
+	char sChatColor[32]; char sUnique[32];
+	if (IsSource2009())
+	{
+		sChatColor = "{beige}";
+		sUnique = "{ancient}";
+	}
+	else
+	{
+		sChatColor = "{yellow}";
+		sUnique = "{lightred}";
+	}
+	
+	Format(sBuffer, sizeof(sBuffer), "%s%s%s", sChatColor, CHAT_TAG, sBuffer);
+	ReplaceString(sBuffer, sizeof(sBuffer), "{U}", sUnique, false);
+	ReplaceString(sBuffer, sizeof(sBuffer), "{D}", "{default}", false);
+	
+	CReplyToCommand(client, sBuffer);
+}
+
 public Action Command_ServerTools(int client, int args)
 {
 	if (IsClientConsole(client))
 	{
-		PrintToServer("%s You must be in-game to use this command.", CHAT_TAG);
+		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
 	}
 
@@ -306,19 +373,19 @@ public Action Command_Teleport(int client, int args)
 {
 	if (IsClientConsole(client))
 	{
-		PrintToServer("%s You must be in-game to use this command.", CHAT_TAG);
+		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
 	}
 
 	if (args == 0)
 	{
-		CPrintToChat(client, "%s You must specify a target to teleport to.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to teleport to.");
 		return Plugin_Handled;
 	}
 
 	if (!IsPlayerAlive(client))
 	{
-		CPrintToChat(client, "%s You must be alive to use this command.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must be alive to use this command.");
 		return Plugin_Handled;
 	}
 
@@ -329,13 +396,13 @@ public Action Command_Teleport(int client, int args)
 
 	if (!IsPlayerIndex(target) || !IsClientConnected(target) || !IsClientInGame(target))
 	{
-		CPrintToChat(client, "%s Invalid target specified, please try again.", COLORED_CHAT_TAG);
+		SendPrint(client, "Invalid target specified, please try again.");
 		return Plugin_Handled;
 	}
 
 	if (!IsPlayerAlive(target))
 	{
-		CPrintToChat(client, "%s %N isn't currently alive.", COLORED_CHAT_TAG, target);
+		SendPrint(client, "{U}%N {D} isn't currently alive.", target);
 		return Plugin_Handled;
 	}
 
@@ -347,8 +414,8 @@ public Action Command_Teleport(int client, int args)
 
 	TeleportEntity(client, vecOrigin, vecAngles, NULL_VECTOR);
 
-	CPrintToChat(target, "%s %N teleported themselves to you.", COLORED_CHAT_TAG, client);
-	CPrintToChat(client, "%s You have teleported yourself to %N.", COLORED_CHAT_TAG, target);
+	SendPrint(target, "{U}%N {D} teleported themselves to you.", client);
+	SendPrint(client, "You have teleported yourself to {U}%N {D}.", target);
 
 	return Plugin_Handled;
 }
@@ -357,19 +424,19 @@ public Action Command_Bring(int client, int args)
 {
 	if (IsClientConsole(client))
 	{
-		PrintToServer("%s You must be in-game to use this command.", CHAT_TAG);
+		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
 	}
 
 	if (args == 0)
 	{
-		CPrintToChat(client, "%s You must specify a target to bring.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to bring.");
 		return Plugin_Handled;
 	}
 
 	if (!IsPlayerAlive(client))
 	{
-		CPrintToChat(client, "%s You must be alive to use this command.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must be alive to use this command.");
 		return Plugin_Handled;
 	}
 
@@ -397,10 +464,10 @@ public Action Command_Bring(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TeleportEntity(targets_list[i], vecOrigin, vecAngles, NULL_VECTOR);
-		CPrintToChat(targets_list[i], "%s You have been teleported to %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "You have been teleported to {U}%N {D}.", client);
 	}
 
-	CPrintToChat(client, "%s You have teleported %s to you.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have teleported {U}%s {D} to you.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -409,19 +476,19 @@ public Action Command_Port(int client, int args)
 {
 	if (IsClientConsole(client))
 	{
-		PrintToServer("%s You must be in-game to use this command.", CHAT_TAG);
+		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
 	}
 
 	if (args == 0)
 	{
-		CPrintToChat(client, "%s You must specify a target to port.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to port.");
 		return Plugin_Handled;
 	}
 
 	if (!IsPlayerAlive(client))
 	{
-		CPrintToChat(client, "%s You must be alive to use this command.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must be alive to use this command.");
 		return Plugin_Handled;
 	}
 
@@ -446,10 +513,10 @@ public Action Command_Port(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TeleportEntity(targets_list[i], vecOrigin, NULL_VECTOR, NULL_VECTOR);
-		CPrintToChat(targets_list[i], "%s You have been ported by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "You have been ported by {U}%N {D}.", client);
 	}
 
-	CPrintToChat(client, "%s You have ported %s to your look position.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have ported {U}%s {D} to your look position.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -458,7 +525,7 @@ public Action Command_SetHealth(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set their health.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set their health.");
 		return Plugin_Handled;
 	}
 
@@ -484,10 +551,10 @@ public Action Command_SetHealth(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetPlayerHealth(targets_list[i], health);
-		CPrintToChat(targets_list[i], "%s Your health has been set to %i by %N.", COLORED_CHAT_TAG, health, client);
+		SendPrint(targets_list[i], "Your health has been set to {U}%i {D} by {U}%N {D}.", health, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the health of %s to %i.", COLORED_CHAT_TAG, sTargetName, health);
+	SendPrint(client, "You have set the health of {U}%s {D} to {U}%i {D}.", sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -496,7 +563,7 @@ public Action Command_AddHealth(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to add to their health.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to add to their health.");
 		return Plugin_Handled;
 	}
 
@@ -522,10 +589,10 @@ public Action Command_AddHealth(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_AddPlayerHealth(targets_list[i], health);
-		CPrintToChat(targets_list[i], "%s Your health has been increased by %i by %N.", COLORED_CHAT_TAG, health, client);
+		SendPrint(targets_list[i], "Your health has been increased by {U}%i {D} by {U}%N {D}.", health, client);
 	}
 
-	CReplyToCommand(client, "%s You have increased the health of %s by %i.", COLORED_CHAT_TAG, sTargetName, health);
+	SendPrint(client, "You have increased the health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -534,7 +601,7 @@ public Action Command_RemoveHealth(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to deduct from their health.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to deduct from their health.");
 		return Plugin_Handled;
 	}
 
@@ -560,10 +627,10 @@ public Action Command_RemoveHealth(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_RemovePlayerHealth(targets_list[i], health);
-		CPrintToChat(targets_list[i], "%s Your health has been deducted by %i by %N.", COLORED_CHAT_TAG, health, client);
+		SendPrint(targets_list[i], "Your health has been deducted by {U}%i {D} by {U}%N {D}.", health, client);
 	}
 
-	CReplyToCommand(client, "%s You have deducted health of %s by %i.", COLORED_CHAT_TAG, sTargetName, health);
+	SendPrint(client, "You have deducted health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -572,17 +639,17 @@ public Action Command_SetClass(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set their class.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set their class.");
 		return Plugin_Handled;
 	}
 	else if (args == 1)
 	{
-		CReplyToCommand(client, "%s You must specify a class to set.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a class to set.");
 		return Plugin_Handled;
 	}
 	else if (game != Engine_TF2)
 	{
-		CReplyToCommand(client, "%s This command is for Team Fortress 2 only.", COLORED_CHAT_TAG);
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -607,7 +674,7 @@ public Action Command_SetClass(int client, int args)
 
 	if (class == TFClass_Unknown)
 	{
-		CReplyToCommand(client, "%s You have specified an invalid class.", COLORED_CHAT_TAG);
+		SendPrint(client, "You have specified an invalid class.");
 		return Plugin_Handled;
 	}
 
@@ -618,10 +685,10 @@ public Action Command_SetClass(int client, int args)
 	{
 		TF2_SetPlayerClass(targets_list[i], class, false, true);
 		TF2_RegeneratePlayer(targets_list[i]);
-		CPrintToChat(targets_list[i], "%s Your class has been set to %s by %N.", COLORED_CHAT_TAG, sClassName, client);
+		SendPrint(targets_list[i], "Your class has been set to {U}%s {D} by {U}%N {D}.", sClassName, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the class of %s to %s.", COLORED_CHAT_TAG, sTargetName, sClassName);
+	SendPrint(client, "You have set the class of {U}%s {D} to {U}%s {D}.", sTargetName, sClassName);
 
 	return Plugin_Handled;
 }
@@ -630,12 +697,12 @@ public Action Command_SetTeam(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set their team.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set their team.");
 		return Plugin_Handled;
 	}
 	else if (args == 1)
 	{
-		CReplyToCommand(client, "%s You must specify a team to set.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a team to set.");
 		return Plugin_Handled;
 	}
 
@@ -660,7 +727,7 @@ public Action Command_SetTeam(int client, int args)
 
 	if (team < 1 || team > 3)
 	{
-		CReplyToCommand(client, "%s You have specified an invalid team.", COLORED_CHAT_TAG);
+		SendPrint(client, "You have specified an invalid team.");
 		return Plugin_Handled;
 	}
 
@@ -685,10 +752,10 @@ public Action Command_SetTeam(int client, int args)
 			default: ChangeClientTeam(targets_list[i], team);
 		}
 		
-		CPrintToChat(targets_list[i], "%s Your team has been set to %s by %N.", COLORED_CHAT_TAG, sTeamName, client);
+		SendPrint(targets_list[i], "Your team has been set to {U}%s {D} by {U}%N {D}.", sTeamName, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the team of %s to %s.", COLORED_CHAT_TAG, sTargetName, sTeamName);
+	SendPrint(client, "You have set the team of {U}%s {D} to {U}%s {D}.", sTargetName, sTeamName);
 
 	return Plugin_Handled;
 }
@@ -697,7 +764,7 @@ public Action Command_Respawn(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to respawn.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to respawn.");
 		return Plugin_Handled;
 	}
 
@@ -724,10 +791,10 @@ public Action Command_Respawn(int client, int args)
 			case Engine_CSS, Engine_CSGO: CS_RespawnPlayer(targets_list[i]);
 		}
 		
-		CPrintToChat(targets_list[i], "%s Your have been respawned by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been respawned by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have respawned %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have respawned {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -736,7 +803,7 @@ public Action Command_Regenerate(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to regenerate.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to regenerate.");
 		return Plugin_Handled;
 	}
 
@@ -758,10 +825,10 @@ public Action Command_Regenerate(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_RegeneratePlayer(targets_list[i]);
-		CPrintToChat(targets_list[i], "%s Your have been regenerated by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been regenerated by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have regenerated %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have regenerated {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -770,7 +837,7 @@ public Action Command_RefillAmunition(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to refill their ammunition.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to refill their ammunition.");
 		return Plugin_Handled;
 	}
 
@@ -798,10 +865,10 @@ public Action Command_RefillAmunition(int client, int args)
 				SetAmmo(targets_list[i], weapon2, g_iAmmo[weapon2]);
 		}
 
-		CPrintToChat(targets_list[i], "%s Your weapons ammunitions have been refilled by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your weapons ammunitions have been refilled by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have refilled the ammunition ammo for %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have refilled the ammunition ammo for {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -810,7 +877,7 @@ public Action Command_RefillClip(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to refill their clip.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to refill their clip.");
 		return Plugin_Handled;
 	}
 
@@ -838,10 +905,10 @@ public Action Command_RefillClip(int client, int args)
 				SetClip(weapon2, g_iClip[weapon2]);
 		}
 
-		CPrintToChat(targets_list[i], "%s Your weapons clips have been refilled by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your weapons clips have been refilled by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have refilled the clip ammo for %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have refilled the clip ammo for {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -883,7 +950,7 @@ public Action Command_ManageBots(int client, int args)
 {
 	if (IsClientConsole(client))
 	{
-		PrintToServer("%s You must be in-game to use this command.", CHAT_TAG);
+		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
 	}
 
@@ -917,7 +984,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 
 			if (StrEqual(sInfo, "spawn"))
 			{
-				CPrintToChatAll("%s %N has spawned a bot.", COLORED_CHAT_TAG, param1);
+				SendPrintAll("{U}%N {D} has spawned a bot.", param1);
 				ServerCommand("tf_bot_add");
 
 				OpenManageBotsMenu(param1);
@@ -928,13 +995,13 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 
 				if (!IsPlayerIndex(target) || !IsFakeClient(target))
 				{
-					CPrintToChat(param1, "%s Please aim your crosshair at a valid bot.", COLORED_CHAT_TAG);
+					SendPrint(param1, "Please aim your crosshair at a valid bot.");
 					OpenManageBotsMenu(param1);
 					return;
 				}
 
-				CPrintToChatAll("%s %N has kicked the bot %N.", COLORED_CHAT_TAG, param1, target);
-				ServerCommand("tf_bot_kick \"%N\"", target);
+				SendPrintAll("{U}%N {D} has kicked the bot {U}%N {D}.", param1, target);
+				ServerCommand("tf_bot_kick \"{U}%N {D}\"", target);
 
 				OpenManageBotsMenu(param1);
 			}
@@ -944,7 +1011,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 
 				if (!IsPlayerIndex(target) || !IsFakeClient(target))
 				{
-					CPrintToChat(param1, "%s Please aim your crosshair at a valid bot.", COLORED_CHAT_TAG);
+					SendPrint(param1, "Please aim your crosshair at a valid bot.");
 					OpenManageBotsMenu(param1);
 					return;
 				}
@@ -957,7 +1024,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 
 				if (!IsPlayerIndex(target) || !IsFakeClient(target))
 				{
-					CPrintToChat(param1, "%s Please aim your crosshair at a valid bot.", COLORED_CHAT_TAG);
+					SendPrint(param1, "Please aim your crosshair at a valid bot.");
 					OpenManageBotsMenu(param1);
 					return;
 				}
@@ -971,7 +1038,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 				blind.SetBool(!blind.BoolValue);
 				SetConVarFlag(blind, true, FCVAR_CHEAT);
 
-				CPrintToChatAll("%s %N has toggled bot movement %s.", COLORED_CHAT_TAG, param1, !blind.BoolValue ? "on" : "off");
+				SendPrintAll("{U}%N {D} has toggled bot movement {U}%s {D}.", param1, !blind.BoolValue ? "on" : "off");
 
 				OpenManageBotsMenu(param1);
 			}
@@ -989,7 +1056,7 @@ public int MenuHandler_ManageBots(Menu menu, MenuAction action, int param1, int 
 void OpenSetBotClassMenu(int client, int target)
 {
 	Menu menu = new Menu(MenuHandler_SetBotClass);
-	menu.SetTitle("[Tools] Pick a class for %N:", target);
+	menu.SetTitle("[Tools] Pick a class for {U}%N {D}:", target);
 
 	menu.AddItem("1", "Scout");
 	menu.AddItem("3", "Soldier");
@@ -1021,7 +1088,7 @@ public int MenuHandler_SetBotClass(Menu menu, MenuAction action, int param1, int
 
 			if (!IsPlayerIndex(target) || !IsFakeClient(target))
 			{
-				CPrintToChat(param1, "%s Bot is no longer valid.", COLORED_CHAT_TAG);
+				SendPrint(param1, "Bot is no longer valid.");
 				OpenManageBotsMenu(param1);
 				return;
 			}
@@ -1046,7 +1113,7 @@ public int MenuHandler_SetBotClass(Menu menu, MenuAction action, int param1, int
 void OpenSetBotTeamMenu(int client, int target)
 {
 	Menu menu = new Menu(MenuHandler_SetBotTeam);
-	menu.SetTitle("[Tools] Pick a team for %N:", target);
+	menu.SetTitle("[Tools] Pick a team for {U}%N {D}:", target);
 
 	menu.AddItem("2", "Red");
 	menu.AddItem("3", "Blue");
@@ -1071,7 +1138,7 @@ public int MenuHandler_SetBotTeam(Menu menu, MenuAction action, int param1, int 
 
 			if (!IsPlayerIndex(target) || !IsFakeClient(target))
 			{
-				CPrintToChat(param1, "%s Bot is no longer valid.", COLORED_CHAT_TAG);
+				SendPrint(param1, "Bot is no longer valid.");
 				OpenManageBotsMenu(param1);
 				return;
 			}
@@ -1118,7 +1185,7 @@ public int MenuHandler_SetBotQuota(Menu menu, MenuAction action, int param1, int
 			char sInfo[12];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
 
-			ServerCommand("tf_bot_quota %i", StringToInt(sInfo));
+			ServerCommand("tf_bot_quota {U}%i {D}", StringToInt(sInfo));
 
 			OpenSetBotQuotaMenu(param1);
 		}
@@ -1147,12 +1214,12 @@ public Action Command_Password(int client, int args)
 	{
 		if (strlen(sPassword) == 0)
 		{
-			CReplyToCommand(client, "%s No password is currently set on the server, it's unlocked.", COLORED_CHAT_TAG);
+			SendPrint(client, "No password is currently set on the server, it's unlocked.");
 			return Plugin_Handled;
 		}
 
 		password.SetString("");
-		CPrintToChatAll("%s %N has removed the password unlocking the server.", COLORED_CHAT_TAG, client);
+		SendPrintAll("{U}%N {D} has removed the password unlocking the server.", client);
 
 		return Plugin_Handled;
 	}
@@ -1162,26 +1229,26 @@ public Action Command_Password(int client, int args)
 
 	if (strlen(sNewPassword) == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a password in order to set it.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a password in order to set it.");
 		return Plugin_Handled;
 	}
 
 	if (strlen(sNewPassword) < 6)
 	{
-		CReplyToCommand(client, "%s The new password requires more than or equal to 6 characters.", COLORED_CHAT_TAG);
+		SendPrint(client, "The new password requires more than or equal to 6 characters.");
 		return Plugin_Handled;
 	}
 
 	if (strlen(sNewPassword) > 256)
 	{
-		CReplyToCommand(client, "%s The new password requires less than or equal to 256 characters.", COLORED_CHAT_TAG);
+		SendPrint(client, "The new password requires less than or equal to 256 characters.");
 		return Plugin_Handled;
 	}
 
 	password.SetString(sPassword);
 
-	CPrintToChatAll("%s %N has set a password on the server locking it.", COLORED_CHAT_TAG, client);
-	CReplyToCommand(client, "%s You have set the server password locking it to %s.", COLORED_CHAT_TAG);
+	SendPrintAll("{U}%N {D} has set a password on the server locking it.", client);
+	SendPrint(client, "You have set the server password locking it to {U}%s {D}.");
 
 	return Plugin_Handled;
 }
@@ -1198,7 +1265,7 @@ public Action Command_EndRound(int client, int args)
 	}
 
 	TF2_ForceRoundWin(team);
-	CPrintToChatAll("%s %N has ended the current round.", COLORED_CHAT_TAG, client);
+	SendPrintAll("{U}%N {D} has ended the current round.", client);
 
 	return Plugin_Handled;
 }
@@ -1207,12 +1274,12 @@ public Action Command_SetCondition(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to add a condition to.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to add a condition to.");
 		return Plugin_Handled;
 	}
 	else if (args == 1)
 	{
-		CReplyToCommand(client, "%s You must specify a condition to set.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a condition to set.");
 		return Plugin_Handled;
 	}
 
@@ -1237,7 +1304,7 @@ public Action Command_SetCondition(int client, int args)
 
 	if (view_as<int>(condition) < 0 || view_as<int>(condition) > 118)
 	{
-		CReplyToCommand(client, "%s You have specified an invalid condition.", COLORED_CHAT_TAG);
+		SendPrint(client, "You have specified an invalid condition.");
 		return Plugin_Handled;
 	}
 
@@ -1252,7 +1319,7 @@ public Action Command_SetCondition(int client, int args)
 
 		if (time < TFCondDuration_Infinite)
 		{
-			CReplyToCommand(client, "%s You have specified an invalid time.", COLORED_CHAT_TAG);
+			SendPrint(client, "You have specified an invalid time.");
 			return Plugin_Handled;
 		}
 	}
@@ -1260,10 +1327,10 @@ public Action Command_SetCondition(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_AddCondition(targets_list[i], condition, time, client);
-		CPrintToChat(targets_list[i], "%s Your have gained a new condition from %N for %.2f seconds.", COLORED_CHAT_TAG, client, time);
+		SendPrint(targets_list[i], "Your have gained a new condition from {U}%N {D} for %.2f seconds.", client, time);
 	}
 
-	CReplyToCommand(client, "%s You have set a new condition on %s for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	SendPrint(client, "You have set a new condition on {U}%s {D} for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1272,12 +1339,12 @@ public Action Command_RemoveCondition(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to remove a condition from.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to remove a condition from.");
 		return Plugin_Handled;
 	}
 	else if (args == 1)
 	{
-		CReplyToCommand(client, "%s You must specify a condition to remove.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a condition to remove.");
 		return Plugin_Handled;
 	}
 
@@ -1302,7 +1369,7 @@ public Action Command_RemoveCondition(int client, int args)
 
 	if (view_as<int>(condition) < 0 || view_as<int>(condition) > 118)
 	{
-		CReplyToCommand(client, "%s You have specified an invalid condition.", COLORED_CHAT_TAG);
+		SendPrint(client, "You have specified an invalid condition.");
 		return Plugin_Handled;
 	}
 
@@ -1312,10 +1379,10 @@ public Action Command_RemoveCondition(int client, int args)
 			continue;
 
 		TF2_RemoveCondition(targets_list[i], condition);
-		CPrintToChat(targets_list[i], "%s Your have been stripped of a condition by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been stripped of a condition by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have been stripped of a condition by %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have been stripped of a condition by {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1324,7 +1391,7 @@ public Action Command_SetUbercharge(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set their ubercharge.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set their ubercharge.");
 		return Plugin_Handled;
 	}
 
@@ -1353,10 +1420,10 @@ public Action Command_SetUbercharge(int client, int args)
 			continue;
 
 		TF2_SetUberLevel(targets_list[i], uber);
-		CPrintToChat(targets_list[i], "%s Your ubercharge has been set to %.2f by %N.", COLORED_CHAT_TAG, uber, client);
+		SendPrint(targets_list[i], "Your ubercharge has been set to %.2f by {U}%N {D}.", uber, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the ubercharge of %s to %.2f.", COLORED_CHAT_TAG, sTargetName, uber);
+	SendPrint(client, "You have set the ubercharge of {U}%s {D} to %.2f.", sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1365,7 +1432,7 @@ public Action Command_AddUbercharge(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to add to their ubercharge.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to add to their ubercharge.");
 		return Plugin_Handled;
 	}
 
@@ -1394,10 +1461,10 @@ public Action Command_AddUbercharge(int client, int args)
 			continue;
 
 		TF2_AddUberLevel(targets_list[i], uber);
-		CPrintToChat(targets_list[i], "%s Your ubercharge has been increased by %.2f by %N.", COLORED_CHAT_TAG, uber, client);
+		SendPrint(targets_list[i], "Your ubercharge has been increased by %.2f by {U}%N {D}.", uber, client);
 	}
 
-	CReplyToCommand(client, "%s You have increased the ubercharge of %s by %.2f.", COLORED_CHAT_TAG, sTargetName, uber);
+	SendPrint(client, "You have increased the ubercharge of {U}%s {D} by %.2f.", sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1406,7 +1473,7 @@ public Action Command_RemoveUbercharge(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to deduct from their ubercharge.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to deduct from their ubercharge.");
 		return Plugin_Handled;
 	}
 
@@ -1435,10 +1502,10 @@ public Action Command_RemoveUbercharge(int client, int args)
 			continue;
 
 		TF2_RemoveUberLevel(targets_list[i], uber);
-		CPrintToChat(targets_list[i], "%s Your ubercharge has been deducted by %.2f by %N.", COLORED_CHAT_TAG, uber, client);
+		SendPrint(targets_list[i], "Your ubercharge has been deducted by %.2f by {U}%N {D}.", uber, client);
 	}
 
-	CReplyToCommand(client, "%s You have deducted ubercharge of %s by %.2f.", COLORED_CHAT_TAG, sTargetName, uber);
+	SendPrint(client, "You have deducted ubercharge of {U}%s {D} by %.2f.", sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1447,7 +1514,7 @@ public Action Command_SetMetal(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set their metal.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set their metal.");
 		return Plugin_Handled;
 	}
 
@@ -1476,10 +1543,10 @@ public Action Command_SetMetal(int client, int args)
 			continue;
 
 		TF2_SetMetal(targets_list[i], metal);
-		CPrintToChat(targets_list[i], "%s Your metal has been set to %i by %N.", COLORED_CHAT_TAG, metal, client);
+		SendPrint(targets_list[i], "Your metal has been set to {U}%i {D} by {U}%N {D}.", metal, client);
 	}
 
-	CReplyToCommand(client, "%s You have set the metal of %s to %i.", COLORED_CHAT_TAG, sTargetName, metal);
+	SendPrint(client, "You have set the metal of {U}%s {D} to {U}%i {D}.", sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -1488,7 +1555,7 @@ public Action Command_AddMetal(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to add to their metal.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to add to their metal.");
 		return Plugin_Handled;
 	}
 
@@ -1517,10 +1584,10 @@ public Action Command_AddMetal(int client, int args)
 			continue;
 
 		TF2_AddMetal(targets_list[i], metal);
-		CPrintToChat(targets_list[i], "%s Your metal has been increased by %i by %N.", COLORED_CHAT_TAG, metal, client);
+		SendPrint(targets_list[i], "Your metal has been increased by {U}%i {D} by {U}%N {D}.", metal, client);
 	}
 
-	CReplyToCommand(client, "%s You have increased the metal of %s by %i.", COLORED_CHAT_TAG, sTargetName, metal);
+	SendPrint(client, "You have increased the metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -1529,7 +1596,7 @@ public Action Command_RemoveMetal(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to deduct from their metal.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to deduct from their metal.");
 		return Plugin_Handled;
 	}
 
@@ -1558,10 +1625,10 @@ public Action Command_RemoveMetal(int client, int args)
 			continue;
 
 		TF2_RemoveMetal(targets_list[i], metal);
-		CPrintToChat(targets_list[i], "%s Your metal has been deducted by %i by %N.", COLORED_CHAT_TAG, metal, client);
+		SendPrint(targets_list[i], "Your metal has been deducted by {U}%i {D} by {U}%N {D}.", metal, client);
 	}
 
-	CReplyToCommand(client, "%s You have deducted metal of %s by %i.", COLORED_CHAT_TAG, sTargetName, metal);
+	SendPrint(client, "You have deducted metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -1570,7 +1637,7 @@ public Action Command_SetTime(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a time to set.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a time to set.");
 		return Plugin_Handled;
 	}
 
@@ -1592,7 +1659,7 @@ public Action Command_SetTime(int client, int args)
 		delete timelimit;
 	}
 
-	CPrintToChatAll("%s %N has set the time to %i.", COLORED_CHAT_TAG, client, time);
+	SendPrintAll("{U}%N {D} has set the time to {U}%i {D}.", client, time);
 
 	return Plugin_Handled;
 }
@@ -1601,7 +1668,7 @@ public Action Command_AddTime(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a time to add to it.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a time to add to it.");
 		return Plugin_Handled;
 	}
 
@@ -1619,7 +1686,7 @@ public Action Command_AddTime(int client, int args)
 		if (strncmp(sMap, "pl_", 3) == 0)
 		{
 			char sBuffer[32];
-			Format(sBuffer, sizeof(sBuffer), "0 %i", time);
+			Format(sBuffer, sizeof(sBuffer), "0 {U}%i {D}", time);
 
 			SetVariantString(sBuffer);
 			AcceptEntityInput(entity, "AddTeamTime");
@@ -1637,7 +1704,7 @@ public Action Command_AddTime(int client, int args)
 		delete timelimit;
 	}
 
-	CPrintToChatAll("%s %N has added time to %i.", COLORED_CHAT_TAG, client, time);
+	SendPrintAll("{U}%N {D} has added time to {U}%i {D}.", client, time);
 
 	return Plugin_Handled;
 }
@@ -1646,7 +1713,7 @@ public Action Command_RemoveTime(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a time to removed from.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a time to removed from.");
 		return Plugin_Handled;
 	}
 
@@ -1664,7 +1731,7 @@ public Action Command_RemoveTime(int client, int args)
 		if (strncmp(sMap, "pl_", 3) == 0)
 		{
 			char sBuffer[32];
-			Format(sBuffer, sizeof(sBuffer), "0 %i", time);
+			Format(sBuffer, sizeof(sBuffer), "0 {U}%i {D}", time);
 
 			SetVariantString(sBuffer);
 			AcceptEntityInput(entity, "RemoveTeamTime");
@@ -1682,7 +1749,7 @@ public Action Command_RemoveTime(int client, int args)
 		delete timelimit;
 	}
 
-	CPrintToChatAll("%s %N has removed time from %i.", COLORED_CHAT_TAG, client, time);
+	SendPrintAll("{U}%N {D} has removed time from {U}%i {D}.", client, time);
 
 	return Plugin_Handled;
 }
@@ -1691,7 +1758,7 @@ public Action Command_SetCrits(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set crits on.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set crits on.");
 		return Plugin_Handled;
 	}
 
@@ -1721,7 +1788,7 @@ public Action Command_SetCrits(int client, int args)
 
 		if (time < TFCondDuration_Infinite)
 		{
-			CReplyToCommand(client, "%s You have specified an invalid time.", COLORED_CHAT_TAG);
+			SendPrint(client, "You have specified an invalid time.");
 			return Plugin_Handled;
 		}
 	}
@@ -1729,10 +1796,10 @@ public Action Command_SetCrits(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_AddCondition(targets_list[i], TFCond_CritOnWin, time, client);
-		CPrintToChat(targets_list[i], "%s Your have gained crits from %N for %.2f seconds.", COLORED_CHAT_TAG, client, time);
+		SendPrint(targets_list[i], "Your have gained crits from {U}%N {D} for %.2f seconds.", client, time);
 	}
 
-	CReplyToCommand(client, "%s You have set crits on %s for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	SendPrint(client, "You have set crits on {U}%s {D} for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1741,7 +1808,7 @@ public Action Command_RemoveCrits(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to remove crits from.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to remove crits from.");
 		return Plugin_Handled;
 	}
 
@@ -1766,10 +1833,10 @@ public Action Command_RemoveCrits(int client, int args)
 			continue;
 
 		TF2_RemoveCondition(targets_list[i], TFCond_CritOnWin);
-		CPrintToChat(targets_list[i], "%s Your have been stripped of crits by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been stripped of crits by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have stripped crits from %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have stripped crits from {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1778,7 +1845,7 @@ public Action Command_SetGod(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set godmode on.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set godmode on.");
 		return Plugin_Handled;
 	}
 
@@ -1800,10 +1867,10 @@ public Action Command_SetGod(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetGodmode(targets_list[i], TFGod_God);
-		CPrintToChat(targets_list[i], "%s Your have been set to godmode by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been set to godmode by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have set godmode on %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have set godmode on {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1812,7 +1879,7 @@ public Action Command_SetBuddha(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set buddhamode on.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set buddhamode on.");
 		return Plugin_Handled;
 	}
 
@@ -1834,10 +1901,10 @@ public Action Command_SetBuddha(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetGodmode(targets_list[i], TFGod_Buddha);
-		CPrintToChat(targets_list[i], "%s Your have been set to buddhamode by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been set to buddhamode by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have set buddhamode on %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have set buddhamode on {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1846,7 +1913,7 @@ public Action Command_SetMortal(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to set mortalmode on.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to set mortalmode on.");
 		return Plugin_Handled;
 	}
 
@@ -1868,10 +1935,10 @@ public Action Command_SetMortal(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_SetGodmode(targets_list[i], TFGod_Mortal);
-		CPrintToChat(targets_list[i], "%s Your have been set to mortalmode by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been set to mortalmode by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have set mortalmode on %s.", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have set mortalmode on {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1880,7 +1947,7 @@ public Action Command_StunPlayer(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to stun.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to stun.");
 		return Plugin_Handled;
 	}
 
@@ -1910,7 +1977,7 @@ public Action Command_StunPlayer(int client, int args)
 
 		if (time < 0.0)
 		{
-			CReplyToCommand(client, "%s You have specified an invalid time.", COLORED_CHAT_TAG);
+			SendPrint(client, "You have specified an invalid time.");
 			return Plugin_Handled;
 		}
 	}
@@ -1926,7 +1993,7 @@ public Action Command_StunPlayer(int client, int args)
 
 		if (slowdown < 0.0 || slowdown > 1.00)
 		{
-			CReplyToCommand(client, "%s You have specified an invalid slowdown.", COLORED_CHAT_TAG);
+			SendPrint(client, "You have specified an invalid slowdown.");
 			return Plugin_Handled;
 		}
 	}
@@ -1934,10 +2001,10 @@ public Action Command_StunPlayer(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_StunPlayer(targets_list[i], time, slowdown, TF_STUNFLAGS_SMALLBONK, client);
-		CPrintToChat(targets_list[i], "%s Your have been stunned by %N  for %.2f seconds.", COLORED_CHAT_TAG, client, time);
+		SendPrint(targets_list[i], "Your have been stunned by {U}%N {D}  for %.2f seconds.", client, time);
 	}
 
-	CReplyToCommand(client, "%s You have stunned %s  for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	SendPrint(client, "You have stunned {U}%s {D}  for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1946,7 +2013,7 @@ public Action Command_BleedPlayer(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to bleed.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to bleed.");
 		return Plugin_Handled;
 	}
 
@@ -1976,7 +2043,7 @@ public Action Command_BleedPlayer(int client, int args)
 
 		if (time < 0.0)
 		{
-			CReplyToCommand(client, "%s You have specified an invalid time.", COLORED_CHAT_TAG);
+			SendPrint(client, "You have specified an invalid time.");
 			return Plugin_Handled;
 		}
 	}
@@ -1984,10 +2051,10 @@ public Action Command_BleedPlayer(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_MakeBleed(targets_list[i], client, time);
-		CPrintToChat(targets_list[i], "%s Your have been cut by %N  for %.2f seconds.", COLORED_CHAT_TAG, client, time);
+		SendPrint(targets_list[i], "Your have been cut by {U}%N {D}  for %.2f seconds.", client, time);
 	}
 
-	CReplyToCommand(client, "%s You have cut %s  for %.2f seconds.", COLORED_CHAT_TAG, sTargetName, time);
+	SendPrint(client, "You have cut {U}%s {D}  for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1996,7 +2063,7 @@ public Action Command_IgnitePlayer(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a target to ignite.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a target to ignite.");
 		return Plugin_Handled;
 	}
 
@@ -2018,10 +2085,10 @@ public Action Command_IgnitePlayer(int client, int args)
 	for (int i = 0; i < targets; i++)
 	{
 		TF2_IgnitePlayer(targets_list[i], client);
-		CPrintToChat(targets_list[i], "%s Your have been ignited by %N.", COLORED_CHAT_TAG, client);
+		SendPrint(targets_list[i], "Your have been ignited by {U}%N {D}.", client);
 	}
 
-	CReplyToCommand(client, "%s You have ignited %s", COLORED_CHAT_TAG, sTargetName);
+	SendPrint(client, "You have ignited {U}%s {D}", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -2030,11 +2097,11 @@ public Action Command_ReloadMap(int client, int args)
 {
 	char sCurrentMap[MAX_MAP_NAME_LENGTH];
 	GetCurrentMap(sCurrentMap, sizeof(sCurrentMap));
-	ServerCommand("sm_map %s", sCurrentMap);
+	ServerCommand("sm_map {U}%s {D}", sCurrentMap);
 
 	char sMap[MAX_MAP_NAME_LENGTH];
 	GetMapName(sMap, sizeof(sMap));
-	CPrintToChatAll("%s %N has initiated a map reload.", COLORED_CHAT_TAG, client);
+	SendPrintAll("{U}%N {D} has initiated a map reload.", client);
 
 	return Plugin_Handled;
 }
@@ -2048,9 +2115,9 @@ public Action Command_MapName(int client, int args)
 	GetMapDisplayName(sCurrentMap, sMap, sizeof(sMap));
 
 	if (StrContains(sCurrentMap, "workshop/", false) == 0)
-		CReplyToCommand(client, "%s Name: %s [%s]", COLORED_CHAT_TAG, sMap, sCurrentMap);
+		SendPrint(client, "Name: {U}%s {D} [{U}%s {D}]", sMap, sCurrentMap);
 	else
-		CReplyToCommand(client, "%s Name: %s", COLORED_CHAT_TAG, sCurrentMap);
+		SendPrint(client, "Name: {U}%s {D}", sCurrentMap);
 
 	return Plugin_Handled;
 }
@@ -2059,7 +2126,7 @@ public Action Command_Reload(int client, int args)
 {
 	if (IsClientConsole(client))
 	{
-		CReplyToCommand(client, "[SM] %t", "Command is in-game only");
+		SendPrint(client, "[SM] %t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 
@@ -2075,7 +2142,7 @@ public Action Command_Reload(int client, int args)
 
 		GetPluginInfo(plugin, PlInfo_Name, sName, sizeof(sName));
 		GetPluginFilename(plugin, sFile, sizeof(sFile));
-		PrintToChat(client, sName);
+		SendPrint(client, sName);
 
 		menu.AddItem(sFile, sName);
 	}
@@ -2095,7 +2162,7 @@ public int MenuHandler_Reload(Menu menu, MenuAction action, int param1, int para
 			char sFile[256]; char sName[128];
 			GetMenuItem(menu, param2, sFile, sizeof(sFile), _, sName, sizeof(sName));
 			ServerCommand("sm plugins reload %s", sFile);
-			PrintToChat(param1, "Plugin '%s' has been reloaded.", sName);
+			SendPrint(param1, "Plugin '{U}%s {D}' has been reloaded.", sName);
 			Command_Reload(param1, 0);
 		}
 		case MenuAction_End:
@@ -2109,14 +2176,14 @@ public Action Command_SpawnSentry(int client, int args)
 	{
 		char sCommand[32];
 		GetCommandName(sCommand, sizeof(sCommand));
-		CReplyToCommand(client, "%s Usage: %s <target> <team> <level> <mini> <disposable>", COLORED_CHAT_TAG, sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level> <mini> <disposable>", sCommand);
 		return Plugin_Handled;
 	}
 
 	float vecOrigin[3];
 	if (!GetClientCrosshairOrigin(client, vecOrigin))
 	{
-		CReplyToCommand(client, "%s Invalid look position.", COLORED_CHAT_TAG);
+		SendPrint(client, "Invalid look position.");
 		return Plugin_Handled;
 	}
 
@@ -2143,14 +2210,14 @@ public Action Command_SpawnDispenser(int client, int args)
 	{
 		char sCommand[32];
 		GetCommandName(sCommand, sizeof(sCommand));
-		CReplyToCommand(client, "%s Usage: %s <target> <team> <level>", COLORED_CHAT_TAG, sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level>", sCommand);
 		return Plugin_Handled;
 	}
 
 	float vecOrigin[3];
 	if (!GetClientCrosshairOrigin(client, vecOrigin))
 	{
-		CReplyToCommand(client, "%s Invalid look position.", COLORED_CHAT_TAG);
+		SendPrint(client, "Invalid look position.");
 		return Plugin_Handled;
 	}
 
@@ -2175,14 +2242,14 @@ public Action Command_SpawnTeleporter(int client, int args)
 	{
 		char sCommand[32];
 		GetCommandName(sCommand, sizeof(sCommand));
-		CReplyToCommand(client, "%s Usage: %s <target> <team> <level> <mode>", COLORED_CHAT_TAG, sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level> <mode>", sCommand);
 		return Plugin_Handled;
 	}
 
 	float vecOrigin[3];
 	if (!GetClientCrosshairOrigin(client, vecOrigin))
 	{
-		CReplyToCommand(client, "%s Invalid look position.", COLORED_CHAT_TAG);
+		SendPrint(client, "Invalid look position.");
 		return Plugin_Handled;
 	}
 
@@ -2208,7 +2275,7 @@ public Action Command_Particle(int client, int args)
 	{
 		char sCommand[64];
 		GetCommandName(sCommand, sizeof(sCommand));
-		CReplyToCommand(client, "%s Usage: %s <target> <team> <level> <mode>", COLORED_CHAT_TAG, sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level> <mode>", sCommand);
 		return Plugin_Handled;
 	}
 	
@@ -2224,7 +2291,7 @@ public Action Command_Particle(int client, int args)
 	GetClientCrosshairOrigin(client, vecOrigin);
 	
 	CreateParticle(sParticle, time, vecOrigin);
-	CReplyToCommand(client, "%s Particle %s has been spawned for %.2f second(s).", COLORED_CHAT_TAG, sParticle, time);
+	SendPrint(client, "Particle {U}%s {D} has been spawned for %.2f second(s).", sParticle, time);
 	
 	return Plugin_Handled;
 }
@@ -2242,7 +2309,7 @@ void ListParticles(int client, int item)
 	
 	if (tblidx == INVALID_STRING_TABLE)
 	{
-		CReplyToCommand(client, "Could not find string table: ParticleEffectNames");
+		SendPrint(client, "Could not find string table: ParticleEffectNames");
 		return;
 	}
 	
@@ -2272,7 +2339,7 @@ public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int p
 			GetClientCrosshairOrigin(param1, vecOrigin);
 			
 			CreateParticle(sParticle, 2.0, vecOrigin);
-			CReplyToCommand(param1, "%s Particle %s has been spawned for 2.0 seconds.", COLORED_CHAT_TAG, sParticle);
+			SendPrint(param1, "{U}%s {D} Particle {U}%s {D} has been spawned for 2.0 seconds.", sParticle);
 			
 			ListParticles(param1, param2);
 		}
@@ -2292,7 +2359,7 @@ public Action Command_GenerateParticles(int client, int args)
 		
 		if (!DirExists(sPath))
 		{
-			CReplyToCommand(client, "%s Error finding and creating directory: %s", COLORED_CHAT_TAG, sPath);
+			SendPrint(client, "Error finding and creating directory: {U}%s {D}", sPath);
 			return Plugin_Handled;
 		}
 	}
@@ -2306,7 +2373,7 @@ public Action Command_GenerateParticles(int client, int args)
 	
 	if (file == null)
 	{
-		CReplyToCommand(client, "%s Error opening up file for writing: %s", COLORED_CHAT_TAG, sPath);
+		SendPrint(client, "Error opening up file for writing: {U}%s {D}", sPath);
 		return Plugin_Handled;
 	}
 	
@@ -2314,7 +2381,7 @@ public Action Command_GenerateParticles(int client, int args)
 	
 	if (tblidx == INVALID_STRING_TABLE)
 	{
-		CReplyToCommand(client, "%s Could not find string table: ParticleEffectNames", COLORED_CHAT_TAG);
+		SendPrint(client, "Could not find string table: ParticleEffectNames");
 		return Plugin_Handled;
 	}
 	
@@ -2326,7 +2393,7 @@ public Action Command_GenerateParticles(int client, int args)
 	}
 	
 	delete file;
-	CReplyToCommand(client, "%s Particles file generated successfully for %s at: %s", COLORED_CHAT_TAG, sGame, sPath);
+	SendPrint(client, "Particles file generated successfully for {U}%s {D} at: {U}%s {D}", sGame, sPath);
 	
 	return Plugin_Handled;
 }
@@ -2334,7 +2401,7 @@ public Action Command_GenerateParticles(int client, int args)
 public Action Command_SpewSounds(int client, int args)
 {
 	g_SpewSounds = !g_SpewSounds;
-	CReplyToCommand(client, "%s Spew Sounds: %s", COLORED_CHAT_TAG, g_SpewSounds ? "ON" : "OFF");
+	SendPrint(client, "Spew Sounds: {U}%s {D}", g_SpewSounds ? "ON" : "OFF");
 	
 	if (g_SpewSounds)
 		AddNormalSoundHook(SpewSounds);
@@ -2346,13 +2413,13 @@ public Action Command_SpewSounds(int client, int args)
 
 public Action SpewSounds(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
-	CPrintToChatAll("[SpewSounds] -: %s", sample);
+	SendPrintAll("[SpewSounds] -: {U}%s {D}", sample);
 }
 
 public Action Command_SpewAmbients(int client, int args)
 {
 	g_SpewAmbients = !g_SpewAmbients;
-	CReplyToCommand(client, "%s Spew Ambients: %s", COLORED_CHAT_TAG, g_SpewAmbients ? "ON" : "OFF");
+	SendPrint(client, "Spew Ambients: {U}%s {D}", g_SpewAmbients ? "ON" : "OFF");
 	
 	if (g_SpewAmbients)
 		AddAmbientSoundHook(SpewAmbients);
@@ -2364,13 +2431,13 @@ public Action Command_SpewAmbients(int client, int args)
 
 public Action SpewAmbients(char sample[PLATFORM_MAX_PATH], int &entity, float &volume, int &level, int &pitch, float pos[3], int &flags, float &delay)
 {
-	CPrintToChatAll("[SpewAmbients] -: %s", sample);
+	SendPrintAll("[SpewAmbients] -: {U}%s {D}", sample);
 }
 
 public Action Command_SpewEntities(int client, int args)
 {
 	g_SpewEntities = !g_SpewEntities;
-	CReplyToCommand(client, "%s Spew Entities: %s", COLORED_CHAT_TAG, g_SpewEntities ? "ON" : "OFF");
+	SendPrint(client, "Spew Entities: {U}%s {D}", g_SpewEntities ? "ON" : "OFF");
 	
 	return Plugin_Handled;
 }
@@ -2378,7 +2445,7 @@ public Action Command_SpewEntities(int client, int args)
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (g_SpewEntities)
-		CPrintToChatAll("[SpewEntities] -%i: %s", entity, classname);
+		SendPrintAll("[SpewEntities] -{U}%i {D}: {U}%s {D}", entity, classname);
 }
 
 public Action Command_GetEntityModel(int client, int args)
@@ -2387,19 +2454,19 @@ public Action Command_GetEntityModel(int client, int args)
 	
 	if (!IsValidEntity(target))
 	{
-		CPrintToChat(client, "%s Target not found, please aim your crosshair at the entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "Target not found, please aim your crosshair at the entity.");
 		return Plugin_Handled;
 	}
 	
 	if (!HasEntProp(target, Prop_Data, "m_ModelName"))
 	{
-		CPrintToChat(client, "%s Target doesn't have a valid model.", COLORED_CHAT_TAG);
+		SendPrint(client, "Target doesn't have a valid model.");
 		return Plugin_Handled;
 	}
 	
 	char sModel[PLATFORM_MAX_PATH];
 	GetEntPropString(target, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
-	CPrintToChat(client, "%s Model Found: %s", COLORED_CHAT_TAG, sModel);
+	SendPrint(client, "Model Found: {U}%s {D}", sModel);
 	
 	return Plugin_Handled;
 }
@@ -2408,7 +2475,7 @@ public Action Command_SetKillstreak(int client, int args)
 {
 	int value = GetCmdArgInt(1);
 	TF2_SetKillstreak(client, value);
-	CPrintToChat(client, "%s Killstreak set to: %i", COLORED_CHAT_TAG, value);
+	SendPrint(client, "Killstreak set to: {U}%i {D}", value);
 	return Plugin_Handled;
 }
 
@@ -2416,7 +2483,7 @@ public Action Command_CreateEntity(int client, int args)
 {
 	if (args == 0)
 	{
-		CReplyToCommand(client, "%s You must specify a classname.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify a classname.");
 		return Plugin_Handled;
 	}
 
@@ -2425,7 +2492,7 @@ public Action Command_CreateEntity(int client, int args)
 
 	if (args == 1)
 	{
-		CReplyToCommand(client, "%s You must specify an entity name for reference.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must specify an entity name for reference.");
 		return Plugin_Handled;
 	}
 
@@ -2436,24 +2503,24 @@ public Action Command_CreateEntity(int client, int args)
 
 	if (!IsValidEntity(entity))
 	{
-		CReplyToCommand(client, "%s Unknown error while creating entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "Unknown error while creating entity.");
 		return Plugin_Handled;
 	}
 
 	if (!DispatchKeyValue(entity, "targetname", sName))
 	{
-		CReplyToCommand(client, "%s Error while setting entity classname to '%s'.", COLORED_CHAT_TAG, sName);
+		SendPrint(client, "Error while setting entity classname to '{U}%s {D}'.", sName);
 		AcceptEntityInput(entity, "Kill");
 		return Plugin_Handled;
 	}
 
-	CReplyToCommand(client, "%s '%s' entity created with the index '%i'.", COLORED_CHAT_TAG, sClassname, entity);
+	SendPrint(client, "'{U}%s {D}' entity created with the index '{U}%i {D}'.", sClassname, entity);
 
 	g_OwnedEntities[client].Push(EntIndexToEntRef(entity));
-	CReplyToCommand(client, "%s Entity '%i' is now under ownership of you.", COLORED_CHAT_TAG, entity);
+	SendPrint(client, "Entity '{U}%i {D}' is now under ownership of you.", entity);
 
 	g_iTarget[client] = EntIndexToEntRef(entity);
-	CReplyToCommand(client, "%s Entity '%s' is now targetted by you.", COLORED_CHAT_TAG, sName);
+	SendPrint(client, "Entity '{U}%s {D}' is now targetted by you.", sName);
 
 	return Plugin_Handled;
 }
@@ -2462,13 +2529,13 @@ public Action Command_DispatchKeyValue(int client, int args)
 {
 	if (args < 2)
 	{
-		CReplyToCommand(client, "%s You must input at least 2 arguments for the key and the value.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must input at least 2 arguments for the key and the value.");
 		return Plugin_Handled;
 	}
 
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2476,7 +2543,7 @@ public Action Command_DispatchKeyValue(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2491,7 +2558,7 @@ public Action Command_DispatchKeyValue(int client, int args)
 	GetEntityName(entity, sName, sizeof(sName));
 
 	DispatchKeyValue(entity, sKeyName, sValue);
-	CReplyToCommand(client, "%s Targetted entity '%s' is now dispatch keyvalue '%s' for '%s'.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sKeyName, sValue);
+	SendPrint(client, "Targetted entity '{U}%s {D}' is now dispatch keyvalue '{U}%s {D}' for '{U}%s {D}'.", strlen(sName) > 0 ? sName : "N/A", sKeyName, sValue);
 
 	return Plugin_Handled;
 }
@@ -2500,13 +2567,13 @@ public Action Command_DispatchKeyValueFloat(int client, int args)
 {
 	if (args < 2)
 	{
-		CReplyToCommand(client, "%s You must input at least 2 arguments for the key and the value.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must input at least 2 arguments for the key and the value.");
 		return Plugin_Handled;
 	}
 
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2514,7 +2581,7 @@ public Action Command_DispatchKeyValueFloat(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2530,7 +2597,7 @@ public Action Command_DispatchKeyValueFloat(int client, int args)
 	GetEntityName(entity, sName, sizeof(sName));
 
 	DispatchKeyValueFloat(entity, sKeyName, fValue);
-	CReplyToCommand(client, "%s Targetted entity '%s' is now dispatch keyvalue '%s' for '%.2f'.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sKeyName, fValue);
+	SendPrint(client, "Targetted entity '{U}%s {D}' is now dispatch keyvalue '{U}%s {D}' for '%.2f'.", strlen(sName) > 0 ? sName : "N/A", sKeyName, fValue);
 
 	return Plugin_Handled;
 }
@@ -2539,13 +2606,13 @@ public Action Command_DispatchKeyValueVector(int client, int args)
 {
 	if (args < 2)
 	{
-		CReplyToCommand(client, "%s You must input at least 2 arguments for the key and the value.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must input at least 2 arguments for the key and the value.");
 		return Plugin_Handled;
 	}
 
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2553,7 +2620,7 @@ public Action Command_DispatchKeyValueVector(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2571,7 +2638,7 @@ public Action Command_DispatchKeyValueVector(int client, int args)
 	GetEntityName(entity, sName, sizeof(sName));
 
 	DispatchKeyValueVector(entity, sKeyName, vecValue);
-	CReplyToCommand(client, "%s Targetted entity '%s' is now dispatch keyvalue '%s' for '%.2f/%.2f/%.2f'.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sKeyName, vecValue[0], vecValue[1], vecValue[2]);
+	SendPrint(client, "Targetted entity '{U}%s {D}' is now dispatch keyvalue '{U}%s {D}' for '%.2f/%.2f/%.2f'.", strlen(sName) > 0 ? sName : "N/A", sKeyName, vecValue[0], vecValue[1], vecValue[2]);
 
 	return Plugin_Handled;
 }
@@ -2580,7 +2647,7 @@ public Action Command_DispatchSpawn(int client, int args)
 {
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2588,7 +2655,7 @@ public Action Command_DispatchSpawn(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2597,7 +2664,7 @@ public Action Command_DispatchSpawn(int client, int args)
 	GetEntityName(entity, sName, sizeof(sName));
 
 	DispatchSpawn(entity);
-	CReplyToCommand(client, "%s Targetted entity '%s' is now dispatch spawned.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A");
+	SendPrint(client, "Targetted entity '{U}%s {D}' is now dispatch spawned.", strlen(sName) > 0 ? sName : "N/A");
 
 	return Plugin_Handled;
 }
@@ -2606,7 +2673,7 @@ public Action Command_AcceptEntityInput(int client, int args)
 {
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2614,7 +2681,7 @@ public Action Command_AcceptEntityInput(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2638,7 +2705,7 @@ public Action Command_AcceptEntityInput(int client, int args)
 	GetEntityName(entity, sName, sizeof(sName));
 
 	AcceptEntityInput(entity, sInput);
-	CReplyToCommand(client, "%s Targetted entity '%s' input '%s' sent.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sInput);
+	SendPrint(client, "Targetted entity '{U}%s {D}' input '{U}%s {D}' sent.", strlen(sName) > 0 ? sName : "N/A", sInput);
 
 	return Plugin_Handled;
 }
@@ -2647,7 +2714,7 @@ public Action Command_Animate(int client, int args)
 {
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2655,7 +2722,7 @@ public Action Command_Animate(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2668,7 +2735,7 @@ public Action Command_Animate(int client, int args)
 	
 	SetVariantString(sAnimation);
 	AcceptEntityInput(entity, "SetAnimation");
-	CReplyToCommand(client, "%s Targetted entity '%s' animation '%s' set.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A", sAnimation);
+	SendPrint(client, "Targetted entity '{U}%s {D}' animation '{U}%s {D}' set.", strlen(sName) > 0 ? sName : "N/A", sAnimation);
 
 	return Plugin_Handled;
 }
@@ -2679,7 +2746,7 @@ public Action Command_TargetEntity(int client, int args)
 
 	if (!IsValidEntity(entity))
 	{
-		CReplyToCommand(client, "%s You aren't aiming at a valid entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't aiming at a valid entity.");
 		return Plugin_Handled;
 	}
 
@@ -2687,7 +2754,7 @@ public Action Command_TargetEntity(int client, int args)
 	GetEntityName(entity, sName, sizeof(sName));
 
 	g_iTarget[client] = EntIndexToEntRef(entity);
-	CReplyToCommand(client, "%s Entity '%s' is now targetted by you.", COLORED_CHAT_TAG, sName);
+	SendPrint(client, "Entity '{U}%s {D}' is now targetted by you.", sName);
 
 	return Plugin_Handled;
 }
@@ -2696,7 +2763,7 @@ public Action Command_DeleteEntity(int client, int args)
 {
 	if (g_iTarget[client] == INVALID_ENT_REFERENCE)
 	{
-		CReplyToCommand(client, "%s You aren't currently targeting an entity.", COLORED_CHAT_TAG);
+		SendPrint(client, "You aren't currently targeting an entity.");
 		return Plugin_Handled;
 	}
 
@@ -2704,7 +2771,7 @@ public Action Command_DeleteEntity(int client, int args)
 
 	if (!IsValidEntity(entity) || entity < 1)
 	{
-		CReplyToCommand(client, "%s Entity is no longer valid.", COLORED_CHAT_TAG);
+		SendPrint(client, "Entity is no longer valid.");
 		g_iTarget[client] = INVALID_ENT_REFERENCE;
 		return Plugin_Handled;
 	}
@@ -2714,7 +2781,7 @@ public Action Command_DeleteEntity(int client, int args)
 
 	AcceptEntityInput(entity, "Kill");
 	g_iTarget[client] = INVALID_ENT_REFERENCE;
-	CReplyToCommand(client, "%s Targetted entity '%s' is now deleted.", COLORED_CHAT_TAG, strlen(sName) > 0 ? sName : "N/A");
+	SendPrint(client, "Targetted entity '{U}%s {D}' is now deleted.", strlen(sName) > 0 ? sName : "N/A");
 
 	return Plugin_Handled;
 }
@@ -2725,7 +2792,7 @@ public Action Command_ListOwnedEntities(int client, int args)
 
 	if (owned == 0)
 	{
-		CReplyToCommand(client, "%s You currently don't own any entities.", COLORED_CHAT_TAG);
+		SendPrint(client, "You currently don't own any entities.");
 		return Plugin_Handled;
 	}
 
@@ -2785,7 +2852,7 @@ public int MenuHandler_ListOwnedEntities(Menu menu, MenuAction action, int param
 			}
 
 			g_iTarget[param1] = EntIndexToEntRef(entity);
-			CReplyToCommand(param1, "%s Entity '%s' is now targetted by you.", COLORED_CHAT_TAG, sName);
+			SendPrint(param1, "{U}%s {D} Entity '{U}%s {D}' is now targetted by you.", sName);
 			Command_ListOwnedEntities(param1, 0);
 		}
 
@@ -2805,7 +2872,7 @@ public Action Command_Lock(int client, int args)
 void ToggleLock(int client)
 {
 	g_Locked = !g_Locked;
-	CPrintToChatAll(g_Locked ? "Server is now locked to admins by %N." : "Server is now unlocked by %N.", client);
+	SendPrintAll(g_Locked ? "Server is now locked to admins by {U}%N {D}." : "Server is now unlocked by {U}%N {D}.", client);
 }
 
 public bool OnClientConnect(int client, char[] rejectmsg, int maxlen)
@@ -2831,7 +2898,7 @@ public Action Command_CreateProp(int client, int args)
 		PrecacheModel(sModel);
 	
 	CreateProp(sModel, vecOrigin);
-	CPrintToChat(client, "Prop '%s' has been spawned.");
+	SendPrint(client, "Prop '{U}%s {D}' has been spawned.");
 	
 	return Plugin_Handled;
 }
@@ -2842,7 +2909,7 @@ public Action Command_AnimateProp(int client, int args)
 	
 	if (!IsValidEntity(target))
 	{
-		CPrintToChat(client, "No target has been found.");
+		SendPrint(client, "No target has been found.");
 		return Plugin_Handled;
 	}
 	
@@ -2851,7 +2918,7 @@ public Action Command_AnimateProp(int client, int args)
 	
 	if (StrContains(sClassname, "prop_dynamic") != 0)
 	{
-		CPrintToChat(client, "Target is not a dynamic prop entity.");
+		SendPrint(client, "Target is not a dynamic prop entity.");
 		return Plugin_Handled;
 	}
 	
@@ -2860,12 +2927,12 @@ public Action Command_AnimateProp(int client, int args)
 	
 	if (strlen(sAnimation) == 0)
 	{
-		CPrintToChat(client, "Invalid animation input, please specify one.");
+		SendPrint(client, "Invalid animation input, please specify one.");
 		return Plugin_Handled;
 	}
 	
 	bool success = AnimateEntity(target, sAnimation);
-	CPrintToChat(client, "Animation '%s' has been sent to the target %s.", sAnimation, success ? "successfully" : "unsuccessfully");
+	SendPrint(client, "Animation '{U}%s {D}' has been sent to the target {U}%s {D}.", sAnimation, success ? "successfully" : "unsuccessfully");
 	
 	return Plugin_Handled;
 }
@@ -2876,7 +2943,7 @@ public Action Command_DeleteProp(int client, int args)
 	
 	if (!IsValidEntity(target))
 	{
-		CPrintToChat(client, "No target has been found.");
+		SendPrint(client, "No target has been found.");
 		return Plugin_Handled;
 	}
 	
@@ -2885,12 +2952,12 @@ public Action Command_DeleteProp(int client, int args)
 	
 	if (StrContains(sClassname, "prop_dynamic") != 0)
 	{
-		CPrintToChat(client, "Target is not a dynamic prop entity.");
+		SendPrint(client, "Target is not a dynamic prop entity.");
 		return Plugin_Handled;
 	}
 	
 	bool success = DeleteEntity(target);
-	CPrintToChat(client, "Prop has been deleted %s.", success ? "successfully" : "unsuccessfully");
+	SendPrint(client, "Prop has been deleted {U}%s {D}.", success ? "successfully" : "unsuccessfully");
 	
 	return Plugin_Handled;
 }
@@ -2907,7 +2974,7 @@ public Action Command_DebugEvents(int client, int args)
 		}
 		
 		g_HookEvents.Clear();
-		CReplyToCommand(client, "Event debugging: OFF");
+		SendPrint(client, "Event debugging: OFF");
 		
 		return Plugin_Handled;
 	}
@@ -2920,14 +2987,14 @@ public Action Command_DebugEvents(int client, int args)
 	if (!kv.ImportFromFile(sPath))
 	{
 		delete kv;
-		CPrintToChat(client, "Error finding file: %s", sPath);
+		SendPrint(client, "Error finding file: {U}%s {D}", sPath);
 		return Plugin_Handled;
 	}
 	
 	if (!kv.GotoFirstSubKey())
 	{
 		delete kv;
-		CPrintToChat(client, "Error parsing file: %s", sPath);
+		SendPrint(client, "Error parsing file: {U}%s {D}", sPath);
 		return Plugin_Handled;
 	}
 	
@@ -2941,7 +3008,7 @@ public Action Command_DebugEvents(int client, int args)
 	while (kv.GotoNextKey());
 	
 	delete kv;
-	CReplyToCommand(client, "Event %i debugging: ON", g_HookEvents.Length);
+	SendPrint(client, "Event {U}%i {D} debugging: ON", g_HookEvents.Length);
 	
 	return Plugin_Handled;
 }
@@ -2959,7 +3026,7 @@ public Action Command_SetRenderColor(int client, int args)
 	int alpha = GetCmdArgInt(4);
 	
 	SetEntityRenderColor(client, red, green, blue, alpha);
-	CPrintToChat(client, "%s Render color set to '%i/%i/%i/%i'.", COLORED_CHAT_TAG, red, green, blue, alpha);
+	SendPrint(client, "Render color set to '{U}%i {D}/{U}%i {D}/{U}%i {D}/{U}%i {D}'.", red, green, blue, alpha);
 	
 	return Plugin_Handled;
 }
@@ -2970,7 +3037,7 @@ public Action Command_SetRenderFx(int client, int args)
 	GetCmdArgString(sArg, sizeof(sArg));
 	
 	SetEntityRenderFx(client, GetRenderFxByName(sArg));
-	CPrintToChat(client, "%s Render fx set to '%s'.", COLORED_CHAT_TAG, sArg);
+	SendPrint(client, "Render fx set to '{U}%s {D}'.", sArg);
 	
 	return Plugin_Handled;
 }
@@ -2981,7 +3048,7 @@ public Action Command_SetRenderMode(int client, int args)
 	GetCmdArgString(sArg, sizeof(sArg));
 	
 	SetEntityRenderMode(client, GetRenderModeByName(sArg));
-	CPrintToChat(client, "%s Render mode set to '%s'.", COLORED_CHAT_TAG, sArg);
+	SendPrint(client, "Render mode set to '{U}%s {D}'.", sArg);
 	
 	return Plugin_Handled;
 }
@@ -2993,7 +3060,7 @@ public Action Command_ApplyAttribute(int client, int args)
 	
 	if (!IsPlayerAlive(client))
 	{
-		CPrintToChat(client, "%s You must be alive to apply attributes.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must be alive to apply attributes.");
 		return Plugin_Handled;
 	}
 	
@@ -3001,7 +3068,7 @@ public Action Command_ApplyAttribute(int client, int args)
 	{
 		char sCommand[64];
 		GetCommandName(sCommand, sizeof(sCommand));
-		CPrintToChat(client, "%s Usage: %s <attribute> <value> <0/1 weapons>", COLORED_CHAT_TAG, sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <attribute> <value> <0/1 weapons>", sCommand);
 		return Plugin_Handled;
 	}
 	
@@ -3016,23 +3083,23 @@ public Action Command_ApplyAttribute(int client, int args)
 	{
 		int index = StringToInt(sArg1);
 		TF2Attrib_SetByDefIndex(client, index, value);
-		CPrintToChat(client, "%s Applying attribute index '%i' to yourself with the value: %.2f", COLORED_CHAT_TAG, index, value);
+		SendPrint(client, "Applying attribute index '{U}%i {D}' to yourself with the value: %.2f", index, value);
 		
 		if (args >= 3)
 		{
 			TF2Attrib_SetByDefIndex_Weapons(client, -1, index, value, GetCmdArgBool(4));
-			CPrintToChat(client, "%s Applying attribute index '%i' to your weapons with the value: %.2f", COLORED_CHAT_TAG, index, value);
+			SendPrint(client, "Applying attribute index '{U}%i {D}' to your weapons with the value: %.2f", index, value);
 		}
 	}
 	else
 	{
 		TF2Attrib_SetByName(client, sArg1, value);
-		CPrintToChat(client, "%s Applying attribute '%s' to yourself with the value: %.2f", COLORED_CHAT_TAG, sArg1, value);
+		SendPrint(client, "Applying attribute '{U}%s {D}' to yourself with the value: %.2f", sArg1, value);
 		
 		if (args >= 3)
 		{
 			TF2Attrib_SetByName_Weapons(client, -1, sArg1, value);
-			CPrintToChat(client, "%s Applying attribute '%s' to your weapons with the value: %.2f", COLORED_CHAT_TAG, sArg1, value);
+			SendPrint(client, "Applying attribute '{U}%s {D}' to your weapons with the value: %.2f", sArg1, value);
 		}
 	}
 	
@@ -3046,7 +3113,7 @@ public Action Command_RemoveAttribute(int client, int args)
 	
 	if (!IsPlayerAlive(client))
 	{
-		CPrintToChat(client, "%s You must be alive to remove attributes.", COLORED_CHAT_TAG);
+		SendPrint(client, "You must be alive to remove attributes.");
 		return Plugin_Handled;
 	}
 	
@@ -3054,7 +3121,7 @@ public Action Command_RemoveAttribute(int client, int args)
 	{
 		char sCommand[64];
 		GetCommandName(sCommand, sizeof(sCommand));
-		CPrintToChat(client, "%s Usage: %s <attribute> <0/1 weapons>", COLORED_CHAT_TAG, sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <attribute> <0/1 weapons>", sCommand);
 		return Plugin_Handled;
 	}
 	
@@ -3065,23 +3132,23 @@ public Action Command_RemoveAttribute(int client, int args)
 	{
 		int index = StringToInt(sArg1);
 		TF2Attrib_RemoveByDefIndex(client, index);
-		CPrintToChat(client, "%s Removing attribute index '%i' from yourself.", COLORED_CHAT_TAG, index);
+		SendPrint(client, "Removing attribute index '{U}%i {D}' from yourself.", index);
 		
 		if (args >= 2)
 		{
 			TF2Attrib_RemoveByDefIndex_Weapons(client, -1, index);
-			CPrintToChat(client, "%s Removing attribute index '%i' from your weapons.", COLORED_CHAT_TAG, index);
+			SendPrint(client, "Removing attribute index '{U}%i {D}' from your weapons.", index);
 		}
 	}
 	else
 	{
 		TF2Attrib_RemoveByName(client, sArg1);
-		CPrintToChat(client, "%s Removing attribute '%s' from yourself.", COLORED_CHAT_TAG, sArg1);
+		SendPrint(client, "Removing attribute '{U}%s {D}' from yourself.", sArg1);
 		
 		if (args >= 2)
 		{
 			TF2Attrib_RemoveByName_Weapons(client, -1, sArg1);
-			CPrintToChat(client, "%s Removing attribute '%s' from your weapons.", COLORED_CHAT_TAG, sArg1);
+			SendPrint(client, "Removing attribute '{U}%s {D}' from your weapons.", sArg1);
 		}
 	}
 	

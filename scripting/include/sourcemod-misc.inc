@@ -7609,6 +7609,7 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 	}
 }
 
+/*--------------------------------------------------------->*/
 /* Easily pass strings through data parameters. */
 
 stock DataPack AnyString(const char[] buffer)
@@ -7632,6 +7633,195 @@ stock bool ReadAnyString(DataPack pack, char[] buffer, int size)
 	delete pack;
 	
 	return true;
+}
+
+/*--------------------------------------------------------->*/
+/* Entity methodmaps. */
+
+methodmap Entity
+{
+	public Entity(const char[] classname)
+	{
+		return view_as<Entity>(CreateEntityByName(classname));
+	}
+	
+	property int index 
+	{ 
+		public get()
+		{
+			return view_as<int>(this);
+		} 
+	}
+	
+	public bool SendInput(const char[] input, int activator = -1, int caller = -1, int outputid = 0)
+	{
+		return AcceptEntityInput(this.index, input, activator, caller, outputid);
+	}
+	
+	//Dispatches
+	public bool Dispatch(const char[] keyName, const char[] value)
+	{
+		return DispatchKeyValue(this.index, keyName, value);
+	}
+	
+	public bool DispatchFloat(const char[] keyName, const float value)
+	{
+		return DispatchKeyValueFloat(this.index, keyName, value);
+	}
+	
+	public bool DispatchVector(const char[] keyName, const float value[3])
+	{
+		return DispatchKeyValueVector(this.index, keyName, value);
+	}
+	
+	public bool Spawn()
+	{
+		return DispatchSpawn(this.index);
+	}
+	
+	//EntProp
+	public bool SetProp(PropType type, const char[] prop, any value, int size = 4, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return false;
+		
+		SetEntProp(this.index, type, prop, value, size, element);
+		return true;
+	}
+	
+	public int GetProp(PropType type, const char[] prop, int size = 4, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return 0;
+		
+		return GetEntProp(this.index, type, prop, size, element);
+	}
+	
+	//EntPropEnt
+	public bool SetPropEnt(PropType type, const char[] prop, any value, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return false;
+		
+		SetEntPropEnt(this.index, type, prop, value, element);
+		return true;
+	}
+	
+	public int GetPropEnt(PropType type, const char[] prop, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return 0;
+		
+		return GetEntPropEnt(this.index, type, prop, element);
+	}
+	
+	//EntPropFloat
+	public bool SetPropFloat(PropType type, const char[] prop, float value, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return false;
+		
+		SetEntPropFloat(this.index, type, prop, value, element);
+		return true;
+	}
+	
+	public float GetPropFloat(PropType type, const char[] prop, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return 0.0;
+		
+		return GetEntPropFloat(this.index, type, prop, element);
+	}
+	
+	//EntPropString
+	public bool SetPropString(PropType type, const char[] prop, const char[] buffer, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return false;
+		
+		SetEntPropString(this.index, type, prop, buffer, element);
+		return true;
+	}
+	
+	public int GetPropString(PropType type, const char[] prop, char[] buffer, int maxlen, int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return 0;
+		
+		return GetEntPropString(this.index, type, prop, buffer, maxlen, element);
+	}
+	
+	//EntPropVector
+	public bool SetPropVector(PropType type, const char[] prop, const float vec[3], int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return false;
+		
+		SetEntPropVector(this.index, type, prop, vec, element);
+		return true;
+	}
+	
+	public bool GetPropVector(PropType type, const char[] prop, float vec[3], int element = 0)
+	{
+		if (!HasEntProp(this.index, type, prop))
+			return false;
+		
+		GetEntPropVector(this.index, type, prop, vec, element);
+		return true;
+	}
+	
+	//Misc
+	public bool HasProp(PropType type, const char[] prop)
+	{
+		return HasEntProp(this.index, type, prop);
+	}
+	
+	public int GetSize(PropType type, const char[] prop)
+	{
+		return GetEntPropArraySize(this.index, type, prop);
+	}
+	
+	//Variants
+	//This section isn't as needed but it's still nice to have.
+	public void VariantBool(bool val)
+	{
+		SetVariantBool(val);
+	}
+	
+	public void VariantColor(const int color[4])
+	{
+		SetVariantColor(color);
+	}
+	
+	public void VariantEntity(int entity)
+	{
+		SetVariantEntity(entity);
+	}
+	
+	public void VariantFloat(float val)
+	{
+		SetVariantFloat(val);
+	}
+	
+	public void VariantInt(int val)
+	{
+		SetVariantInt(val);
+	}	
+	
+	public void VariantPosVector3D(const float vec[3])
+	{
+		SetVariantPosVector3D(vec);
+	}	
+	
+	public void VariantString(const char[] str)
+	{
+		SetVariantString(str);
+	}	
+	
+	public void VariantVector3D(const float vec[3])
+	{
+		SetVariantVector3D(vec);
+	}
 }
 
 /*--------------------------------------------------------->*/

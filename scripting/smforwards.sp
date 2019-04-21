@@ -2,17 +2,19 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-//Sourcemod Includes
+//Includes
 #include <sourcemod>
-#include <sourcemod-misc>
 
-//Globals
+#undef REQUIRE_EXTENSIONS
+#include <cstrike>
+#include <tf2>
+#define REQUIRE_EXTENSIONS
 
 public Plugin myinfo = 
 {
-	name = "debug start", 
+	name = "Debug Sourcemod Forwards", 
 	author = "Keith Warren (Drixevel)", 
-	description = "Debugs servers on startup.", 
+	description = "Debug Sourcemod forwards for either testing purposes crash locations.", 
 	version = "1.0.0", 
 	url = "https://github.com/drixevel"
 };
