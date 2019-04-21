@@ -1084,6 +1084,36 @@ stock void SetEntitySelfDestruct(int entity, float duration)
 	AcceptEntityInput(entity, "FireUser1");
 }
 
+stock void PrecacheParticle(const char[] particle)
+{
+	if (!IsValidEntity(0))
+		return;
+	
+	int entity = -1;
+	
+	if ((entity = CreateEntityByName("info_particle_system")) == -1)
+		return;
+	
+	char sName[32];
+	GetEntPropString(0, Prop_Data, "m_iName", sName, sizeof(sName));
+	
+	DispatchKeyValue(entity, "parentname", sName);
+	DispatchKeyValue(entity, "effect_name", particle);
+	DispatchSpawn(entity);
+	
+	SetVariantString(sName);
+	AcceptEntityInput(entity, "SetParent", 0, particle, 0);
+	
+	ActivateEntity(entity);
+	AcceptEntityInput(entity, "start");
+	
+	char output[64];
+	Format(output, sizeof(output), "OnUser1 !self:kill::%.1f:1", 0.1);
+	SetVariantString(output);
+	AcceptEntityInput(entity, "AddOutput");
+	AcceptEntityInput(entity, "FireUser1");
+}
+
 stock void SetParent(int iParented, int iChild, const char[] szAttachment = "", float vOffsets[3] = {0.0, 0.0, 0.0})
 {
 	SetVariantString("!activator");
@@ -2628,6 +2658,46 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 	return GetVectorDistance(fOrigin1, fOrigin2);
 }
 
+stock void GetEntityOrigin(int entity, float[3] origin)
+{
+	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
+}
+
+stock void GetEntityAbsOrigin(int entity, float[3] origin)
+{
+	GetEntPropVector(entity, Prop_Send, "m_vecAbsOrigin", origin);
+}
+
+stock void GetEntityAngle(int entity, float[3] angles)
+{
+	GetEntPropVector(entity, Prop_Send, "m_angRotation", angles);
+}
+
+stock void GetEntityAbsAngle(int entity, float[3] angles)
+{
+	GetEntPropVector(entity, Prop_Send, "m_angAbsRotation", angles);
+}
+
+stock void GetEntityVelocity(int entity, float[3] velocity)
+{
+	GetEntPropVector(entity, Prop_Send, "m_vecVelocity", velocity);
+}
+
+stock void GetEntityAbsVelocity(int entity, float[3] velocity)
+{
+	GetEntPropVector(entity, Prop_Send, "m_vecAbsVelocity", velocity);
+}
+
+stock void GetEntityMins(int entity, float[3] mins)
+{
+	GetEntPropVector(entity, Prop_Send, "m_vecMins", mins);
+}
+
+stock void GetEntityMaxs(int entity, float[3] maxs)
+{
+	GetEntPropVector(entity, Prop_Send, "m_vecMaxs", maxs);
+}
+
 stock bool DispatchKeyValueInt(int entity, const char[] keyName, const int value)
 {
 	char sValue[64];
@@ -2635,7 +2705,17 @@ stock bool DispatchKeyValueInt(int entity, const char[] keyName, const int value
 	return DispatchKeyValue(entity, keyName, sValue);
 }
 
-stock void ZeroVector(float vec[3])
+stock bool GetEntPropBool(int entity, PropType type, const char[] prop, int size = 4, int element = 0)
+{
+	return view_as<bool>(GetEntProp(entity, type, prop, size, element));
+}
+
+stock void SetEntPropBool(int entity, PropType type, const char[] prop, any value, int size = 4, int element = 0)
+{
+	SetEntProp(entity, type, prop, value, size, element);
+}
+
+stock void ResetVector(float vec[3])
 {
 	vec[0] = vec[1] = vec[2] = 0.0;
 }
@@ -4471,6 +4551,20 @@ enum TF2Quality {
 	TF2Quality_Haunted,
 	TF2Quality_ToborA
 };
+
+//TF2 Damage Types (Found in some CW3 Plugins)
+#define TF_DMG_BULLET (1 << 1) // 2
+#define TF_DMG_BLEED (1 << 2) // 4
+#define TF_DMG_BLAST (1 << 6) // 64
+#define TF_DMG_CRIT (1 << 20) // 1048576
+#define TF_DMG_UNKNOWN_1 (1 << 11) // 2048
+#define TF_DMG_FIRE (1 << 24) // 16777216
+#define TF_DMG_AFTERBURN TF_DMG_UNKNOWN_1 | (1 << 3) // 2048 + 8 = 2056
+
+#define TF_DMG_FLAMETHROWER TF_DMG_UNKNOWN_1 | TF_DMG_FIRE // 2048 + 16777216 = 16779264
+
+#define TF_DMG_MELEE (1 << 27) | (1 << 12) | (1 << 7)    // 134217728 + 4096 + 128 = 134221952
+#define TF_DMG_MELEE_CRIT TF_DMG_MELEE | TF_DMG_CRIT // 134221952 + 1048576 = 135270528
 
 /**
 *	Sets a players class while fixing the health and loadout issues and keeping it persistently as default.
@@ -6313,7 +6407,10 @@ stock int TF2_FireProjectile(float vPos[3], float vAng[3], const char[] classnam
 
 		SetEntProp(projectile, Prop_Send, "m_CollisionGroup", 0);
 		SetEntProp(projectile, Prop_Data, "m_takedamage", 0);
-		SetEntProp(projectile, Prop_Send, "m_bCritical", bCrit);
+		
+		if (HasEntProp(projectile, Prop_Send, "m_bCritical"))
+			SetEntProp(projectile, Prop_Send, "m_bCritical", bCrit);
+		
 		SetEntProp(projectile, Prop_Send, "m_nSkin", (iTeam - 2));
 		SetEntProp(projectile, Prop_Send, "m_iTeamNum", iTeam);
 		SetEntDataFloat(projectile, FindSendPropInfo("CTFProjectile_Arrow" , "m_iDeflected") + 4, flDamage, true);
