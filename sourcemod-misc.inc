@@ -304,13 +304,16 @@ stock bool IsValidClient(int client)
 *
 * return	N/A
 */
-stock void StopTimer(Handle& timer)
+stock bool StopTimer(Handle& timer)
 {
 	if (timer != null)
 	{
 		KillTimer(timer);
 		timer = null;
+		return true;
 	}
+	
+	return false;
 }
 
 /*
@@ -388,20 +391,6 @@ stock int GetClientByAccountID(int accountid)
 	}
 
 	return -1;
-}
-
-/*
-* Checks whether or not the client is console or not.
-* You can easily just add checks to make sure client is more than 0 if you use this for error checking.
-* I use this sometimes for things like replies to console specifically.
-*
-* client	Client index.
-*
-* return	True if client is console, false otherwise.
-*/
-stock bool IsClientConsole(int client)
-{
-	return client == 0;
 }
 
 /*
@@ -1319,6 +1308,43 @@ stock int GetActiveWeaponIndex(int client)
 	return GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
 }
 
+stock int GetActiveWeaponSlot(int client)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
+		return -1;
+	
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	
+	if (weapon == 0 || weapon < MaxClients || !IsValidEntity(weapon))
+		return -1;
+	
+	for (int i = 0; i < 5; i++)
+	{
+		if (GetPlayerWeaponSlot(client, i) != weapon)
+			continue;
+
+		return i;
+	}
+
+	return -1;
+}
+
+stock int GetWeaponSlot(int client, int weapon)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon < MaxClients || !IsValidEntity(weapon))
+		return -1;
+
+	for (int i = 0; i < 5; i++)
+	{
+		if (GetPlayerWeaponSlot(client, i) != weapon)
+			continue;
+
+		return i;
+	}
+
+	return -1;
+}
+
 stock bool IsValidHex(const char[] strHex)
 {
 	if (strlen(strHex) != 6)
@@ -1381,43 +1407,6 @@ stock int GetSlotIDFromName(const char[] name)
 		
 	}
 	
-	return -1;
-}
-
-stock int GetClientActiveSlot(int client)
-{
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
-		return -1;
-	
-	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	
-	if (weapon == 0 || weapon < MaxClients || !IsValidEntity(weapon))
-		return -1;
-	
-	for (int i = 0; i < 5; i++)
-	{
-		if (GetPlayerWeaponSlot(client, i) != weapon)
-			continue;
-
-		return i;
-	}
-
-	return -1;
-}
-
-stock int GetWeaponSlot(int client, int weapon)
-{
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon < MaxClients || !IsValidEntity(weapon))
-		return -1;
-
-	for (int i = 0; i < 5; i++)
-	{
-		if (GetPlayerWeaponSlot(client, i) != weapon)
-			continue;
-
-		return i;
-	}
-
 	return -1;
 }
 
@@ -2441,87 +2430,6 @@ stock bool CreateFile(const char[] buffer)
 	return true;
 }
 
-stock int GetEntityName(int entity, char[] buffer, int maxlen)
-{
-	return GetEntPropString(entity, Prop_Data, "m_iName", buffer, maxlen);
-}
-
-stock bool HasEntName(int entity, const char[] buffer, bool case_sensitive = false)
-{
-	char sName[128];
-	GetEntPropString(entity, Prop_Data, "m_iName", sName, sizeof(sName));
-
-	return StrEqual(buffer, sName, case_sensitive);
-}
-
-stock int SetEntityName(int entity, const char[] name)
-{
-	return SetEntPropString(entity, Prop_Data, "m_iName", name);
-}
-
-stock int FindEntityByName(const char[] name)
-{
-	int entity = -1; char temp[64];
-	while ((entity = FindEntityByClassname(entity, "*")) != -1)
-	{
-		GetEntPropString(entity, Prop_Data, "m_iName", temp, sizeof(temp));
-		
-		if (StrEqual(temp, name, false))
-			return entity;
-	}
-	
-	return entity;
-}
-
-stock void GetEntityModel(int entity, char[] buffer, int size)
-{
-	GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, size);
-}
-
-stock int CreateProp(const char[] model, float origin[3], float angles[3] = {0.0, 0.0, 0.0}, int skin = 0, bool solid = true)
-{
-	if (strlen(model) == 0)
-		return -1;
-	
-	if (GetEngineVersion() != Engine_CSGO && !IsModelPrecached(model))
-		PrecacheModel(model);
-	
-	int entity = CreateEntityByName("prop_dynamic_override");
-	
-	if (IsValidEntity(entity))
-	{
-		DispatchKeyValue(entity, "model", model);
-		DispatchKeyValue(entity, "solid", solid ? "6" : "0");
-		DispatchKeyValueVector(entity, "origin", origin);
-		DispatchKeyValueVector(entity, "angles", angles);
-		
-		char sSkin[16];
-		IntToString(skin, sSkin, sizeof(sSkin));
-		DispatchKeyValue(entity, "skin", sSkin);
-		
-		DispatchSpawn(entity);
-	}
-	
-	return entity;
-}
-
-stock bool AnimateEntity(int entity, const char[] animation)
-{
-	if (entity == 0 || !IsValidEntity(entity) || strlen(animation) == 0)
-		return false;
-	
-	SetVariantString(animation);
-	return AcceptEntityInput(entity, "SetAnimation");
-}
-
-stock bool DeleteEntity(int entity)
-{
-	if (entity == 0 || !IsValidEntity(entity))
-		return false;
-	
-	return AcceptEntityInput(entity, "Kill");
-}
-
 stock int[] GetNearestPlayers(int entity, int& count, float distance, bool self = false, bool fake_clients = true)
 {
 	count = 0;
@@ -2647,6 +2555,84 @@ stock int GetNativeStringEx(int param, char[] buffer, int size, int& bytes)
 	return GetNativeString(param, buffer, size, bytes);
 }
 
+stock int GetEntityName(int entity, char[] buffer, int maxlen)
+{
+	return GetEntPropString(entity, Prop_Data, "m_iName", buffer, maxlen);
+}
+
+stock bool HasEntName(int entity, const char[] buffer, bool case_sensitive = false)
+{
+	char sName[128];
+	GetEntPropString(entity, Prop_Data, "m_iName", sName, sizeof(sName));
+
+	return StrEqual(buffer, sName, case_sensitive);
+}
+
+stock int SetEntityName(int entity, const char[] name)
+{
+	return SetEntPropString(entity, Prop_Data, "m_iName", name);
+}
+
+stock int FindEntityByName(const char[] name)
+{
+	int entity = -1; char temp[64];
+	while ((entity = FindEntityByClassname(entity, "*")) != -1)
+	{
+		GetEntPropString(entity, Prop_Data, "m_iName", temp, sizeof(temp));
+		
+		if (StrEqual(temp, name, false))
+			return entity;
+	}
+	
+	return entity;
+}
+
+stock void GetEntityModel(int entity, char[] buffer, int size)
+{
+	GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, size);
+}
+
+stock int CreateProp(const char[] model, float origin[3], float angles[3] = {0.0, 0.0, 0.0}, int skin = 0, bool solid = true)
+{
+	if (strlen(model) == 0 || !IsModelPrecached(model))
+		return -1;
+	
+	int entity = CreateEntityByName("prop_dynamic_override");
+	
+	if (IsValidEntity(entity))
+	{
+		DispatchKeyValue(entity, "model", model);
+		DispatchKeyValue(entity, "solid", solid ? "6" : "0");
+		DispatchKeyValueVector(entity, "origin", origin);
+		DispatchKeyValueVector(entity, "angles", angles);
+		
+		char sSkin[16];
+		IntToString(skin, sSkin, sizeof(sSkin));
+		DispatchKeyValue(entity, "skin", sSkin);
+		
+		DispatchSpawn(entity);
+	}
+	
+	return entity;
+}
+
+stock bool AnimateEntity(int entity, const char[] animation)
+{
+	if (entity == 0 || !IsValidEntity(entity) || strlen(animation) == 0)
+		return false;
+	
+	SetVariantString(animation);
+	return AcceptEntityInput(entity, "SetAnimation");
+}
+
+stock bool DeleteEntity(int entity)
+{
+	if (entity == 0 || !IsValidEntity(entity))
+		return false;
+	
+	return AcceptEntityInput(entity, "Kill");
+}
+
 stock float GetEntitiesDistance(int entity1, int entity2)
 {
 	float fOrigin1[3];
@@ -2713,6 +2699,16 @@ stock bool GetEntPropBool(int entity, PropType type, const char[] prop, int size
 stock void SetEntPropBool(int entity, PropType type, const char[] prop, any value, int size = 4, int element = 0)
 {
 	SetEntProp(entity, type, prop, value, size, element);
+}
+
+stock int GetWeaponState(int weapon)
+{
+	return GetEntProp(weapon, Prop_Send, "m_iWeaponState");
+}
+
+stock void SetWeaponState(int weapon, int state)
+{
+	SetEntProp(weapon, Prop_Send, "m_iWeaponState", state);
 }
 
 stock void ResetVector(float vec[3])
@@ -3000,6 +2996,17 @@ stock int FindTargetEx(int client, const char[] target, bool nobots = false, boo
 	return -1;
 }
 
+/*---------------------------------------------------------*/
+/*---------------------------------------------------------*/
+/*---------------------------------------------------------*/
+//SECTIONS
+/*---------------------------------------------------------*/
+/*---------------------------------------------------------*/
+/*---------------------------------------------------------*/
+
+/*---------------------------------------------------------*/
+//COOKIES
+
 stock void SetClientCookieInt(int client, Handle cookie, int value)
 {
 	char sValue[5192];
@@ -3022,16 +3029,28 @@ stock void SetClientCookieBool(int client, Handle cookie, bool value)
 }
 
 /*---------------------------------------------------------*/
-//END OF MISC
-/*---------------------------------------------------------*/
+//ENTITY FLAGS
 
-/*---------------------------------------------------------*/
-//SECTIONS
-/*---------------------------------------------------------*/
+stock bool IsOnGround(int entity)
+{
+	int flags = GetEntityFlags(entity);
+	return ((flags & FL_ONGROUND) == FL_ONGROUND && (flags & FL_INWATER) != FL_INWATER);
+}
+
+stock bool IsInAir(int entity)
+{
+	int flags = GetEntityFlags(entity);
+	return ((flags & FL_ONGROUND) != FL_ONGROUND && (flags & FL_INWATER) != FL_INWATER);
+}
+
+stock bool IsInWater(int entity)
+{
+	return ((GetEntityFlags(entity) & FL_INWATER) != FL_INWATER);
+}
 
 /*---------------------------------------------------------*/
 //COLLISIONS
-/*---------------------------------------------------------*/
+
 //Solid Type
 enum SolidTypes
 {
@@ -3159,7 +3178,6 @@ stock void SetEntityCollisionGroup(int entity, CollisionGroup group)
 
 /*---------------------------------------------------------*/
 //COMMANDS
-/*---------------------------------------------------------*/
 
 stock void GetCommandName(char[] buffer, int size)
 {
@@ -3203,7 +3221,7 @@ stock int GetCmdArgTargetEx(int client, int argnum, bool nobots = false, bool im
 
 /*---------------------------------------------------------*/
 //MYSQL / SQLITE
-/*---------------------------------------------------------*/
+
 stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVal_Error)
 {
 	return view_as<bool>(results.FetchInt(field, status));
@@ -3254,7 +3272,7 @@ stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, 
 
 /*---------------------------------------------------------*/
 //DATAPACKS
-/*---------------------------------------------------------*/
+
 stock void WritePackVector(DataPack pack, float[3] vector)
 {
 	pack.WriteFloat(vector[0]);
@@ -3272,7 +3290,7 @@ stock void ReadPackVector(DataPack pack, float vector[3])
 
 /*--------------------------------------------------------->*/
 //MODEL
-/*--------------------------------------------------------->*/
+
 stock bool SetModel(int entity, char model[PLATFORM_MAX_PATH], bool preload = false)
 {
 	if (entity <= 0)
@@ -3329,19 +3347,11 @@ stock int PrepareModel(char model[PLATFORM_MAX_PATH], bool preload = false)
 
 /*--------------------------------------------------------->*/
 //SOUNDS
-/*--------------------------------------------------------->*/
+
 stock bool EmitSoundToClientSafe(int client, char sample[PLATFORM_MAX_PATH], int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
 	if (client == 0 || !IsClientInGame(client) || IsFakeClient(client) || strlen(sample) == 0)
 		return false;
-		
-	if (GetEngineVersion() != Engine_CSGO)
-	{
-		if (StrContains(sample, "sound/") != 0)
-			Format(sample, sizeof(sample), "sound/%s", sample);
-		
-		AddFileToDownloadsTable(sample);
-	}
 	
 	if (StrContains(sample, "sound/") == 0)
 		strcopy(sample, sizeof(sample), sample[6]);
@@ -3415,14 +3425,6 @@ stock bool EmitSoundToAllSafe(char sample[PLATFORM_MAX_PATH], int entity = SOUND
 {
 	if (strlen(sample) == 0)
 		return false;
-		
-	if (GetEngineVersion() != Engine_CSGO)
-	{
-		if (StrContains(sample, "sound/") != 0)
-			Format(sample, sizeof(sample), "sound/%s", sample);
-		
-		AddFileToDownloadsTable(sample);
-	}
 	
 	if (StrContains(sample, "sound/") == 0)
 		strcopy(sample, sizeof(sample), sample[6]);
@@ -3498,22 +3500,16 @@ stock bool EmitAmbientSoundSafe(const char[] sample, const float origin[3], int 
 	strcopy(sSound, sizeof(sSound), sample);
 
 	if (GetEngineVersion() == Engine_CSGO)
-	{
 		Format(sSound, sizeof(sSound), "*%s", sSound);
-	}
-	else
-	{
-		PrecacheSound(sSound);
-	}
 
 	if (IsSoundPrecached(sSound))
 	{
-		EmitAmbientSound(sSound, origin, entity, level, flags, vol, pitch, delay);
-		return true;
+		LogError("Error playing ambient sound, not precached: %s", sSound);
+		return false;
 	}
-
-	LogError("Error playing ambient sound, not precached: %s", sSound);
-	return false;
+	
+	EmitAmbientSound(sSound, origin, entity, level, flags, vol, pitch, delay);
+	return true;
 }
 
 stock bool StopSoundSafe(int entity, int channel, const char[] sample)
@@ -3582,7 +3578,7 @@ stock bool PrepareSound(const char[] sample, bool preload = false, bool download
 
 /*--------------------------------------------------------->*/
 //DRAW BOXES (SMLIB)
-/*--------------------------------------------------------->*/
+
 
 stock void Effect_DrawBeamBoxToClient(int client, const float bottomCorner[3], const float upperCorner[3], int modelIndex, int haloIndex, int startFrame = 0, int frameRate = 30, float life = 5.0, float width = 5.0, float endWidth = 5.0, int fadeLength = 2, float amplitude = 1.0, const color[4] =  { 255, 0, 0, 255 }, int speed = 0)
 {
@@ -3686,7 +3682,7 @@ stock void Effect_DrawRangedBeamBox(float origin[3], const float bottomCorner[3]
 
 /*--------------------------------------------------------->*/
 //Pelipoika Stocks (He sometimes randomly sends me these)
-/*--------------------------------------------------------->*/
+
 
 stock bool GetClientAbsPosition(int client, float origin[3])
 {
@@ -3774,16 +3770,8 @@ stock void EquipWeapon(int client, int weapon)
 }
 /* */
 
-stock bool HasClassname(int entity, const char[] name, bool caseSensitive = true)
-{
-	char sBuffer[256];
-	GetEntityClassname(entity, sBuffer, sizeof(sBuffer));
-	return StrEqual(sBuffer, name, caseSensitive);
-}
-
-/*--------------------------------------------------------->
+/*--------------------------------------------------------->*/
 //CONVARS
---------------------------------------------------------->*/
 
 stock bool SetConVarFlag(ConVar convar, bool add, int flag)
 {
@@ -4022,9 +4010,9 @@ stock bool PrepareSoundConVar(ConVar convar, bool preload = false, bool download
 	return PrepareSound(sBuffer, preload, download);
 }
 
-/*--------------------------------------------------------->
+/*--------------------------------------------------------->*/
 //KEYVALUES
---------------------------------------------------------->*/
+
 stock int KvGetInt(KeyValues kv, const char[] key, int defaultvalue = 0)
 {
 	return kv.GetNum(key, defaultvalue);
@@ -4059,9 +4047,9 @@ stock bool KvGet2DVector(KeyValues kv, const char[] key, float buffer[2], const 
 	return true;
 }
 
-/*--------------------------------------------------------->
-//MENU
---------------------------------------------------------->*/
+/*--------------------------------------------------------->*/
+//MENUS
+
 stock bool AddMenuItemInt(Menu menu, int info, const char[] name, int style = ITEMDRAW_DEFAULT)
 {
 	char sInfo[1024];
@@ -4800,14 +4788,18 @@ stock float TF2_GetUberLevel(int client)
 stock void TF2_SetUberLevel(int client, float amount, bool cap = false)
 {
 	int secondary = GetPlayerWeaponSlot(client, 1);
-
-	if (IsValidEntity(secondary) && HasEntProp(secondary, Prop_Send, "m_flChargeLevel"))
-	{
-		SetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel", amount);
-
-		if (cap && TF2_GetUberLevel(client) > 1.00)
-			SetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel", 1.00);
-	}
+	
+	if (!IsValidEntity(secondary) || !HasEntProp(secondary, Prop_Send, "m_flChargeLevel"))
+		return;
+	
+	float set = amount;
+	
+	if (cap && set > 1.00)
+		set = 1.00;
+	else if (set < 0.0)
+		set = 0.0;
+	
+	SetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel", set);
 }
 
 /**
@@ -4820,7 +4812,17 @@ stock void TF2_SetUberLevel(int client, float amount, bool cap = false)
 **/
 stock void TF2_AddUberLevel(int client, float amount, bool cap = false)
 {
-	TF2_SetUberLevel(client, (TF2_GetUberLevel(client) + amount), cap);
+	int secondary = GetPlayerWeaponSlot(client, 1);
+	
+	if (!IsValidEntity(secondary) || !HasEntProp(secondary, Prop_Send, "m_flChargeLevel"))
+		return;
+	
+	float set = GetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel") + amount;
+	
+	if (cap && set > 1.00)
+		set = 1.00;
+	
+	SetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel", set);
 }
 
 /**
@@ -4833,7 +4835,17 @@ stock void TF2_AddUberLevel(int client, float amount, bool cap = false)
 **/
 stock void TF2_RemoveUberLevel(int client, float amount)
 {
-	TF2_SetUberLevel(client, (TF2_GetUberLevel(client) - amount));
+	int secondary = GetPlayerWeaponSlot(client, 1);
+	
+	if (!IsValidEntity(secondary) || !HasEntProp(secondary, Prop_Send, "m_flChargeLevel"))
+		return;
+	
+	float set = GetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel") - amount;
+	
+	if (set < 0.0)
+		set = 0.0;
+	
+	SetEntPropFloat(secondary, Prop_Send, "m_flChargeLevel", set);
 }
 
 /**
@@ -5109,11 +5121,14 @@ stock TFClassRole TF2_GetClassRole(TFClassType class)
 *
 *	return	void
 **/
-stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool event = true)
+stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool fireevent = true, int healer = -1)
 {
+	int maxhealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
+	int actualmax = ((maxhealth == -1 || maxhealth == 80896) ? GetEntProp(client, Prop_Data, "m_iMaxHealth") : maxhealth);
+	
 	int iHealth = GetClientHealth(client);
 	int iNewHealth = amount;
-	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
+	int iMax = additive ? (actualmax + RoundFloat(overheal)) : RoundFloat(float(actualmax) * overheal);
 
 	if (iHealth < iMax)
 	{
@@ -5122,8 +5137,24 @@ stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, boo
 		else if (iNewHealth > iMax)
 			iNewHealth = iMax;
 
-		if (event)
-			TF2_ShowHealthGain(client, iNewHealth - iHealth);
+		if (fireevent)
+		{
+			int amount = iNewHealth - iHealth;
+			int userid = GetClientUserId(client);
+
+			Event event = CreateEvent("player_healed", true);
+			event.SetBool("sourcemod", true);
+			event.SetInt("patient", userid);
+			event.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : userid);
+			event.SetInt("amount", amount);
+			event.Fire();
+
+			event = CreateEvent("player_healonhit", true);
+			event.SetBool("sourcemod", true);
+			event.SetInt("amount", amount);
+			event.SetInt("entindex", client);
+			event.Fire();
+		}
 
 		SetEntityHealth(client, iNewHealth);
 	}
@@ -5140,11 +5171,14 @@ stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, boo
 *
 *	return	void
 **/
-stock void TF2_AddPlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool event = true)
+stock void TF2_AddPlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool fireevent = true, int healer = -1)
 {
+	int maxhealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
+	int actualmax = ((maxhealth == -1 || maxhealth == 80896) ? GetEntProp(client, Prop_Data, "m_iMaxHealth") : maxhealth);
+	
 	int iHealth = GetClientHealth(client);
 	int iNewHealth = iHealth + amount;
-	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
+	int iMax = additive ? (actualmax + RoundFloat(overheal)) : RoundFloat(float(actualmax) * overheal);
 
 	if (iHealth < iMax)
 	{
@@ -5153,8 +5187,24 @@ stock void TF2_AddPlayerHealth(int client, int amount, float overheal = 1.5, boo
 		else if (iNewHealth > iMax)
 			iNewHealth = iMax;
 
-		if (event)
-			TF2_ShowHealthGain(client, iNewHealth - iHealth);
+		if (fireevent)
+		{
+			int value = iNewHealth - iHealth;
+			int userid = GetClientUserId(client);
+
+			Event event = CreateEvent("player_healed", true);
+			event.SetBool("sourcemod", true);
+			event.SetInt("patient", userid);
+			event.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : userid);
+			event.SetInt("amount", value);
+			event.Fire();
+
+			event = CreateEvent("player_healonhit", true);
+			event.SetBool("sourcemod", true);
+			event.SetInt("amount", value);
+			event.SetInt("entindex", client);
+			event.Fire();
+		}
 
 		SetEntityHealth(client, iNewHealth);
 	}
@@ -5171,18 +5221,37 @@ stock void TF2_AddPlayerHealth(int client, int amount, float overheal = 1.5, boo
 *
 *	return	void
 **/
-stock void TF2_RemovePlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool event = true)
+stock void TF2_RemovePlayerHealth(int client, int amount, float overheal = 1.5, bool additive = false, bool fireevent = true, int healer = -1)
 {
+	int maxhealth = GetEntProp(GetPlayerResourceEntity(), Prop_Send, "m_iMaxHealth", _, client);
+	int actualmax = ((maxhealth == -1 || maxhealth == 80896) ? GetEntProp(client, Prop_Data, "m_iMaxHealth") : maxhealth);
+	
 	int iHealth = GetClientHealth(client);
 	int iNewHealth = iHealth - amount;
-	int iMax = additive ? (TF2_GetMaxHealth(client) + RoundFloat(overheal)) : TF2_GetMaxOverHeal(client, overheal);
+	int iMax = additive ? (actualmax + RoundFloat(overheal)) : RoundFloat(float(actualmax) * overheal);
 
 	if (iHealth < iMax)
 	{
 		if (iNewHealth < 1)
 		{
-			if (event)
-				TF2_ShowHealthGain(client, iNewHealth - iHealth);
+			if (fireevent)
+			{
+				int value = iNewHealth - iHealth;
+				int userid = GetClientUserId(client);
+
+				Event event = CreateEvent("player_healed", true);
+				event.SetBool("sourcemod", true);
+				event.SetInt("patient", userid);
+				event.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : userid);
+				event.SetInt("amount", value);
+				event.Fire();
+
+				event = CreateEvent("player_healonhit", true);
+				event.SetBool("sourcemod", true);
+				event.SetInt("amount", value);
+				event.SetInt("entindex", client);
+				event.Fire();
+			}
 			
 			ForcePlayerSuicide(client);
 			return;
@@ -5191,8 +5260,24 @@ stock void TF2_RemovePlayerHealth(int client, int amount, float overheal = 1.5, 
 		if (iNewHealth > iMax)
 			iNewHealth = iMax;
 
-		if (event)
-			TF2_ShowHealthGain(client, iNewHealth - iHealth);
+		if (fireevent)
+		{
+			int amount = iNewHealth - iHealth;
+			int userid = GetClientUserId(client);
+
+			Event event = CreateEvent("player_healed", true);
+			event.SetBool("sourcemod", true);
+			event.SetInt("patient", userid);
+			event.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : userid);
+			event.SetInt("amount", value);
+			event.Fire();
+
+			event = CreateEvent("player_healonhit", true);
+			event.SetBool("sourcemod", true);
+			event.SetInt("amount", value);
+			event.SetInt("entindex", client);
+			event.Fire();
+		}
 
 		SetEntityHealth(client, iNewHealth);
 	}
@@ -5832,7 +5917,7 @@ stock int TF2_GetHealerCount(int client)
 **/
 stock bool TF2_IsCurrentHealer(int client, int healer)
 {
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !IsPlayerIndex(healer) || !IsClientInGame(healer) || !IsPlayerAlive(healer) || TF2_GetPlayerClass(healer) != TFClass_Medic)
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || healer == 0 || healer > MaxClients || !IsClientInGame(healer) || !IsPlayerAlive(healer) || TF2_GetPlayerClass(healer) != TFClass_Medic)
 		return false;
 
 	int healers;
@@ -6635,18 +6720,18 @@ stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality qua
 *	Creates a viewmodel entity and sets it on the client.
 *
 *	client	Client index.
-*	viewmodel	Model path.
+*	viewmodel	Model index. (Returned from PrecacheModel)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveViewmodel(int client, const char[] viewmodel)
+stock int TF2_GiveViewmodel(int client, int viewmodel)
 {
 	int entity = CreateEntityByName("tf_wearable_vm");
 	
 	if (!IsValidEntity(entity))
 		return entity;
 	
-	SetEntProp(entity, Prop_Send, "m_nModelIndex", PrecacheModel(viewmodel));
+	SetEntProp(entity, Prop_Send, "m_nModelIndex", viewmodel);
 	SetEntProp(entity, Prop_Send, "m_fEffects", EF_BONEMERGE|EF_BONEMERGE_FASTCULL);
 	SetEntProp(entity, Prop_Send, "m_iTeamNum", GetClientTeam(client));
 	SetEntProp(entity, Prop_Send, "m_usSolidFlags", 4);
@@ -6769,6 +6854,30 @@ stock int TF2_GetTauntIndex(int client)
 stock int TF2_GetTauntDefIndex(int client)
 {
 	return GetEntProp(client, Prop_Send, "m_iTauntItemDefIndex");
+}
+
+enum MinigunState
+{
+	Minigun_Idle,
+	Minigun_Windup,
+	Minigun_Firing,
+	Minigun_Spinning
+}
+
+stock MinigunState TF2_GetMinigunState(int client)
+{
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	
+	if (!IsValidEntity(weapon))
+		return Minigun_Idle;
+	
+	char classname[64];
+	GetEntityClassname(weapon, classname, sizeof(classname));
+	
+	if (!StrEqual(classname, "tf_weapon_minigun", false))
+		return Minigun_Idle;
+	
+	return view_as<MinigunState>(GetEntProp(weapon, Prop_Send, "m_iWeaponState"));
 }
 
 /*--------------------------------------------------------->
@@ -7422,7 +7531,8 @@ stock bool CSGO_IsWarmup()
 }
 
 /*--------------------------------------------------------->*/
-/* Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around) */
+//Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around)
+
 stock void PrintToDrixevel(const char[] format, any ...)
 {
 	char sBuffer[255];
@@ -7470,13 +7580,11 @@ stock bool IsDrixevel(int client)
 {
 	return GetSteamAccountID(client) == 76528750;
 }
-/* End of private stocks. */
-/*--------------------------------------------------------->*/
 
 /*--------------------------------------------------------->*/
-/* Confirmation Menu */
-/* Adds functionality to allow for confirmations to be made with callbacks easily.*/
-/* Loosely based on: https://forums.alliedmods.net/showthread.php?t=306954 */
+// Confirmation Menu
+// Adds functionality to allow for confirmations to be made with callbacks easily.
+// Loosely based on: https://forums.alliedmods.net/showthread.php?t=306954
 
 enum ConfirmationResponses
 {
@@ -7610,7 +7718,7 @@ public int ___MenuHandler_SendConfirmation(Menu menu, MenuAction action, int par
 }
 
 /*--------------------------------------------------------->*/
-/* Easily pass strings through data parameters. */
+//Easily pass strings through data parameters.
 
 stock DataPack AnyString(const char[] buffer)
 {
@@ -7636,7 +7744,7 @@ stock bool ReadAnyString(DataPack pack, char[] buffer, int size)
 }
 
 /*--------------------------------------------------------->*/
-/* Entity methodmaps. */
+//Entity methodmaps.
 
 methodmap Entity
 {
@@ -7823,8 +7931,6 @@ methodmap Entity
 		SetVariantVector3D(vec);
 	}
 }
-
-/*--------------------------------------------------------->*/
 
 /*--------------------------------------------------------->*/
 //This is the end of this THICCCCCC include file.
