@@ -12,10 +12,10 @@
 public Plugin myinfo = 
 {
 	name = "[Sourcemod] Colors Test",
-	author = "Keith Warren (Drixevel)",
+	author = "Drixevel",
 	description = "Tests the sourcemod-colors include.",
 	version = "1.0.0",
-	url = "https://github.com/drixevel"
+	url = "https://drixevel.dev/"
 };
 
 public void OnPluginStart()

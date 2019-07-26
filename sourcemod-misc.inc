@@ -19,6 +19,8 @@
 //Apply Multi Bit: bitbuffer |= (BIT_1 | BIT_2);
 //Remove Bit: bitbuffer &= ~BIT_2;
 //Remove Multi Bit: bitbuffer &= ~(BIT_1 | BIT_2);
+//
+//Damage = MaxDmg - (Range - StartFalloff) / (EndFalloff - StartFalloff) * (MaxDmg - MinDmg)
 
 #if defined _sourcemod_misc_included
 #endinput
@@ -33,6 +35,7 @@
 #tryinclude <regex>
 #tryinclude <clientprefs>
 #tryinclude <tf2items>
+#tryinclude <steamworks>
 #define REQUIRE_EXTENSIONS
 
 #undef REQUIRE_PLUGIN
@@ -394,6 +397,27 @@ stock int GetClientByAccountID(int accountid)
 }
 
 /*
+* Checks the players steamid based on the auth type.
+*
+* client	Client index.
+* steamid	SteamID to check.
+* auth		Auth type to check.
+*
+* return	True if they have the steamid, false otherwise.
+*/
+stock bool HasSteamID(int client, const char[] steamid, AuthIdType auth = AuthId_Steam2)
+{
+	if (!IsClientAuthorized(client) || IsFakeClient(client))
+		return false;
+	
+	char buffer[64];
+	if (!GetClientAuthId(client, auth, buffer, sizeof(buffer)))
+		return false;
+	
+	return StrEqual(buffer, steamid, false);
+}
+
+/*
 * Checks whether or not the client is console or not. (Same as IsClientConsole)
 * You can easily just add checks to make sure client is more than 0 if you use this for error checking.
 * I use this sometimes for things like replies to console specifically.
@@ -407,11 +431,29 @@ stock bool IsClientServer(int client)
 	return client == 0;
 }
 
-stock bool StringToBool(const char[] buffer)
+/*
+* Converts a string to a boolean.
+* Fixes the ugly workaround it's actually doing.
+*
+* str	String to convert.
+*
+* return	Boolean version.
+*/
+stock bool StringToBool(const char[] str)
 {
-	return view_as<bool>(StringToInt(buffer));
+	return view_as<bool>(StringToInt(str));
 }
 
+/*
+* Converts a string to a 3D vector.
+* Fixes the ugly workaround it's actually doing.
+*
+* explode	String to convert to 3D vectors.
+* buffer	Buffer to store values in.
+* defaultvector	Default values if the string is malformed.
+*
+* return	True if converted successfully, false otherwise.
+*/
 stock bool StringToVector(const char[] explode, float buffer[3], float defaultvector[3] = {0.0, 0.0, 0.0})
 {
 	if (strlen(explode) == 0)
@@ -433,6 +475,16 @@ stock bool StringToVector(const char[] explode, float buffer[3], float defaultve
 	return true;
 }
 
+/*
+* Converts a string to a 2D vector.
+* Fixes the ugly workaround it's actually doing.
+*
+* explode	String to convert to 3D vectors.
+* buffer	Buffer to store values in.
+* defaultvector	Default values if the string is malformed.
+*
+* return	True if converted successfully, false otherwise.
+*/
 stock bool StringToVector2D(const char[] explode, float buffer[2], float defaultvector[2] = {0.0, 0.0})
 {
 	if (strlen(explode) == 0)
@@ -454,6 +506,16 @@ stock bool StringToVector2D(const char[] explode, float buffer[2], float default
 	return true;
 }
 
+/*
+* Converts a string to a color vector.
+* Fixes the ugly workaround it's actually doing.
+*
+* explode	String to convert a color vector.
+* buffer	Buffer to store values in.
+* defaultvector	Default values if the string is malformed.
+*
+* return	True if converted successfully, false otherwise.
+*/
 stock bool StringToColor(const char[] explode, int buffer[4], int defaultvalues[4] = {255, 255, 255, 255})
 {
 	if (strlen(explode) == 0)
@@ -475,17 +537,34 @@ stock bool StringToColor(const char[] explode, int buffer[4], int defaultvalues[
 	return true;
 }
 
-stock int PushArrayStringFormat(ArrayList array, char[] buffer, any ...)
+/*
+* Same as array.PushString/PushArrayString but with a formatting parameter.
+*
+* array		Array handle to push.
+* format	Format buffer to use.
+* ...		Parameters to use.
+*
+* return	Index used in the array, -1 otherwise.
+*/
+stock int PushArrayStringFormat(ArrayList array, char[] format, any ...)
 {
 	if (array == null)
 		return -1;
 	
 	char sBuffer[1024];
-	VFormat(sBuffer, sizeof(sBuffer), buffer, 3);
+	VFormat(sBuffer, sizeof(sBuffer), format, 3);
 	return array.PushString(sBuffer);
 }
 
-stock void ClearStack(ArrayStack stack)
+/*
+* Clears the ArrayStack handles data.
+* Apparently there isn't a native one.
+*
+* stack		ArrayStack handle to push.
+*
+* return	True if successfully emptied, false otherwise.
+*/
+stock bool ClearStack(ArrayStack stack)
 {
 	if (stack == null)
 		return false;
@@ -496,6 +575,15 @@ stock void ClearStack(ArrayStack stack)
 	return true;
 }
 
+/*
+* Prints a specific file on the server to console.
+* Mostly used to debug error logs but it can be used for anything.
+*
+* client	Client index.
+* path		Path to the file.
+*
+* return	True if file is found and shown, false otherwise.
+*/
 stock bool PrintFileToConsole(int client, const char[] path)
 {
 	if (strlen(path) == 0)
@@ -533,6 +621,16 @@ public Action __Timer_DelayEndBuffer(Handle timer, any userid)
 		PrintToConsole(client, "------------------------------------------------------");
 }
 
+/*
+* Checks if a client has specific flags or not.
+* This is mostly deprecated though, might as well use CheckCommandAccess with ReadFlagString instead.
+* CheckCommandAccess(client, "", ReadFlagString(flags), true);
+*
+* client	Client index.
+* flags		Flags to check for.
+*
+* return	True if client has flags, false otherwise.
+*/
 //Forgot
 //Lost but not forgotten.
 stock bool CheckAdminFlagsByString(int client, const char[] flags)
@@ -564,11 +662,28 @@ stock bool CheckAdminFlagsByString(int client, const char[] flags)
 	return false;
 }
 
+/*
+* Returns a random boolean between true or false.
+*
+* return	True or false.
+*/
 stock bool GetRandomBool()
 {
 	return view_as<bool>(GetRandomInt(0, 1));
 }
 
+/*
+* Sends an input to the entity if it's valid.
+* Also checks if the world is trying to be killed due to faulty checks.
+*
+* dest		Destination entity.
+* input		Input to send.
+* activator	Activator sending the input.
+* caller	Caller sending the input.
+* outputid	Outputid to send the input.
+*
+* return	True if successful, false otherwise.
+*/
 stock bool AcceptEntityInputSafe(int dest, const char[] input, int activator = -1, int caller = -1, int outputid = 0)
 {
 	if (!IsValidEntity(dest) || dest < 1 && StrEqual(input, "kill", false))
@@ -577,6 +692,14 @@ stock bool AcceptEntityInputSafe(int dest, const char[] input, int activator = -
 	return AcceptEntityInput(dest, input, activator, caller, outputid);
 }
 
+/*
+* Same as AddFileToDownloadsTable except as a format buffer.
+*
+* format	Format buffer.
+* ...		Parameters to use.
+*
+* return	True if successful, false otherwise.
+*/
 stock bool AddFileToDownloadsTableEx(const char[] format, any ...)
 {
 	if (strlen(format) == 0)
@@ -589,6 +712,18 @@ stock bool AddFileToDownloadsTableEx(const char[] format, any ...)
 	return true;
 }
 
+/*
+* Format seconds into a formatted string to display neatly.
+* This function can largely be edited to fit whatever needs, it's hard to make a solid stock for every necessity.
+*
+* seconds	Seconds to convert.
+* buffer	Buffer to store the results.
+* maxlength	Length of the buffer.
+* format	Format string to reference to reference and save in the buffer.
+* precision	Whether to use precise milliseconds alongside the normal display of seconds. (Useful for precise timers)
+*
+* return	N/A
+*/
 stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char[] format, bool precision = false)
 {
 	int t = RoundToFloor(seconds);
@@ -635,6 +770,32 @@ stock void FormatSeconds(float seconds, char[] buffer, int maxlength, const char
 	ReplaceString(buffer, maxlength, "%S", strlen(sSeconds) > 0 ? sSeconds : "00");
 }
 
+/*
+* Clears all indexes from an array that have the specified value.
+*
+* array		Array handle.
+* value		Value to clear.
+*
+* return	N/A
+*/
+stock void ClearValueFromArray(ArrayList array, any value)
+{
+	if (array == null || array.FindValue(value) == -1)
+		return;
+	
+	int index;
+	while ((index = array.FindValue(value)) != -1)
+		array.Erase(index);
+}
+
+/*
+* Clears an array of all indexes regardless if handles exist or not.
+* Clearing the array normally won't kill the handles saved as well.
+*
+* array		Array handle.
+*
+* return	True if cleared, false otherwise.
+*/
 stock bool ClearArraySafe(ArrayList array)
 {
 	if (array == null)
@@ -650,6 +811,14 @@ stock bool ClearArraySafe(ArrayList array)
 	return true;
 }
 
+/*
+* Clears a stringmap of all indexes regardless if handles exist or not.
+* Clearing the stringmap normally won't kill the handles saved as well.
+*
+* map		StringMap handle.
+*
+* return	True if cleared, false otherwise.
+*/
 stock bool ClearTrieSafe(StringMap map)
 {
 	if (map == null)
@@ -675,6 +844,13 @@ stock bool ClearTrieSafe(StringMap map)
 
 	delete snapshot;
 	return true;
+}
+
+stock void SteamWorks_SetHTTPRequestGetOrPostParameterInt(Handle hHandle, const char[] sName, int value)
+{
+	char sValue[256];
+	IntToString(value, sValue, sizeof(sValue));
+	SteamWorks_SetHTTPRequestGetOrPostParameter(hHandle, sName, sValue);
 }
 
 stock float CalculateFloat(int value1, int value2, float fMultiplier = 0.0)
@@ -877,7 +1053,7 @@ stock bool IsPlayerStuck(int client)
 
 public bool TraceEntityFilterPlayer(int entity, int contentsMask, any data)
 {
-	return entity > GetMaxClients() || !entity;
+	return entity > MaxClients || !entity;
 }
 
 public bool TraceEntityFilterNone(int entity, int contentsMask, any data)
@@ -1010,13 +1186,34 @@ stock void TE_ParticleByID(int stridx, float origin[3], int entity = -1, float a
 
 stock int AttachParticle(int entity, const char[] name, float time = 0.0, const char[] attach = "", float angles[3] = {0.0, 0.0, 0.0}, float offsets[3] = {0.0, 0.0, 0.0})
 {
-	float vecPosition[3];
-	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vecPosition);
+	float origin[3];
+	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
+	
+	origin[0] += offsets[0];
+	origin[1] += offsets[1];
+	origin[2] += offsets[2];
 
-	int particle = CreateParticle(name, time, vecPosition, angles, offsets);
+	int particle = CreateEntityByName("info_particle_system");
 
 	if (IsValidEntity(particle))
 	{
+		DispatchKeyValueVector(particle, "origin", origin);
+		DispatchKeyValueVector(particle, "angles", angles);
+		DispatchKeyValue(particle, "effect_name", name);
+
+		DispatchSpawn(particle);
+		ActivateEntity(particle);
+		AcceptEntityInput(particle, "Start");
+
+		if (time > 0.0)
+		{
+			char output[64];
+			Format(output, sizeof(output), "OnUser1 !self:kill::%.1f:1", time);
+			SetVariantString(output);
+			AcceptEntityInput(particle, "AddOutput");
+			AcceptEntityInput(particle, "FireUser1");
+		}
+		
 		SetVariantString("!activator");
 		AcceptEntityInput(particle, "SetParent", entity, particle, 0);
 
@@ -1091,7 +1288,7 @@ stock void PrecacheParticle(const char[] particle)
 	DispatchSpawn(entity);
 	
 	SetVariantString(sName);
-	AcceptEntityInput(entity, "SetParent", 0, particle, 0);
+	AcceptEntityInput(entity, "SetParent", 0, 0, 0);
 	
 	ActivateEntity(entity);
 	AcceptEntityInput(entity, "start");
@@ -1174,9 +1371,7 @@ stock bool SetPlayerWeaponAmmo(int client, int weapon, int clip = -1, int ammo =
 stock int GetClip(int weapon)
 {
 	if (weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Data, "m_iClip1"))
-	{
 		return -1;
-	}
 
 	return GetEntProp(weapon, Prop_Data, "m_iClip1");
 }
@@ -1290,7 +1485,7 @@ stock void RefillWeapons(int client)
 stock int GetActiveWeapon(int client)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
-		return 0;
+		return -1;
 
 	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 }
@@ -1298,12 +1493,12 @@ stock int GetActiveWeapon(int client)
 stock int GetActiveWeaponIndex(int client)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
-		return 0;
+		return -1;
 	
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	
 	if (!IsValidEntity(weapon))
-		return 0;
+		return -1;
 	
 	return GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
 }
@@ -1343,6 +1538,16 @@ stock int GetWeaponSlot(int client, int weapon)
 	}
 
 	return -1;
+}
+
+stock int GetWeaponIndex(int weapon)
+{
+	return GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
+}
+
+stock int GetItemIndex(int item)
+{
+	return GetEntProp(item, Prop_Send, "m_iItemDefinitionIndex");
 }
 
 stock bool IsValidHex(const char[] strHex)
@@ -1667,6 +1872,31 @@ stock void PrintTopText(int client, int color[4], const char[] format, any ...)
 	delete kv;
 }
 
+//You can skip using these if you set 'sv_hudhint_sound' to 0 on your server.
+//I like to keep it on and selectively choose when to not use the sound so it can also be an alert.
+stock void PrintSilentHintAll(const char[] format, any ...)
+{
+	char message[255];
+	VFormat(message, sizeof(message), format, 2);
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+		
+		PrintHintText(i, message);
+		StopSound(i, SNDCHAN_STATIC, "UI/hint.wav");
+	}
+}
+
+stock void PrintSilentHint(int client, const char[] format, any ...)
+{
+	char message[255];
+	VFormat(message, sizeof(message), format, 3);
+	PrintHintText(client, message);
+	StopSound(client, SNDCHAN_STATIC, "UI/hint.wav");
+}
+
 enum ErrorCode
 {
 	Error_Unknown,
@@ -1711,7 +1941,7 @@ stock void DamageRadius(float origin[3], float distance = 500.0, float damage = 
 			continue;
 
 		GetClientAbsOrigin(i, vecOrigin);
-
+		
 		if (GetVectorDistance(origin, vecOrigin) > distance)
 			continue;
 
@@ -1730,6 +1960,49 @@ stock void DamageRadius(float origin[3], float distance = 500.0, float damage = 
 			continue;
 
 		SDKHooks_TakeDamage(entity, inflictor, attacker, damage, damagetype, weapon, damageforce, origin);
+	}
+}
+
+stock void DamagePlayersInRadius(float origin[3], float distance = 500.0, float damage = 500.0, int attacker = 0, int inflictor = 0, int damagetype = DMG_GENERIC, int weapon = -1, float damageforce[3] = NULL_VECTOR)
+{
+	if (distance <= 0.0 || damage <= 0.0)
+		return;
+
+	float vecOrigin[3];
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || !IsPlayerAlive(i) || (attacker > 0 && i == attacker))
+			continue;
+
+		GetClientAbsOrigin(i, vecOrigin);
+		
+		if (GetVectorDistance(origin, vecOrigin) > distance)
+			continue;
+
+		SDKHooks_TakeDamage(i, inflictor, attacker, damage, damagetype, weapon, damageforce, origin);
+	}
+}
+
+stock void DamageRadiusWithFalloff(float origin[3], float distance = 500.0, float min_damage = 10.0, float max_damage = 50.0, int attacker = 0, int inflictor = 0, int damagetype = DMG_GENERIC, int weapon = -1, float damageforce[3] = NULL_VECTOR)
+{
+	if (distance <= 0.0)
+		return;
+
+	float vecOrigin[3]; float actualdistance; float tempdamage;
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || !IsPlayerAlive(i) || (attacker > 0 && i == attacker))
+			continue;
+
+		GetClientAbsOrigin(i, vecOrigin);
+		
+		actualdistance = GetVectorDistance(origin, vecOrigin);
+		if (actualdistance > distance)
+			continue;
+		
+		tempdamage = max_damage - (actualdistance - 0.0) / (distance - 0.0) * (max_damage - min_damage);
+
+		SDKHooks_TakeDamage(i, inflictor, attacker, tempdamage, damagetype, weapon, damageforce, origin);
 	}
 }
 
@@ -1932,7 +2205,7 @@ stock void AnglesToVelocity(const float pAngles[3], float pScale, float pResults
 	ScaleVector(pResults, pScale);
 }
 
-stock void String_ToLower(const char[] input, char[] output, int size)
+stock void strtolower(const char[] input, char[] output, int size)
 {
 	size--;
 
@@ -1946,7 +2219,7 @@ stock void String_ToLower(const char[] input, char[] output, int size)
 	output[x] = '\0';
 }
 
-stock void String_ToUpper(const char[] input, char[] output, int size)
+stock void strtoupper(const char[] input, char[] output, int size)
 {
 	size--;
 
@@ -1960,7 +2233,7 @@ stock void String_ToUpper(const char[] input, char[] output, int size)
 	output[x] = '\0';
 }
 
-stock bool String_IsNumeric(const char[] buffer)
+stock bool isstrnum(const char[] buffer)
 {
 	int x; int dotsFound; int numbersFound;
 
@@ -2549,10 +2822,88 @@ stock void GetAbsBoundingBox(int ent, float mins[3], float maxs[3], bool half = 
         maxs[2] = mins[2];
 }
 
+stock void GetWorldMins(float[3] mins)
+{
+	GetEntPropVector(0, Prop_Data, "m_WorldMins", mins);
+}
+
+stock void GetWorldMaxs(float[3] maxs)
+{
+	GetEntPropVector(0, Prop_Data, "m_WorldMaxs", maxs);
+}
+
+stock void GetRandomPostion(float result[3], float min_height, float max_height, int max_ticks = 100)
+{
+	float vecWorldMins[3];
+	GetWorldMins(vecWorldMins);
+	vecWorldMins[2] = min_height;
+
+	float vecWorldMaxs[3];
+	GetWorldMaxs(vecWorldMaxs);
+	vecWorldMaxs[2] = max_height;
+
+	int ticks = 1;
+	result[0] = GetRandomFloat(vecWorldMins[0], vecWorldMaxs[0]);
+	result[1] = GetRandomFloat(vecWorldMins[1], vecWorldMaxs[1]);
+	result[2] = GetRandomFloat(vecWorldMins[2], vecWorldMaxs[2]);
+
+	while (TR_PointOutsideWorld(result) && max_ticks > ticks)
+	{
+		ticks++;
+		result[0] = GetRandomFloat(vecWorldMins[0], vecWorldMaxs[0]);
+		result[1] = GetRandomFloat(vecWorldMins[1], vecWorldMaxs[1]);
+		result[2] = GetRandomFloat(vecWorldMins[2], vecWorldMaxs[2]);
+	}
+}
+
 stock int GetNativeStringEx(int param, char[] buffer, int size, int& bytes)
 {
 	GetNativeStringLength(param, size); size++;
 	return GetNativeString(param, buffer, size, bytes);
+}
+
+stock bool HasClassname(int entity, const char[] classname, bool caseSensitive = false)
+{
+	if (!IsValidEntity(entity))
+		return false;
+	
+	char buffer[64];
+	GetEntityClassname(entity, buffer, sizeof(buffer));
+	
+	return StrContains(buffer, classname, caseSensitive) != -1;
+}
+
+stock bool IsClassname(int entity, const char[] classname, bool caseSensitive = false)
+{
+	if (!IsValidEntity(entity))
+		return false;
+	
+	char buffer[64];
+	GetEntityClassname(entity, buffer, sizeof(buffer));
+	
+	return StrEqual(buffer, classname, caseSensitive);
+}
+
+stock bool HasName(int entity, const char[] name, bool caseSensitive = false)
+{
+	if (!IsValidEntity(entity))
+		return false;
+	
+	char buffer[64];
+	GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
+	
+	return StrContains(buffer, name, caseSensitive) != -1;
+}
+
+stock bool IsName(int entity, const char[] name, bool caseSensitive = false)
+{
+	if (!IsValidEntity(entity))
+		return false;
+	
+	char buffer[64];
+	GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
+	
+	return StrEqual(buffer, name, caseSensitive);
 }
 
 stock int GetEntityName(int entity, char[] buffer, int maxlen)
@@ -2560,23 +2911,15 @@ stock int GetEntityName(int entity, char[] buffer, int maxlen)
 	return GetEntPropString(entity, Prop_Data, "m_iName", buffer, maxlen);
 }
 
-stock bool HasEntName(int entity, const char[] buffer, bool case_sensitive = false)
-{
-	char sName[128];
-	GetEntPropString(entity, Prop_Data, "m_iName", sName, sizeof(sName));
-
-	return StrEqual(buffer, sName, case_sensitive);
-}
-
 stock int SetEntityName(int entity, const char[] name)
 {
 	return SetEntPropString(entity, Prop_Data, "m_iName", name);
 }
 
-stock int FindEntityByName(const char[] name)
+stock int FindEntityByName(const char[] name, const char[] classname = "*")
 {
 	int entity = -1; char temp[64];
-	while ((entity = FindEntityByClassname(entity, "*")) != -1)
+	while ((entity = FindEntityByClassname(entity, classname)) != -1)
 	{
 		GetEntPropString(entity, Prop_Data, "m_iName", temp, sizeof(temp));
 		
@@ -2585,6 +2928,28 @@ stock int FindEntityByName(const char[] name)
 	}
 	
 	return entity;
+}
+
+stock bool HasModel(int entity, const char[] model, bool caseSensitive = false)
+{
+	if (!IsValidEntity(entity))
+		return false;
+	
+	char buffer[PLATFORM_MAX_PATH];
+	GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, sizeof(buffer));
+	
+	return StrContains(buffer, model, caseSensitive) != -1;
+}
+
+stock bool IsModel(int entity, const char[] model, bool caseSensitive = false)
+{
+	if (!IsValidEntity(entity))
+		return false;
+	
+	char buffer[PLATFORM_MAX_PATH];
+	GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, sizeof(buffer));
+	
+	return StrEqual(buffer, model, caseSensitive);
 }
 
 stock void GetEntityModel(int entity, char[] buffer, int size)
@@ -2616,6 +2981,28 @@ stock int CreateProp(const char[] model, float origin[3], float angles[3] = {0.0
 	return entity;
 }
 
+stock int AttachProp(int entity, const char[] model, const char[] attach = "", float angles[3] = {0.0, 0.0, 0.0}, int skin = 0, bool solid = true)
+{
+	float vecPosition[3];
+	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vecPosition);
+
+	int prop = CreateProp(model, vecPosition, angles, skin, solid);
+
+	if (IsValidEntity(prop))
+	{
+		SetVariantString("!activator");
+		AcceptEntityInput(prop, "SetParent", entity, prop, 0);
+
+		if (strlen(attach) > 0)
+		{
+			SetVariantString(attach);
+			AcceptEntityInput(prop, "SetParentAttachmentMaintainOffset", prop, prop, 0);
+		}
+	}
+
+	return prop;
+}
+
 stock bool AnimateEntity(int entity, const char[] animation)
 {
 	if (entity == 0 || !IsValidEntity(entity) || strlen(animation) == 0)
@@ -2633,6 +3020,13 @@ stock bool DeleteEntity(int entity)
 	return AcceptEntityInput(entity, "Kill");
 }
 
+stock void DeleteAllEntities(const char[] classname)
+{
+	int entity = -1;
+	while ((entity = FindEntityByClassname(entity, classname)) > MaxClients)
+		AcceptEntityInput(entity, "Kill");
+}
+
 stock float GetEntitiesDistance(int entity1, int entity2)
 {
 	float fOrigin1[3];
@@ -2642,6 +3036,37 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 	GetEntPropVector(entity2, Prop_Send, "m_vecOrigin", fOrigin2);
 	
 	return GetVectorDistance(fOrigin1, fOrigin2);
+}
+
+stock int GetEntityParent(int entity)
+{
+	return GetEntPropEnt(entity, Prop_Data, "m_pParent");
+}
+
+stock int GetEntityOwner(int entity)
+{
+	return GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+}
+
+stock void SetEntityOwner(int entity, int value)
+{
+	SetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity", value);
+}
+
+stock int GetEntityThrower(int entity)
+{
+	return GetEntPropEnt(entity, Prop_Data, "m_hThrower");
+}
+
+stock void SetEntityThrower(int entity, int value)
+{
+	SetEntPropEnt(entity, Prop_Data, "m_hThrower", value);
+}
+
+stock void ClearEntityParent(int entity)
+{
+	SetVariantString("");
+	AcceptEntityInput(entity, "ClearParent");
 }
 
 stock void GetEntityOrigin(int entity, float[3] origin)
@@ -2659,6 +3084,11 @@ stock void GetEntityAngle(int entity, float[3] angles)
 	GetEntPropVector(entity, Prop_Send, "m_angRotation", angles);
 }
 
+stock void SetEntityAngle(int entity, float[3] angles)
+{
+	SetEntPropVector(entity, Prop_Send, "m_angRotation", angles);
+}
+
 stock void GetEntityAbsAngle(int entity, float[3] angles)
 {
 	GetEntPropVector(entity, Prop_Send, "m_angAbsRotation", angles);
@@ -2666,12 +3096,22 @@ stock void GetEntityAbsAngle(int entity, float[3] angles)
 
 stock void GetEntityVelocity(int entity, float[3] velocity)
 {
-	GetEntPropVector(entity, Prop_Send, "m_vecVelocity", velocity);
+	GetEntPropVector(entity, Prop_Data, "m_vecVelocity", velocity);
+}
+
+stock void SetEntityVelocity(int entity, float[3] velocity)
+{
+	SetEntPropVector(entity, Prop_Data, "m_vecVelocity", velocity);
 }
 
 stock void GetEntityAbsVelocity(int entity, float[3] velocity)
 {
 	GetEntPropVector(entity, Prop_Send, "m_vecAbsVelocity", velocity);
+}
+
+stock void SetEntityAbsVelocity(int entity, float[3] velocity)
+{
+	SetEntPropVector(entity, Prop_Send, "m_vecAbsVelocity", velocity);
 }
 
 stock void GetEntityMins(int entity, float[3] mins)
@@ -2682,6 +3122,91 @@ stock void GetEntityMins(int entity, float[3] mins)
 stock void GetEntityMaxs(int entity, float[3] maxs)
 {
 	GetEntPropVector(entity, Prop_Send, "m_vecMaxs", maxs);
+}
+
+stock bool EnableEntity(int entity)
+{
+	return AcceptEntityInput(entity, "Enable");
+}
+
+stock bool DisableEntity(int entity)
+{
+	return AcceptEntityInput(entity, "Disable");
+}
+
+stock bool IsEntityDisabled(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_bDisabled", 1);
+}
+
+stock bool EnableEntityMotion(int entity)
+{
+	return AcceptEntityInput(entity, "EnableMotion");
+}
+
+stock bool DisableEntityMotion(int entity)
+{
+	return AcceptEntityInput(entity, "DisableMotion");
+}
+
+#define DAMAGE_NO 0
+#define DAMAGE_EVENTS_ONLY 1 // Call damage functions, but don't modify health
+#define DAMAGE_YES 2
+#define DAMAGE_AIM 3
+
+stock void SetEntityTakeDamage(int entity, int value = DAMAGE_YES)
+{
+	SetEntProp(entity, Prop_Data, "m_takedamage", value, 1);
+}
+
+stock bool GetEntityHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iHealth");
+}
+
+stock bool GetEntityMaxHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
+}
+
+stock float GetEntityMaxSpeed(int entity)
+{
+	return GetEntPropFloat(entity, Prop_Data, "m_flMaxspeed");
+}
+
+stock void SetEntityMaxSpeed(int entity, float value)
+{
+	SetEntPropFloat(entity, Prop_Data, "m_flMaxspeed", value);
+}
+
+stock bool IsEntityLocked(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_bLocked", 1);
+}
+
+stock void SetEntityLocked(int entity, bool locked)
+{
+	SetEntProp(entity, Prop_Data, "m_bLocked", locked, 1);
+}
+
+stock int GetEntityModelIndex(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_nModelIndex", 2);
+}
+
+stock void SetEntityModelIndex(int entity, int value)
+{
+	SetEntProp(entity, Prop_Data, "m_nModelIndex", value, 2);
+}
+
+stock int GetEntityWaterlevel(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_nWaterLevel");
+}
+
+stock void SetEntityWaterlevel(int entity, int value)
+{
+	SetEntProp(entity, Prop_Data, "m_nWaterLevel", value);
 }
 
 stock bool DispatchKeyValueInt(int entity, const char[] keyName, const int value)
@@ -2967,6 +3492,105 @@ stock int GetDamageTypeByName(const char[] name)
 	return flags;
 }
 
+stock void GetDamageNameByType(int damagetype, char[] buffer, int size)
+{
+	if ((damagetype & DMG_GENERIC) == DMG_GENERIC)
+		Format(buffer, size, "%s| DMG_GENERIC", buffer);
+	
+	if ((damagetype & DMG_CRUSH) == DMG_CRUSH)
+		Format(buffer, size, "%s| DMG_CRUSH", buffer);
+	
+	if ((damagetype & DMG_BULLET) == DMG_BULLET)
+		Format(buffer, size, "%s| DMG_BULLET", buffer);
+	
+	if ((damagetype & DMG_SLASH) == DMG_SLASH)
+		Format(buffer, size, "%s| DMG_SLASH", buffer);
+	
+	if ((damagetype & DMG_BURN) == DMG_BURN)
+		Format(buffer, size, "%s| DMG_BURN", buffer);
+	
+	if ((damagetype & DMG_VEHICLE) == DMG_VEHICLE)
+		Format(buffer, size, "%s| DMG_VEHICLE", buffer);
+	
+	if ((damagetype & DMG_FALL) == DMG_FALL)
+		Format(buffer, size, "%s| DMG_FALL", buffer);
+	
+	if ((damagetype & DMG_BLAST) == DMG_BLAST)
+		Format(buffer, size, "%s| DMG_BLAST", buffer);
+	
+	if ((damagetype & DMG_CLUB) == DMG_CLUB)
+		Format(buffer, size, "%s| DMG_CLUB", buffer);
+	
+	if ((damagetype & DMG_SHOCK) == DMG_SHOCK)
+		Format(buffer, size, "%s| DMG_SHOCK", buffer);
+	
+	if ((damagetype & DMG_SONIC) == DMG_SONIC)
+		Format(buffer, size, "%s| DMG_SONIC", buffer);
+	
+	if ((damagetype & DMG_ENERGYBEAM) == DMG_ENERGYBEAM)
+		Format(buffer, size, "%s| DMG_ENERGYBEAM", buffer);
+	
+	if ((damagetype & DMG_PREVENT_PHYSICS_FORCE) == DMG_PREVENT_PHYSICS_FORCE)
+		Format(buffer, size, "%s| DMG_PREVENT_PHYSICS_FORCE", buffer);
+	
+	if ((damagetype & DMG_NEVERGIB) == DMG_NEVERGIB)
+		Format(buffer, size, "%s| DMG_NEVERGIB", buffer);
+	
+	if ((damagetype & DMG_ALWAYSGIB) == DMG_ALWAYSGIB)
+		Format(buffer, size, "%s| DMG_ALWAYSGIB", buffer);
+	
+	if ((damagetype & DMG_DROWN) == DMG_DROWN)
+		Format(buffer, size, "%s| DMG_DROWN", buffer);
+	
+	if ((damagetype & DMG_PARALYZE) == DMG_PARALYZE)
+		Format(buffer, size, "%s| DMG_PARALYZE", buffer);
+	
+	if ((damagetype & DMG_NERVEGAS) == DMG_NERVEGAS)
+		Format(buffer, size, "%s| DMG_NERVEGAS", buffer);
+	
+	if ((damagetype & DMG_POISON) == DMG_POISON)
+		Format(buffer, size, "%s| DMG_POISON", buffer);
+	
+	if ((damagetype & DMG_RADIATION) == DMG_RADIATION)
+		Format(buffer, size, "%s| DMG_RADIATION", buffer);
+	
+	if ((damagetype & DMG_DROWNRECOVER) == DMG_DROWNRECOVER)
+		Format(buffer, size, "%s| DMG_DROWNRECOVER", buffer);
+	
+	if ((damagetype & DMG_ACID) == DMG_ACID)
+		Format(buffer, size, "%s| DMG_ACID", buffer);
+	
+	if ((damagetype & DMG_SLOWBURN) == DMG_SLOWBURN)
+		Format(buffer, size, "%s| DMG_SLOWBURN", buffer);
+	
+	if ((damagetype & DMG_REMOVENORAGDOLL) == DMG_REMOVENORAGDOLL)
+		Format(buffer, size, "%s| DMG_REMOVENORAGDOLL", buffer);
+	
+	if ((damagetype & DMG_PHYSGUN) == DMG_PHYSGUN)
+		Format(buffer, size, "%s| DMG_PHYSGUN", buffer);
+	
+	if ((damagetype & DMG_PLASMA) == DMG_PLASMA)
+		Format(buffer, size, "%s| DMG_PLASMA", buffer);
+	
+	if ((damagetype & DMG_AIRBOAT) == DMG_AIRBOAT)
+		Format(buffer, size, "%s| DMG_AIRBOAT", buffer);
+	
+	if ((damagetype & DMG_DISSOLVE) == DMG_DISSOLVE)
+		Format(buffer, size, "%s| DMG_DISSOLVE", buffer);
+	
+	if ((damagetype & DMG_BLAST_SURFACE) == DMG_BLAST_SURFACE)
+		Format(buffer, size, "%s| DMG_BLAST_SURFACE", buffer);
+	
+	if ((damagetype & DMG_DIRECT) == DMG_DIRECT)
+		Format(buffer, size, "%s| DMG_DIRECT", buffer);
+	
+	if ((damagetype & DMG_BUCKSHOT) == DMG_BUCKSHOT)
+		Format(buffer, size, "%s| DMG_BUCKSHOT", buffer);
+	
+	if ((damagetype & DMG_CRIT) == DMG_CRIT)
+		Format(buffer, size, "%s| DMG_CRIT", buffer);
+}
+
 /**
  * Wraps ProcessTargetString() and sends no error messages unlike FindTarget.
  *
@@ -3227,7 +3851,7 @@ stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVa
 	return view_as<bool>(results.FetchInt(field, status));
 }
 
-stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
+stock void SQL_SendQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
 {
 	DataPack pack = new DataPack();
 	pack.WriteString(query);
@@ -3235,7 +3859,7 @@ stock void SQL_VoidQuery(Database& database, const char[] query, DBPriority prio
 	database.Query(TQuery_Void, query, pack, prio);
 }
 
-stock void SQL_VoidQueryF(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
+stock void SQL_SendQuery2(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
 {
 	char query[8192];
 	VFormat(query, sizeof(query), format, 4);
@@ -3331,7 +3955,7 @@ stock bool SetModel(int entity, char model[PLATFORM_MAX_PATH], bool preload = fa
 		}
 	}
 
-	return false;
+	//return false;
 }
 
 stock int PrepareModel(char model[PLATFORM_MAX_PATH], bool preload = false)
@@ -3521,9 +4145,7 @@ stock bool StopSoundSafe(int entity, int channel, const char[] sample)
 	strcopy(sSound, sizeof(sSound), sample);
 
 	if (GetEngineVersion() == Engine_CSGO)
-	{
 		Format(sSound, sizeof(sSound), "*%s", sSound);
-	}
 
 	StopSound(entity, channel, sSound);
 	return true;
@@ -3561,7 +4183,7 @@ stock bool PrepareSound(const char[] sample, bool preload = false, bool download
 	}
 	
 	if (StrContains(sSound, "sound/") == 0)
-		strcopy(sample, sizeof(sample), sample[6]);
+		strcopy(sSound, sizeof(sSound), sample[6]);
 		
 	if (GetEngineVersion() == Engine_CSGO)
 	{
@@ -3694,7 +4316,7 @@ stock bool GetClientAbsPosition(int client, float origin[3])
 	float target_velocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", target_velocity);
 
-	float correct += GetClientLatency(client, NetFlow_Outgoing);	// * 2
+	float correct = GetClientLatency(client, NetFlow_Outgoing);	// * 2
 
 	int lerpTicks = RoundToFloor(0.5 + GetEntPropFloat(client, Prop_Send, "m_fLerpTime") / GetTickInterval());
 
@@ -3738,15 +4360,15 @@ stock void LookAtPosition(int client, float flGoal[3], float flAimSpeed = 0.05)
 
 stock float AngleNormalize(float angle)
 {
-    angle -= RoundToFloor(angle / 360.0) * 360.0;
-    
+	angle -= RoundToFloor(angle / 360.0) * 360.0;
+	
 	if (angle > 180)
-        angle -= 360;
-    
+		angle -= 360;
+	
 	if (angle < -180)
-        angle += 360;
-
-    return angle;
+		angle += 360;
+	
+	return angle;
 }
 
 /* MAH BOI POIKA */
@@ -3942,6 +4564,14 @@ stock void StripConVarFlag(ConVar convar, int flag)
 	int flags = convar.Flags;
 	flags &= ~flag;
 	convar.Flags = flags;
+}
+
+stock void CheatCommand(int client, char[] command, char[] arguments = "")
+{
+	int flags = GetCommandFlags(command);
+	SetCommandFlags(command, flags & ~FCVAR_CHEAT);
+	FakeClientCommand(client, "%s %s", command, arguments);
+	SetCommandFlags(command, flags);
 }
 
 stock bool SetModelViaConVar(int entity, ConVar &convar, bool preload = false)
@@ -4639,6 +5269,8 @@ stock void TF2_GetClientClassName(int client, char[] buffer, int size, bool capi
 
 	if (capitalize)
 		buffer[0] = CharToUpper(buffer[0]);
+	else
+		buffer[0] = CharToLower(buffer[0]);
 }
 
 /**
@@ -4669,6 +5301,8 @@ stock void TF2_GetClassName(TFClassType class, char[] buffer, int size, bool cap
 
 	if (capitalize)
 		buffer[0] = CharToUpper(buffer[0]);
+	else
+		buffer[0] = CharToLower(buffer[0]);
 }
 
 /**
@@ -4749,8 +5383,11 @@ stock void TF2_SetPlayerVisible(int client, bool visible)
 *
 *	return	void
 **/
-stock void TF2_ForceRoundWin(TFTeam team, bool map_valid = true)
+stock void TF2_ForceRoundWin(TFTeam team = TFTeam_Unassigned, bool map_valid = true)
 {
+	if (map_valid && !IsValidEntity(0))
+		return;
+	
 	int entity = FindEntityByClassname(-1, "team_control_point_master");
 
 	if (!IsValidEntity(entity))
@@ -4762,6 +5399,14 @@ stock void TF2_ForceRoundWin(TFTeam team, bool map_valid = true)
 
 	SetVariantInt(view_as<int>(team));
 	AcceptEntityInput(entity, "SetWinner");
+}
+
+stock void TF2_ForceWin(TFTeam team = TFTeam_Unassigned)
+{
+	int iFlags = GetCommandFlags("mp_forcewin");
+	SetCommandFlags("mp_forcewin", iFlags &= ~FCVAR_CHEAT);
+	ServerCommand("mp_forcewin %i", view_as<int>(team));
+	SetCommandFlags("mp_forcewin", iFlags);
 }
 
 /**
@@ -4982,7 +5627,7 @@ stock void TF2_CreateExplosion(float origin[3], float damage = 99999.0, float ra
 	EmitSoundToAllSafe(sound);
 	ScreenShakeAll(SHAKE_START, amplitude, frequency, duration);
 	PushAllPlayersFromPoint(origin, magnitude, radius, team);
-	DamageArea(origin, radius, damage, attacker, inflictor, team, damagetype, weapon);
+	DamageRadius(origin, radius, damage, attacker, inflictor, damagetype, weapon);
 }
 
 /**
@@ -5139,19 +5784,19 @@ stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, boo
 
 		if (fireevent)
 		{
-			int amount = iNewHealth - iHealth;
+			int value = iNewHealth - iHealth;
 			int userid = GetClientUserId(client);
 
 			Event event = CreateEvent("player_healed", true);
 			event.SetBool("sourcemod", true);
 			event.SetInt("patient", userid);
 			event.SetInt("healer", healer > 0 && IsClientInGame(healer) ? GetClientUserId(healer) : userid);
-			event.SetInt("amount", amount);
+			event.SetInt("amount", value);
 			event.Fire();
 
 			event = CreateEvent("player_healonhit", true);
 			event.SetBool("sourcemod", true);
-			event.SetInt("amount", amount);
+			event.SetInt("amount", value);
 			event.SetInt("entindex", client);
 			event.Fire();
 		}
@@ -5166,7 +5811,7 @@ stock void TF2_SetPlayerHealth(int client, int amount, float overheal = 1.5, boo
 *	client	Client index.
 *	amount	Amount of health to add.
 *	overheal	Overheal amount to offset.
-*	additive	Whether to account for overheal.
+*	additive	Whether to add overheal or multiply it.
 *	event	Fire the health gain event.
 *
 *	return	void
@@ -5262,7 +5907,7 @@ stock void TF2_RemovePlayerHealth(int client, int amount, float overheal = 1.5, 
 
 		if (fireevent)
 		{
-			int amount = iNewHealth - iHealth;
+			int value = iNewHealth - iHealth;
 			int userid = GetClientUserId(client);
 
 			Event event = CreateEvent("player_healed", true);
@@ -5652,6 +6297,8 @@ stock void TF2_GetSpellName(int spell, char[] buffer, int size, bool capitalize 
 
 	if (capitalize)
 		buffer[0] = CharToUpper(buffer[0]);
+	else
+		buffer[0] = CharToLower(buffer[0]);
 }
 
 /**
@@ -5885,7 +6532,7 @@ stock int TF2_GetHealerByIndex(int client, int index)
 	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
 		return 0;
 
-	int m_aHealers = FindSendProinfo("CTFPlayer", "m_nNumHealers") + 12;
+	int m_aHealers = FindSendPropInfo("CTFPlayer", "m_nNumHealers") + 12;
 	Address m_Shared = GetEntityAddress(client) + view_as<Address>(m_aHealers);
 	Address aHealers = view_as<Address>(LoadFromAddress(m_Shared, NumberType_Int32));
 
@@ -6516,9 +7163,6 @@ stock int TF2_FireProjectile(float vPos[3], float vAng[3], const char[] classnam
 *	Gets a certain quality from a name string.
 *
 *	name	Quality name to search for.
-*	buffer	Buffer to store.
-*	size	Size of the buffer.
-*	capitalize	Whether to capitalize the 1st letter.
 *
 *	return	Quality Index, Normal if not found.
 **/
@@ -6597,6 +7241,8 @@ stock void TF2_GetQualityFromID(TF2Quality quality, char[] buffer, int size, boo
 	
 	if (capitalize)
 		buffer[0] = CharToUpper(buffer[0]);
+	else
+		buffer[0] = CharToLower(buffer[0]);
 }
 
 /**
@@ -6678,6 +7324,151 @@ stock void TF2_RemoveConditionTeam(TFTeam team, TFCond condition)
 	}
 }
 
+stock void TF2_GetConditionName(TFCond condition, char[] buffer, int size, bool capitalize = false)
+{
+	switch (condition)
+	{
+		case TFCond_Slowed: strcopy(buffer, size, "Slowed");
+		case TFCond_Zoomed: strcopy(buffer, size, "Zoomed");
+		case TFCond_Disguising: strcopy(buffer, size, "Disguising");
+		case TFCond_Disguised: strcopy(buffer, size, "Disguised");
+		case TFCond_Cloaked: strcopy(buffer, size, "Cloaked");
+		case TFCond_Ubercharged: strcopy(buffer, size, "Ubercharged");
+		case TFCond_TeleportedGlow: strcopy(buffer, size, "TeleportedGlow");
+		case TFCond_Taunting: strcopy(buffer, size, "Taunting");
+		case TFCond_UberchargeFading: strcopy(buffer, size, "UberchargeFading");
+		//case TFCond_Unknown1: strcopy(buffer, size, "Unknown1");
+		case TFCond_CloakFlicker: strcopy(buffer, size, "CloakFlicker");
+		case TFCond_Teleporting: strcopy(buffer, size, "Teleporting");
+		case TFCond_Kritzkrieged: strcopy(buffer, size, "Kritzkrieged");
+		//case TFCond_Unknown2: strcopy(buffer, size, "Unknown2");
+		case TFCond_TmpDamageBonus: strcopy(buffer, size, "TmpDamageBonus");
+		case TFCond_DeadRingered: strcopy(buffer, size, "DeadRingered");
+		case TFCond_Bonked: strcopy(buffer, size, "Bonked");
+		case TFCond_Dazed: strcopy(buffer, size, "Dazed");
+		case TFCond_Buffed: strcopy(buffer, size, "Buffed");
+		case TFCond_Charging: strcopy(buffer, size, "Charging");
+		case TFCond_DemoBuff: strcopy(buffer, size, "DemoBuff");
+		case TFCond_CritCola: strcopy(buffer, size, "CritCola");
+		case TFCond_InHealRadius: strcopy(buffer, size, "InHealRadius");
+		case TFCond_Healing: strcopy(buffer, size, "Healing");
+		case TFCond_OnFire: strcopy(buffer, size, "OnFire");
+		case TFCond_Overhealed: strcopy(buffer, size, "Overhealed");
+		case TFCond_Jarated: strcopy(buffer, size, "Jarated");
+		case TFCond_Bleeding: strcopy(buffer, size, "Bleeding");
+		case TFCond_DefenseBuffed: strcopy(buffer, size, "DefenseBuffed");
+		case TFCond_Milked: strcopy(buffer, size, "Milked");
+		case TFCond_MegaHeal: strcopy(buffer, size, "MegaHeal");
+		case TFCond_RegenBuffed: strcopy(buffer, size, "RegenBuffed");
+		case TFCond_MarkedForDeath: strcopy(buffer, size, "MarkedForDeath");
+		case TFCond_NoHealingDamageBuff: strcopy(buffer, size, "NoHealingDamageBuff");
+		case TFCond_SpeedBuffAlly: strcopy(buffer, size, "SpeedBuffAlly");
+		case TFCond_HalloweenCritCandy: strcopy(buffer, size, "HalloweenCritCandy");
+		case TFCond_CritCanteen: strcopy(buffer, size, "CritCanteen");
+		case TFCond_CritDemoCharge: strcopy(buffer, size, "CritDemoCharge");
+		case TFCond_CritHype: strcopy(buffer, size, "CritHype");
+		case TFCond_CritOnFirstBlood: strcopy(buffer, size, "CritOnFirstBlood");
+		case TFCond_CritOnWin: strcopy(buffer, size, "CritOnWin");
+		case TFCond_CritOnFlagCapture: strcopy(buffer, size, "CritOnFlagCapture");
+		case TFCond_CritOnKill: strcopy(buffer, size, "CritOnKill");
+		case TFCond_RestrictToMelee: strcopy(buffer, size, "RestrictToMelee");
+		case TFCond_DefenseBuffNoCritBlock: strcopy(buffer, size, "DefenseBuffNoCritBlock");
+		case TFCond_Reprogrammed: strcopy(buffer, size, "Reprogrammed");
+		case TFCond_CritMmmph: strcopy(buffer, size, "CritMmmph");
+		case TFCond_DefenseBuffMmmph: strcopy(buffer, size, "DefenseBuffMmmph");
+		case TFCond_FocusBuff: strcopy(buffer, size, "FocusBuff");
+		case TFCond_DisguiseRemoved: strcopy(buffer, size, "DisguiseRemoved");
+		case TFCond_MarkedForDeathSilent: strcopy(buffer, size, "MarkedForDeathSilent");
+		case TFCond_DisguisedAsDispenser: strcopy(buffer, size, "DisguisedAsDispenser");
+		case TFCond_Sapped: strcopy(buffer, size, "Sapped");
+		case TFCond_UberchargedHidden: strcopy(buffer, size, "UberchargedHidden");
+		case TFCond_UberchargedCanteen: strcopy(buffer, size, "UberchargedCanteen");
+		case TFCond_HalloweenBombHead: strcopy(buffer, size, "HalloweenBombHead");
+		case TFCond_HalloweenThriller: strcopy(buffer, size, "HalloweenThriller");
+		case TFCond_RadiusHealOnDamage: strcopy(buffer, size, "RadiusHealOnDamage");
+		case TFCond_CritOnDamage: strcopy(buffer, size, "CritOnDamage");
+		case TFCond_UberchargedOnTakeDamage: strcopy(buffer, size, "UberchargedOnTakeDamage");
+		case TFCond_UberBulletResist: strcopy(buffer, size, "UberBulletResist");
+		case TFCond_UberBlastResist: strcopy(buffer, size, "UberBlastResist");
+		case TFCond_UberFireResist: strcopy(buffer, size, "UberFireResist");
+		case TFCond_SmallBulletResist: strcopy(buffer, size, "SmallBulletResist");
+		case TFCond_SmallBlastResist: strcopy(buffer, size, "SmallBlastResist");
+		case TFCond_SmallFireResist: strcopy(buffer, size, "SmallFireResist");
+		case TFCond_Stealthed: strcopy(buffer, size, "Stealthed");
+		case TFCond_MedigunDebuff: strcopy(buffer, size, "MedigunDebuff");
+		case TFCond_StealthedUserBuffFade: strcopy(buffer, size, "StealthedUserBuffFade");
+		case TFCond_BulletImmune: strcopy(buffer, size, "BulletImmune");
+		case TFCond_BlastImmune: strcopy(buffer, size, "BlastImmune");
+		case TFCond_FireImmune: strcopy(buffer, size, "FireImmune");
+		case TFCond_PreventDeath: strcopy(buffer, size, "PreventDeath");
+		case TFCond_MVMBotRadiowave: strcopy(buffer, size, "MVMBotRadiowave");
+		case TFCond_HalloweenSpeedBoost: strcopy(buffer, size, "HalloweenSpeedBoost");
+		case TFCond_HalloweenQuickHeal: strcopy(buffer, size, "HalloweenQuickHeal");
+		case TFCond_HalloweenGiant: strcopy(buffer, size, "HalloweenGiant");
+		case TFCond_HalloweenTiny: strcopy(buffer, size, "HalloweenTiny");
+		case TFCond_HalloweenInHell: strcopy(buffer, size, "HalloweenInHell");
+		case TFCond_HalloweenGhostMode: strcopy(buffer, size, "HalloweenGhostMode");
+		case TFCond_MiniCritOnKill: strcopy(buffer, size, "MiniCritOnKill");
+		//case TFCond_DodgeChance: strcopy(buffer, size, "DodgeChance");
+		case TFCond_ObscuredSmoke: strcopy(buffer, size, "ObscuredSmoke");
+		case TFCond_Parachute: strcopy(buffer, size, "Parachute");
+		case TFCond_BlastJumping: strcopy(buffer, size, "BlastJumping");
+		case TFCond_HalloweenKart: strcopy(buffer, size, "HalloweenKart");
+		case TFCond_HalloweenKartDash: strcopy(buffer, size, "HalloweenKartDash");
+		case TFCond_BalloonHead: strcopy(buffer, size, "BalloonHead");
+		case TFCond_MeleeOnly: strcopy(buffer, size, "MeleeOnly");
+		case TFCond_SwimmingCurse: strcopy(buffer, size, "SwimmingCurse");
+		//case TFCond_HalloweenKartNoTurn: strcopy(buffer, size, "HalloweenKartNoTurn");
+		case TFCond_FreezeInput: strcopy(buffer, size, "FreezeInput");
+		case TFCond_HalloweenKartCage: strcopy(buffer, size, "HalloweenKartCage");
+		case TFCond_HasRune: strcopy(buffer, size, "HasRune");
+		case TFCond_RuneStrength: strcopy(buffer, size, "RuneStrength");
+		case TFCond_RuneHaste: strcopy(buffer, size, "RuneHaste");
+		case TFCond_RuneRegen: strcopy(buffer, size, "RuneRegen");
+		case TFCond_RuneResist: strcopy(buffer, size, "RuneResist");
+		case TFCond_RuneVampire: strcopy(buffer, size, "RuneVampire");
+		case TFCond_RuneWarlock: strcopy(buffer, size, "RuneWarlock");
+		case TFCond_RunePrecision: strcopy(buffer, size, "RunePrecision");
+		case TFCond_RuneAgility: strcopy(buffer, size, "RuneAgility");
+		case TFCond_GrapplingHook: strcopy(buffer, size, "GrapplingHook");
+		case TFCond_GrapplingHookSafeFall: strcopy(buffer, size, "GrapplingHookSafeFall");
+		case TFCond_GrapplingHookLatched: strcopy(buffer, size, "GrapplingHookLatched");
+		case TFCond_GrapplingHookBleeding: strcopy(buffer, size, "GrapplingHookBleeding");
+		case TFCond_AfterburnImmune: strcopy(buffer, size, "AfterburnImmune");
+		case TFCond_RuneKnockout: strcopy(buffer, size, "RuneKnockout");
+		case TFCond_RuneImbalance: strcopy(buffer, size, "RuneImbalance");
+		case TFCond_CritRuneTemp: strcopy(buffer, size, "CritRuneTemp");
+		case TFCond_PasstimeInterception: strcopy(buffer, size, "PasstimeInterception");
+		case TFCond_SwimmingNoEffects: strcopy(buffer, size, "SwimmingNoEffects");
+		case TFCond_EyeaductUnderworld: strcopy(buffer, size, "EyeaductUnderworld");
+		case TFCond_KingRune: strcopy(buffer, size, "KingRune");
+		case TFCond_PlagueRune: strcopy(buffer, size, "PlagueRune");
+		case TFCond_SupernovaRune: strcopy(buffer, size, "SupernovaRune");
+		case TFCond_Plague: strcopy(buffer, size, "Plague");
+		case TFCond_KingAura: strcopy(buffer, size, "KingAura");
+		case TFCond_SpawnOutline: strcopy(buffer, size, "SpawnOutline");
+		case TFCond_KnockedIntoAir: strcopy(buffer, size, "KnockedIntoAir");
+		case TFCond_CompetitiveWinner: strcopy(buffer, size, "CompetitiveWinner");
+		case TFCond_CompetitiveLoser: strcopy(buffer, size, "CompetitiveLoser");
+		//case TFCond_NoTaunting_DEPRECATED: strcopy(buffer, size, "NoTaunting_DEPRECATED");
+		case TFCond_HealingDebuff: strcopy(buffer, size, "HealingDebuff");
+		case TFCond_PasstimePenaltyDebuff: strcopy(buffer, size, "PasstimePenaltyDebuff");
+		case TFCond_GrappledToPlayer: strcopy(buffer, size, "GrappledToPlayer");
+		case TFCond_GrappledByPlayer: strcopy(buffer, size, "GrappledByPlayer");
+		case TFCond_ParachuteDeployed: strcopy(buffer, size, "ParachuteDeployed");
+		case TFCond_Gas: strcopy(buffer, size, "Gas");
+		case TFCond_BurningPyro: strcopy(buffer, size, "BurningPyro");
+		case TFCond_RocketPack: strcopy(buffer, size, "RocketPack");
+		case TFCond_LostFooting: strcopy(buffer, size, "LostFooting");
+		case TFCond_AirCurrent: strcopy(buffer, size, "AirCurrent");
+	}
+	
+	if (capitalize)
+		buffer[0] = CharToUpper(buffer[0]);
+	else
+		buffer[0] = CharToLower(buffer[0]);
+}
+
 /**
 *	Retrieves a wearable assigned to a weapon such as the Razorback or Demo Shields.
 *
@@ -6702,7 +7493,7 @@ stock int TF2_GetWeaponWearable(int weapon)
 **/
 stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0) 
 {
-	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES);	//Keep reserve attributes otherwise random issues will occur... including crashes.
+	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|FORCE_GENERATION);	//Keep reserve attributes otherwise random issues will occur... including crashes.
 	TF2Items_SetClassname(item, classname);
 	TF2Items_SetItemIndex(item, index);
 	TF2Items_SetQuality(item, view_as<int>(quality));
@@ -6755,10 +7546,10 @@ stock int TF2_GiveViewmodel(int client, int viewmodel)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveWearable(int client, int index, int quality = 9, int level = 0) 
+stock int TF2_GiveWearable(int client, int index, char[] classname = "tf_wearable", int quality = 9, int level = 0) 
 {
 	Handle item = TF2Items_CreateItem(OVERRIDE_ALL || FORCE_GENERATION);
-	TF2Items_SetClassname(item, "tf_wearable");
+	TF2Items_SetClassname(item, classname);
 	TF2Items_SetItemIndex(item, index);
 	TF2Items_SetQuality(item, quality);
 	TF2Items_SetLevel(item, level);
@@ -6768,6 +7559,27 @@ stock int TF2_GiveWearable(int client, int index, int quality = 9, int level = 0
 	delete item;
 	
 	return wearable;
+}
+
+stock int TF2_CreateDroppedWeapon(int index, float origin[3], float angle[3] = NULL_VECTOR, float velocity[3] = NULL_VECTOR, const char[] model = "")
+{
+	int entity = CreateEntityByName("tf_dropped_weapon");
+	
+	if (!IsValidEntity(entity))
+		return entity;
+	
+	SetEntProp(entity, Prop_Send, "m_iItemDefinitionIndex", index);
+	SetEntProp(entity, Prop_Send, "m_bInitialized", 1);
+	SetEntProp(entity, Prop_Send, "m_iItemIDLow", -1);
+	SetEntProp(entity, Prop_Send, "m_iItemIDHigh", -1);
+	
+	if (strlen(model) > 0)
+		SetEntityModel(entity, model);
+	
+	DispatchSpawn(entity);
+	TeleportEntity(entity, origin, angle, velocity);
+	
+	return entity;
 }
 
 stock void TF2_ResetCaber(int weapon)
@@ -6814,6 +7626,16 @@ stock void TF2_SetChargeMeter(int client, float value = 100.0)
 stock float TF2_GetChargeMeter(int client)
 {
 	return GetEntPropFloat(client, Prop_Send, "m_flChargeMeter");
+}
+
+stock void TF2_SetItemChargeMeter(int client, int slot, float value = 100.0)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flItemChargeMeter", value, slot);
+}
+
+stock float TF2_GetItemChargeMeter(int client, int slot)
+{
+	return GetEntPropFloat(client, Prop_Send, "m_flItemChargeMeter", slot);
 }
 
 stock void TF2_SetSniperRifleCharge(int weapon, float value = 150.0)
@@ -6878,6 +7700,652 @@ stock MinigunState TF2_GetMinigunState(int client)
 		return Minigun_Idle;
 	
 	return view_as<MinigunState>(GetEntProp(weapon, Prop_Send, "m_iWeaponState"));
+}
+
+stock void TF2_RespawnAll()
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+		
+		TF2_RespawnPlayer(i);
+	}
+}
+
+stock bool TF2_IsWeaponByName(int entity, const char[] name)
+{
+	if (!IsValidEntity(entity) || strlen(name) == 0)
+		return false;
+	
+	int index = GetEntProp(entity, Prop_Send, "m_iItemDefinitionIndex");
+	
+	char buffer[64];
+	TF2_GetWeaponNameFromIndex(index, buffer, sizeof(buffer));
+	
+	return StrEqual(buffer, name, false);
+}
+
+//This is the dumbest shit ever.
+stock int TF2_GetIndexFromWeaponName(const char[] name)
+{
+	char buffer[32];
+	for (int i = 0; i < 30673; i++)
+	{
+		TF2_GetWeaponNameFromIndex(i, buffer, sizeof(buffer));
+		
+		if (StrEqual(buffer, name, false))
+			return i;
+	}
+	
+	return -1;
+}
+
+stock void TF2_GetWeaponNameFromIndex(int index, char[] buffer, int size)
+{
+	switch (index)
+	{
+		//Misc
+		case 154: strcopy(buffer, size, "The Pain Train");
+		case 160: strcopy(buffer, size, "Vintage Lugermorph");
+		case 199: strcopy(buffer, size, "Shotgun (Renamed/Strange)");
+		case 209: strcopy(buffer, size, "Pistol (Renamed/Strange)");
+		case 264: strcopy(buffer, size, "Frying Pan");
+		case 294: strcopy(buffer, size, "Lugermorph");
+		case 357: strcopy(buffer, size, "The Half-Zatoichi");
+		case 415: strcopy(buffer, size, "The Reserve Shooter");
+		case 423: strcopy(buffer, size, "Saxxy");
+		case 474: strcopy(buffer, size, "The Conscientious Objector");
+		case 880: strcopy(buffer, size, "The Freedom Staff");
+		case 939: strcopy(buffer, size, "The Bat Outta Hell");
+		case 954: strcopy(buffer, size, "The Memory Maker");
+		case 1013: strcopy(buffer, size, "The Ham Shank");
+		case 1071: strcopy(buffer, size, "Gold Frying Pan");
+		case 1101: strcopy(buffer, size, "The B.A.S.E. Jumper");
+		case 1123: strcopy(buffer, size, "The Necro Smasher");
+		case 1127: strcopy(buffer, size, "The Crossing Guard");
+		case 1141: strcopy(buffer, size, "Festive Shotgun");
+		case 1153: strcopy(buffer, size, "Panic Attack");
+		case 15003: strcopy(buffer, size, "Backwoods Boomstick");
+		case 15013: strcopy(buffer, size, "Red Rock Roscoe");
+		case 15016: strcopy(buffer, size, "Rustic Ruiner");
+		case 15018: strcopy(buffer, size, "Homemade Heater");
+		case 15035: strcopy(buffer, size, "Hickory Holepuncher");
+		case 15041: strcopy(buffer, size, "Local Hero");
+		case 15044: strcopy(buffer, size, "Civic Duty");
+		case 15046: strcopy(buffer, size, "Black Dahlia");
+		case 15047: strcopy(buffer, size, "Lightning Rod");
+		case 15056: strcopy(buffer, size, "Sandstone Special");
+		case 15060: strcopy(buffer, size, "Macabre Web");
+		case 15061: strcopy(buffer, size, "Nutcracker");
+		case 15085: strcopy(buffer, size, "Autumn");
+		case 15100: strcopy(buffer, size, "Blue Mew");
+		case 15101: strcopy(buffer, size, "Brain Candy");
+		case 15102: strcopy(buffer, size, "Shot to Hell");
+		case 15109: strcopy(buffer, size, "Flower Power");
+		case 15123: strcopy(buffer, size, "Coffin Nail");
+		case 15126: strcopy(buffer, size, "Dressed To Kill");
+		case 15132: strcopy(buffer, size, "Coffin Nail");
+		case 15133: strcopy(buffer, size, "Dressed to Kill");
+		case 15148: strcopy(buffer, size, "Blitzkrieg");
+		case 15152: strcopy(buffer, size, "Red Bear");
+		case 30666: strcopy(buffer, size, "The C.A.P.P.E.R.");
+		case 30758: strcopy(buffer, size, "Prinny Machete");
+		
+		//Scout Primary
+		case 13: strcopy(buffer, size, "Scattergun");
+		case 200: strcopy(buffer, size, "Scattergun (Renamed/Strange)");
+		case 45: strcopy(buffer, size, "Force-A-Nature");
+		case 220: strcopy(buffer, size, "The Shortstop");
+		case 448: strcopy(buffer, size, "The Soda Popper");
+		case 669: strcopy(buffer, size, "Festive Scattergun");
+		case 772: strcopy(buffer, size, "Baby Face's Blaster");
+		case 799: strcopy(buffer, size, "Silver Botkiller Scattergun Mk.I");
+		case 808: strcopy(buffer, size, "Gold Botkiller Scattergun Mk.I");
+		case 888: strcopy(buffer, size, "Rust Botkiller Scattergun Mk.I");
+		case 897: strcopy(buffer, size, "Blood Botkiller Scattergun Mk.I");
+		case 906: strcopy(buffer, size, "Carbonado Botkiller Scattergun Mk.I");
+		case 915: strcopy(buffer, size, "Diamond Botkiller Scattergun Mk.I");
+		case 964: strcopy(buffer, size, "Silver Botkiller Scattergun Mk.II");
+		case 973: strcopy(buffer, size, "Gold Botkiller Scattergun Mk.II");
+		case 1078: strcopy(buffer, size, "Festive Force-A-Nature");
+		case 1103: strcopy(buffer, size, "The Back Scatter");
+		case 15002: strcopy(buffer, size, "Night Terror");
+		case 15015: strcopy(buffer, size, "Tartan Torpedo");
+		case 15021: strcopy(buffer, size, "Country Crusher");
+		case 15029: strcopy(buffer, size, "Backcountry Blaster");
+		case 15036: strcopy(buffer, size, "Spruce Deuce");
+		case 15053: strcopy(buffer, size, "Current Event");
+		case 15065: strcopy(buffer, size, "Macabre Web");
+		case 15069: strcopy(buffer, size, "Nutcracker");
+		case 15106: strcopy(buffer, size, "Blue Mew");
+		case 15107: strcopy(buffer, size, "Flower Power");
+		case 15108: strcopy(buffer, size, "Shot to Hell");
+		case 15131: strcopy(buffer, size, "Coffin Nail");
+		case 15151: strcopy(buffer, size, "Killer Bee");
+		case 15157: strcopy(buffer, size, "Corsair");
+		
+		//Scout Secondary
+		case 23: strcopy(buffer, size, "Scout's Pistol");
+		case 46: strcopy(buffer, size, "Bonk! Atomic Punch");
+		case 163: strcopy(buffer, size, "Crit-a-Cola");
+		case 222: strcopy(buffer, size, "Mad Milk");
+		case 449: strcopy(buffer, size, "The Winger");
+		case 773: strcopy(buffer, size, "Pretty Boy's Pocket Pistol");
+		case 812: strcopy(buffer, size, "The Flying Guillotine");
+		case 833: strcopy(buffer, size, "The Flying Guillotine (Genuine)");
+		case 1121: strcopy(buffer, size, "Mutated Milk");
+		case 1145: strcopy(buffer, size, "Festive Bonk!");
+		
+		//Scout Melee
+		case 0: strcopy(buffer, size, "Bat");
+		case 190: strcopy(buffer, size, "Bat (Renamed/Strange)");
+		case 44: strcopy(buffer, size, "The Sandman");
+		case 221: strcopy(buffer, size, "The Holy Mackerel");
+		case 317: strcopy(buffer, size, "The Candy Cane");
+		case 325: strcopy(buffer, size, "The Boston Basher");
+		case 349: strcopy(buffer, size, "Sun-on-a-Stick");
+		case 355: strcopy(buffer, size, "The Fan O'War");
+		case 450: strcopy(buffer, size, "The Atomizer");
+		case 452: strcopy(buffer, size, "Three-Rune Blade");
+		case 572: strcopy(buffer, size, "Unarmed Combat");
+		case 648: strcopy(buffer, size, "The Wrap Assassin");
+		case 660: strcopy(buffer, size, "Festive Bat");
+		case 999: strcopy(buffer, size, "Festive Holy Mackerel");
+		case 30667: strcopy(buffer, size, "Batsaber");
+		
+		//Soldier Primary
+		case 18: strcopy(buffer, size, "Rocket Launcher");
+		case 205: strcopy(buffer, size, "Rocket Launcher (Renamed/Strange)");
+		case 127: strcopy(buffer, size, "The Direct Hit");
+		case 228: strcopy(buffer, size, "The Black Box");
+		case 237: strcopy(buffer, size, "Rocket Jumper");
+		case 414: strcopy(buffer, size, "The Liberty Launcher");
+		case 441: strcopy(buffer, size, "The Cow Mangler 5000");
+		case 513: strcopy(buffer, size, "The Original");
+		case 658: strcopy(buffer, size, "Festive Rocket Launcher");
+		case 730: strcopy(buffer, size, "The Beggar's Bazooka");
+		case 800: strcopy(buffer, size, "Silver Botkiller Rocket Launcher Mk.I");
+		case 809: strcopy(buffer, size, "Gold Botkiller Rocket Launcher Mk.I");
+		case 889: strcopy(buffer, size, "Rust Botkiller Rocket Launcher Mk.I");
+		case 898: strcopy(buffer, size, "Blood Botkiller Rocket Launcher Mk.I");
+		case 907: strcopy(buffer, size, "Carbonado Botkiller Rocket Launcher Mk.I");
+		case 916: strcopy(buffer, size, "Diamond Botkiller Rocket Launcher Mk.I");
+		case 965: strcopy(buffer, size, "Silver Botkiller Rocket Launcher Mk.II");
+		case 974: strcopy(buffer, size, "Gold Botkiller Rocket Launcher Mk.II");
+		case 1085: strcopy(buffer, size, "Festive Black Box");
+		case 1104: strcopy(buffer, size, "The Air Strike");
+		case 15006: strcopy(buffer, size, "Woodland Warrior");
+		case 15014: strcopy(buffer, size, "Sand Cannon");
+		case 15028: strcopy(buffer, size, "American Pastoral");
+		case 15043: strcopy(buffer, size, "Smalltown Bringdown");
+		case 15052: strcopy(buffer, size, "Shell Shocker");
+		case 15057: strcopy(buffer, size, "Aqua Marine");
+		case 15081: strcopy(buffer, size, "Autumn");
+		case 15104: strcopy(buffer, size, "Blue Mew");
+		case 15105: strcopy(buffer, size, "Brain Candy");
+		case 15129: strcopy(buffer, size, "Coffin Nail");
+		case 15130: strcopy(buffer, size, "High Roller's");
+		case 15150: strcopy(buffer, size, "Warhawk");
+		
+		//Soldier Secondary
+		case 10: strcopy(buffer, size, "Soldier's Shotgun");
+		case 129: strcopy(buffer, size, "The Buff Banner");
+		case 133: strcopy(buffer, size, "Gunboats");
+		case 226: strcopy(buffer, size, "The Battalion's Backup");
+		case 354: strcopy(buffer, size, "The Concheror");
+		case 442: strcopy(buffer, size, "The Righteous Bison");
+		case 444: strcopy(buffer, size, "The Mantreads");
+		case 1001: strcopy(buffer, size, "Festive Buff Banner");
+		
+		//Soldier Melee
+		case 6: strcopy(buffer, size, "Shovel");
+		case 196: strcopy(buffer, size, "Shovel (Renamed/Strange)");
+		case 128: strcopy(buffer, size, "The Equalizer");
+		case 416: strcopy(buffer, size, "The Market Gardener");
+		case 447: strcopy(buffer, size, "The Disciplinary Action");
+		case 775: strcopy(buffer, size, "The Escape Plan");
+
+		//Pyro Primary
+		case 21: strcopy(buffer, size, "Flame Thrower");
+		case 208: strcopy(buffer, size, "Flame Thrower (Renamed/Strange)");
+		case 40: strcopy(buffer, size, "The Backburner");
+		case 215: strcopy(buffer, size, "The Degreaser");
+		case 594: strcopy(buffer, size, "The Phlogistinator");
+		case 659: strcopy(buffer, size, "Festive Flame Thrower");
+		case 741: strcopy(buffer, size, "The Rainblower");
+		case 798: strcopy(buffer, size, "Silver Botkiller Flame Thrower Mk.I");
+		case 807: strcopy(buffer, size, "Gold Botkiller Flame Thrower Mk.I");
+		case 887: strcopy(buffer, size, "Rust Botkiller Flame Thrower Mk.I");
+		case 896: strcopy(buffer, size, "Blood Botkiller Flame Thrower Mk.I");
+		case 905: strcopy(buffer, size, "Carbonado Botkiller Flame Thrower Mk.I");
+		case 914: strcopy(buffer, size, "Diamond Botkiller Flame Thrower Mk.I");
+		case 963: strcopy(buffer, size, "Silver Botkiller Flame Thrower Mk.II");
+		case 972: strcopy(buffer, size, "Gold Botkiller Flame Thrower Mk.II");
+		case 1146: strcopy(buffer, size, "Festive Backburner");
+		case 1178: strcopy(buffer, size, "Dragon's Fury");
+		case 15005: strcopy(buffer, size, "Forest Fire");
+		case 15017: strcopy(buffer, size, "Barn Burner");
+		case 15030: strcopy(buffer, size, "Bovine Blazemaker");
+		case 15034: strcopy(buffer, size, "Earth, Sky and Fire");
+		case 15049: strcopy(buffer, size, "Flash Fryer");
+		case 15054: strcopy(buffer, size, "Turbine Torcher");
+		case 15066: strcopy(buffer, size, "Autumn");
+		case 15067: strcopy(buffer, size, "Pumpkin Patch");
+		case 15068: strcopy(buffer, size, "Nutcracker");
+		case 15089: strcopy(buffer, size, "Balloonicorn");
+		case 15090: strcopy(buffer, size, "Rainbow");
+		case 15115: strcopy(buffer, size, "Coffin Nail");
+		case 15141: strcopy(buffer, size, "Warhawk");
+		case 30474: strcopy(buffer, size, "Nostromo Napalmer");
+		
+		//Pyro Secondary
+		case 12: strcopy(buffer, size, "Pyro's Shotgun");
+		case 39: strcopy(buffer, size, "The Flare Gun");
+		case 351: strcopy(buffer, size, "The Detonator");
+		case 595: strcopy(buffer, size, "The Manmelter");
+		case 740: strcopy(buffer, size, "The Scorch Shot");
+		case 1081: strcopy(buffer, size, "Festive Flare Gun");
+		case 1179: strcopy(buffer, size, "Thermal Thruster");
+		case 1180: strcopy(buffer, size, "Gas Passer");
+		
+		//Pyro Melee
+		case 2: strcopy(buffer, size, "Fire Axe");
+		case 192: strcopy(buffer, size, "Fire Axe (Renamed/Strange)");
+		case 38: strcopy(buffer, size, "The Axtinguisher");
+		case 153: strcopy(buffer, size, "Homewrecker");
+		case 214: strcopy(buffer, size, "The Powerjack");
+		case 326: strcopy(buffer, size, "The Back Scratcher");
+		case 348: strcopy(buffer, size, "Sharpened Volcano Fragment");
+		case 457: strcopy(buffer, size, "The Postal Pummeler");
+		case 466: strcopy(buffer, size, "The Maul");
+		case 593: strcopy(buffer, size, "The Third Degree");
+		case 739: strcopy(buffer, size, "The Lollichop");
+		case 813: strcopy(buffer, size, "Neon Annihilator");
+		case 834: strcopy(buffer, size, "Neon Annihilator (Genuine)");
+		case 1000: strcopy(buffer, size, "The Festive Axtinguisher");
+		case 1181: strcopy(buffer, size, "Hot Hand");
+		
+		//Demoman Primary
+		case 19: strcopy(buffer, size, "Grenade Launcher");
+		case 206: strcopy(buffer, size, "Grenade Launcher (Renamed/Strange)");
+		case 308: strcopy(buffer, size, "The Loch-n-Load");
+		case 405: strcopy(buffer, size, "Ali Baba's Wee Booties");
+		case 608: strcopy(buffer, size, "The Bootlegger");
+		case 996: strcopy(buffer, size, "The Loose Cannon");
+		case 1007: strcopy(buffer, size, "Festive Grenade Launcher");
+		case 1151: strcopy(buffer, size, "The Iron Bomber");
+		case 15077: strcopy(buffer, size, "Autumn");
+		case 15079: strcopy(buffer, size, "Macabre Web");
+		case 15091: strcopy(buffer, size, "Rainbow");
+		case 15092: strcopy(buffer, size, "Sweet Dreams");
+		case 15116: strcopy(buffer, size, "Coffin Nail");
+		case 15117: strcopy(buffer, size, "Top Shelf");
+		case 15142: strcopy(buffer, size, "Warhawk");
+		case 15158: strcopy(buffer, size, "Butcher Bird");
+		
+		//Demoman Secondary
+		case 20: strcopy(buffer, size, "Stickybomb Launcher");
+		case 207: strcopy(buffer, size, "Stickybomb Launcher (Renamed/Strange)");
+		case 130: strcopy(buffer, size, "The Scottish Resistance");
+		case 131: strcopy(buffer, size, "The Chargin' Targe");
+		case 265: strcopy(buffer, size, "Sticky Jumper");
+		case 406: strcopy(buffer, size, "The Splendid Screen");
+		case 661: strcopy(buffer, size, "Festive Stickybomb Launcher");
+		case 797: strcopy(buffer, size, "Silver Botkiller Stickybomb Launcher Mk.I");
+		case 806: strcopy(buffer, size, "Gold Botkiller Stickybomb Launcher Mk.I");
+		case 886: strcopy(buffer, size, "Rust Botkiller Stickybomb Launcher Mk.I");
+		case 895: strcopy(buffer, size, "Blood Botkiller Stickybomb Launcher Mk.I");
+		case 904: strcopy(buffer, size, "Carbonado Botkiller Stickybomb Launcher Mk.I");
+		case 913: strcopy(buffer, size, "Diamond Botkiller Stickybomb Launcher Mk.I");
+		case 962: strcopy(buffer, size, "Silver Botkiller Stickybomb Launcher Mk.II");
+		case 971: strcopy(buffer, size, "Gold Botkiller Stickybomb Launcher Mk.II");
+		case 1099: strcopy(buffer, size, "The Tide Turner");
+		case 1144: strcopy(buffer, size, "Festive Targe");
+		case 1150: strcopy(buffer, size, "The Quickiebomb Launcher");
+		case 15009: strcopy(buffer, size, "Sudden Flurry");
+		case 15012: strcopy(buffer, size, "Carpet Bomber");
+		case 15024: strcopy(buffer, size, "Blasted Bombardier");
+		case 15038: strcopy(buffer, size, "Rooftop Wrangler");
+		case 15045: strcopy(buffer, size, "Liquid Asset");
+		case 15048: strcopy(buffer, size, "Pink Elephant");
+		case 15082: strcopy(buffer, size, "Autumn");
+		case 15083: strcopy(buffer, size, "Pumpkin Patch");
+		case 15084: strcopy(buffer, size, "Macabre Web");
+		case 15113: strcopy(buffer, size, "Sweet Dreams");
+		case 15137: strcopy(buffer, size, "Coffin Nail");
+		case 15138: strcopy(buffer, size, "Dressed to Kill");
+		case 15155: strcopy(buffer, size, "Blitzkrieg");
+		
+		//Demoman Melee
+		case 1: strcopy(buffer, size, "Bottle");
+		case 191: strcopy(buffer, size, "Bottle (Renamed/Strange)");
+		case 132: strcopy(buffer, size, "The Eyelander");
+		case 172: strcopy(buffer, size, "The Scotsman's Skullcutter");
+		case 266: strcopy(buffer, size, "Horseless Headless Horsemann's Headtaker");
+		case 307: strcopy(buffer, size, "Ullapool Caber");
+		case 327: strcopy(buffer, size, "The Claidheamh Mòr");
+		case 404: strcopy(buffer, size, "The Persian Persuader");
+		case 482: strcopy(buffer, size, "Nessie's Nine Iron");
+		case 609: strcopy(buffer, size, "The Scottish Handshake");
+		case 1082: strcopy(buffer, size, "Festive Eyelander");
+		
+		//Heavy Primary
+		case 15: strcopy(buffer, size, "Minigun");
+		case 202: strcopy(buffer, size, "Minigun (Renamed/Strange)");
+		case 41: strcopy(buffer, size, "Natascha");
+		case 298: strcopy(buffer, size, "Iron Curtain");
+		case 312: strcopy(buffer, size, "The Brass Beast");
+		case 424: strcopy(buffer, size, "Tomislav");
+		case 654: strcopy(buffer, size, "Festive Minigun");
+		case 793: strcopy(buffer, size, "Silver Botkiller Minigun Mk.I");
+		case 802: strcopy(buffer, size, "Gold Botkiller Minigun Mk.I");
+		case 811: strcopy(buffer, size, "The Huo-Long Heater");
+		case 832: strcopy(buffer, size, "The Huo-Long Heater (Genuine)");
+		case 850: strcopy(buffer, size, "Deflector (MvM only?)");
+		case 882: strcopy(buffer, size, "Rust Botkiller Minigun Mk.I");
+		case 891: strcopy(buffer, size, "Blood Botkiller Minigun Mk.I");
+		case 900: strcopy(buffer, size, "Carbonado Botkiller Minigun Mk.I");
+		case 909: strcopy(buffer, size, "Diamond Botkiller Minigun Mk.I");
+		case 958: strcopy(buffer, size, "Silver Botkiller Minigun Mk.II");
+		case 967: strcopy(buffer, size, "Gold Botkiller Minigun Mk.II");
+		case 15004: strcopy(buffer, size, "King of the Jungle");
+		case 15020: strcopy(buffer, size, "Iron Wood");
+		case 15026: strcopy(buffer, size, "Antique Annihilator");
+		case 15031: strcopy(buffer, size, "War Room");
+		case 15040: strcopy(buffer, size, "Citizen Pain");
+		case 15055: strcopy(buffer, size, "Brick House");
+		case 15086: strcopy(buffer, size, "Macabre Web");
+		case 15087: strcopy(buffer, size, "Pumpkin Patch");
+		case 15088: strcopy(buffer, size, "Nutcracker");
+		case 15098: strcopy(buffer, size, "Brain Candy");
+		case 15099: strcopy(buffer, size, "Mister Cuddles");
+		case 15124: strcopy(buffer, size, "Dressed to Kill");
+		case 15125: strcopy(buffer, size, "Top Shelf");
+		case 15147: strcopy(buffer, size, "Butcher Bird");
+
+		//Heavy Secondary
+		case 11: strcopy(buffer, size, "Heavy's Shotgun");
+		case 42: strcopy(buffer, size, "Sandvich");
+		case 159: strcopy(buffer, size, "The Dalokohs Bar");
+		case 311: strcopy(buffer, size, "The Buffalo Steak Sandvich");
+		case 425: strcopy(buffer, size, "The Family Business");
+		case 433: strcopy(buffer, size, "Fishcake");
+		case 863: strcopy(buffer, size, "Robo-Sandvich");
+		case 1002: strcopy(buffer, size, "Festive Sandvich");
+		
+		//Heavy Melee
+		case 5: strcopy(buffer, size, "Fists");
+		case 195: strcopy(buffer, size, "Fists (Renamed/Strange)");
+		case 43: strcopy(buffer, size, "The Killing Gloves of Boxing");
+		case 239: strcopy(buffer, size, "Gloves of Running Urgently");
+		case 310: strcopy(buffer, size, "Warrior's Spirit");
+		case 331: strcopy(buffer, size, "Fists of Steel");
+		case 426: strcopy(buffer, size, "The Eviction Notice");
+		case 587: strcopy(buffer, size, "Apoco-Fists");
+		case 656: strcopy(buffer, size, "The Holiday Punch");
+		case 1084: strcopy(buffer, size, "Festive Gloves of Running Urgently (G.R.U.)");
+		case 1100: strcopy(buffer, size, "The Bread Bite");
+		case 1184: strcopy(buffer, size, "Gloves of Running Urgently MvM");
+		
+		//Engineer Primary
+		case 9: strcopy(buffer, size, "Engineer's Shotgun");
+		case 141: strcopy(buffer, size, "The Frontier Justice");
+		case 527: strcopy(buffer, size, "The Widowmaker");
+		case 588: strcopy(buffer, size, "The Pomson 6000");
+		case 997: strcopy(buffer, size, "The Rescue Ranger");
+		case 1004: strcopy(buffer, size, "Festive Frontier Justice");
+		
+		//Engineer Secondary
+		case 22: strcopy(buffer, size, "Engineer's Pistol");
+		case 140: strcopy(buffer, size, "The Wrangler");
+		case 528: strcopy(buffer, size, "The Short Circuit");
+		case 1086: strcopy(buffer, size, "Festive Wrangler");
+		case 30668: strcopy(buffer, size, "The Gigar Counter");
+		
+		//Engineer Melee
+		case 7: strcopy(buffer, size, "Wrench");
+		case 197: strcopy(buffer, size, "Wrench (Renamed/Strange)");
+		case 142: strcopy(buffer, size, "The Gunslinger");
+		case 155: strcopy(buffer, size, "The Southern Hospitality");
+		case 169: strcopy(buffer, size, "Golden Wrench");
+		case 329: strcopy(buffer, size, "The Jag");
+		case 589: strcopy(buffer, size, "The Eureka Effect");
+		case 662: strcopy(buffer, size, "Festive Wrench");
+		case 795: strcopy(buffer, size, "Silver Botkiller Wrench Mk.I");
+		case 804: strcopy(buffer, size, "Gold Botkiller Wrench Mk.I");
+		case 884: strcopy(buffer, size, "Rust Botkiller Wrench Mk.I");
+		case 893: strcopy(buffer, size, "Blood Botkiller Wrench Mk.I");
+		case 902: strcopy(buffer, size, "Carbonado Botkiller Wrench Mk.I");
+		case 911: strcopy(buffer, size, "Diamond Botkiller Wrench Mk.I");
+		case 960: strcopy(buffer, size, "Silver Botkiller Wrench Mk.II");
+		case 969: strcopy(buffer, size, "Gold Botkiller Wrench Mk.II");
+		case 15073: strcopy(buffer, size, "Nutcracker");
+		case 15074: strcopy(buffer, size, "Autumn");
+		case 15075: strcopy(buffer, size, "Boneyard");
+		case 15139: strcopy(buffer, size, "Dressed to Kill");
+		case 15140: strcopy(buffer, size, "Top Shelf");
+		case 15114: strcopy(buffer, size, "Torqued to Hell");
+		case 15156: strcopy(buffer, size, "Airwolf");
+		
+		//Medic Primary
+		case 17: strcopy(buffer, size, "Syringe Gun");
+		case 204: strcopy(buffer, size, "Syringe Gun (Renamed/Strange)");
+		case 36: strcopy(buffer, size, "The Blutsauger");
+		case 305: strcopy(buffer, size, "Crusader's Crossbow");
+		case 412: strcopy(buffer, size, "The Overdose");
+		case 1079: strcopy(buffer, size, "Festive Crusader's Crossbow");
+		
+		//Medic Secondary
+		case 29: strcopy(buffer, size, "Medi Gun");
+		case 211: strcopy(buffer, size, "Medi Gun(Renamed/Strange)");
+		case 35: strcopy(buffer, size, "The Kritzkrieg");
+		case 411: strcopy(buffer, size, "The Quick-Fix");
+		case 663: strcopy(buffer, size, "Festive Medi Gun");
+		case 796: strcopy(buffer, size, "Silver Botkiller Medi Gun Mk.I");
+		case 805: strcopy(buffer, size, "Gold Botkiller Medi Gun Mk.I");
+		case 885: strcopy(buffer, size, "Rust Botkiller Medi Gun Mk.I");
+		case 894: strcopy(buffer, size, "Blood Botkiller Medi Gun Mk.I");
+		case 903: strcopy(buffer, size, "Carbonado Botkiller Medi Gun Mk.I");
+		case 912: strcopy(buffer, size, "Diamond Botkiller Medi Gun Mk.I");
+		case 961: strcopy(buffer, size, "Silver Botkiller Medi Gun Mk.II");
+		case 970: strcopy(buffer, size, "Gold Botkiller Medi Gun Mk.II");
+		case 998: strcopy(buffer, size, "The Vaccinator");
+		case 15008: strcopy(buffer, size, "Masked Mender");
+		case 15010: strcopy(buffer, size, "Wrapped Reviver");
+		case 15025: strcopy(buffer, size, "Reclaimed Reanimator");
+		case 15039: strcopy(buffer, size, "Civil Servant");
+		case 15050: strcopy(buffer, size, "Spark of Life");
+		case 15078: strcopy(buffer, size, "Wildwood");
+		case 15097: strcopy(buffer, size, "Flower Power");
+		case 15121: strcopy(buffer, size, "Dressed To Kill");
+		case 15122: strcopy(buffer, size, "High Roller's");
+		case 15145: strcopy(buffer, size, "Blitzkrieg");
+		case 15146: strcopy(buffer, size, "Corsair");
+		
+		//Medic Melee
+		case 8: strcopy(buffer, size, "Bonesaw");
+		case 198: strcopy(buffer, size, "Bonesaw (Renamed/Strange)");
+		case 37: strcopy(buffer, size, "The Ubersaw");
+		case 173: strcopy(buffer, size, "The Vita-Saw");
+		case 304: strcopy(buffer, size, "Amputator");
+		case 413: strcopy(buffer, size, "The Solemn Vow");
+		case 1003: strcopy(buffer, size, "Festive Ubersaw");
+		case 1143: strcopy(buffer, size, "Festive Bonesaw");
+		
+		//Sniper Primary
+		case 14: strcopy(buffer, size, "Sniper Rifle");
+		case 201: strcopy(buffer, size, "Sniper Rifle (Renamed/Strange)");
+		case 56: strcopy(buffer, size, "The Huntsman");
+		case 230: strcopy(buffer, size, "The Sydney Sleeper");
+		case 402: strcopy(buffer, size, "The Bazaar Bargain");
+		case 526: strcopy(buffer, size, "The Machina");
+		case 664: strcopy(buffer, size, "Festive Sniper Rifle");
+		case 752: strcopy(buffer, size, "The Hitman's Heatmaker");
+		case 792: strcopy(buffer, size, "Silver Botkiller Sniper Rifle Mk.I");
+		case 801: strcopy(buffer, size, "Gold Botkiller Sniper Rifle Mk.I");
+		case 851: strcopy(buffer, size, "The AWPer Hand");
+		case 881: strcopy(buffer, size, "Rust Botkiller Sniper Rifle Mk.I");
+		case 890: strcopy(buffer, size, "Blood Botkiller Sniper Rifle Mk.I");
+		case 899: strcopy(buffer, size, "Carbonado Botkiller Sniper Rifle Mk.I");
+		case 908: strcopy(buffer, size, "Diamond Botkiller Sniper Rifle Mk.I");
+		case 957: strcopy(buffer, size, "Silver Botkiller Sniper Rifle Mk.II");
+		case 966: strcopy(buffer, size, "Gold Botkiller Sniper Rifle Mk.II");
+		case 1005: strcopy(buffer, size, "Festive Huntsman");
+		case 1092: strcopy(buffer, size, "The Fortified Compound");
+		case 1098: strcopy(buffer, size, "The Classic");
+		case 15000: strcopy(buffer, size, "Night Owl");
+		case 15007: strcopy(buffer, size, "Purple Range");
+		case 15019: strcopy(buffer, size, "Lumber From Down Under");
+		case 15023: strcopy(buffer, size, "Shot in the Dark");
+		case 15033: strcopy(buffer, size, "Bogtrotter");
+		case 15059: strcopy(buffer, size, "Thunderbolt");
+		case 15070: strcopy(buffer, size, "Pumpkin Patch");
+		case 15071: strcopy(buffer, size, "Boneyard");
+		case 15072: strcopy(buffer, size, "Wildwood");
+		case 15111: strcopy(buffer, size, "Balloonicorn");
+		case 15112: strcopy(buffer, size, "Rainbow");
+		case 15135: strcopy(buffer, size, "Coffin Nail");
+		case 15136: strcopy(buffer, size, "Dressed to Kill");
+		case 15154: strcopy(buffer, size, "Airwolf");
+		case 30665: strcopy(buffer, size, "Shooting Star");
+		
+		//Sniper Secondary
+		case 16: strcopy(buffer, size, "SMG");
+		case 203: strcopy(buffer, size, "SMG (Renamed/Strange)");
+		case 57: strcopy(buffer, size, "The Razorback");
+		case 58: strcopy(buffer, size, "Jarate");
+		case 231: strcopy(buffer, size, "Darwin's Danger Shield");
+		case 642: strcopy(buffer, size, "Cozy Camper");
+		case 751: strcopy(buffer, size, "The Cleaner's Carbine");
+		case 1083: strcopy(buffer, size, "Festive Jarate");
+		case 1105: strcopy(buffer, size, "The Self-Aware Beauty Mark");
+		case 1149: strcopy(buffer, size, "Festive SMG");
+		case 15001: strcopy(buffer, size, "Woodsy Widowmaker");
+		case 15022: strcopy(buffer, size, "Plaid Potshotter");
+		case 15032: strcopy(buffer, size, "Treadplate Tormenter");
+		case 15037: strcopy(buffer, size, "Team Sprayer");
+		case 15058: strcopy(buffer, size, "Low Profile");
+		case 15076: strcopy(buffer, size, "Wildwood");
+		case 15110: strcopy(buffer, size, "Blue Mew");
+		case 15134: strcopy(buffer, size, "High Roller's");
+		case 15153: strcopy(buffer, size, "Blitzkrieg");
+		
+		//Sniper Melee
+		case 3: strcopy(buffer, size, "Kukri");
+		case 193: strcopy(buffer, size, "Kukri (Renamed/Strange)");
+		case 171: strcopy(buffer, size, "The Tribalman's Shiv");
+		case 232: strcopy(buffer, size, "The Bushwacka");
+		case 401: strcopy(buffer, size, "The Shahanshah");
+		
+		//Spy Primary
+		case 24: strcopy(buffer, size, "Revolver");
+		case 210: strcopy(buffer, size, "Revolver (Renamed/Strange)");
+		case 61: strcopy(buffer, size, "The Ambassador");
+		case 161: strcopy(buffer, size, "Big Kill");
+		case 224: strcopy(buffer, size, "L'Etranger");
+		case 460: strcopy(buffer, size, "The Enforcer");
+		case 525: strcopy(buffer, size, "The Diamondback");
+		case 1006: strcopy(buffer, size, "Festive Ambassador");
+		case 1142: strcopy(buffer, size, "Festive Revolver");
+		case 15011: strcopy(buffer, size, "Psychedelic Slugger");
+		case 15027: strcopy(buffer, size, "Old Country");
+		case 15042: strcopy(buffer, size, "Mayor");
+		case 15051: strcopy(buffer, size, "Dead Reckoner");
+		case 15063: strcopy(buffer, size, "Wildwood");
+		case 15064: strcopy(buffer, size, "Macabre Web");
+		case 15103: strcopy(buffer, size, "Flower Power");
+		case 15128: strcopy(buffer, size, "Top Shelf");
+		case 15149: strcopy(buffer, size, "Blitzkrieg");
+		
+		//Spy Secondary
+		case 735: strcopy(buffer, size, "Sapper");
+		case 736: strcopy(buffer, size, "Sapper (Renamed/Strange)");
+		case 810: strcopy(buffer, size, "The Red-Tape Recorder");
+		case 831: strcopy(buffer, size, "The Red-Tape Recorder (Genuine)");
+		case 933: strcopy(buffer, size, "The Ap-Sap (Genuine)");
+		case 1080: strcopy(buffer, size, "Festive Sapper");
+		case 1102: strcopy(buffer, size, "The Snack Attack");
+		
+		//Spy Melee
+		case 4: strcopy(buffer, size, "Knife");
+		case 194: strcopy(buffer, size, "Knife (Renamed/Strange)");
+		case 225: strcopy(buffer, size, "Your Eternal Reward");
+		case 356: strcopy(buffer, size, "Conniver's Kunai");
+		case 461: strcopy(buffer, size, "The Big Earner");
+		case 574: strcopy(buffer, size, "The Wanga Prick");
+		case 638: strcopy(buffer, size, "The Sharp Dresser");
+		case 649: strcopy(buffer, size, "The Spy-cicle");
+		case 665: strcopy(buffer, size, "Festive Knife");
+		case 727: strcopy(buffer, size, "The Black Rose");
+		case 794: strcopy(buffer, size, "Silver Botkiller Knife Mk.I");
+		case 803: strcopy(buffer, size, "Gold Botkiller Knife Mk.I");
+		case 883: strcopy(buffer, size, "Rust Botkiller Knife Mk.I");
+		case 892: strcopy(buffer, size, "Blood Botkiller Knife Mk.I");
+		case 901: strcopy(buffer, size, "Carbonado Botkiller Knife Mk.I");
+		case 910: strcopy(buffer, size, "Diamond Botkiller Knife Mk.I");
+		case 959: strcopy(buffer, size, "Silver Botkiller Knife Mk.II");
+		case 968: strcopy(buffer, size, "Gold Botkiller Knife Mk.II");
+		case 15062: strcopy(buffer, size, "Boneyard");
+		case 15094: strcopy(buffer, size, "Blue Mew");
+		case 15095: strcopy(buffer, size, "Brain Candy");
+		case 15096: strcopy(buffer, size, "Stabbed to Hell");
+		case 15118: strcopy(buffer, size, "Dressed to Kill");
+		case 15119: strcopy(buffer, size, "Top Shelf");
+		case 15143: strcopy(buffer, size, "Blitzkrieg");
+		case 15144: strcopy(buffer, size, "Airwolf");
+	}
+}
+
+stock int TF2_GetFestiveEquivalent(int index)
+{
+	switch (index)
+	{
+		case 13:	return 669;		//scattergun
+		case 45:	return 1078;	//force-a-nature
+		case 46:	return 1145;	//bonk!
+		case 0:		return 660;		//bat
+		case 221:	return 999;		//holy mackerel
+		case 18:	return 658;		//rocket launcher
+		case 228:	return 1085;	//black box
+		case 128:	return 1001;	//buff banner
+		case 21:	return 659;		//flamethrower
+		case 40:	return 1146;	//backburner
+		case 39:	return 1081;	//flare gun
+		case 12:	return 1141;	//pyro shotgun
+		case 38:	return 1000;	//axtinguisher
+		case 19:	return 1007;	//grenade launcher
+		case 20:	return 661;		//stickybomb launcher
+		case 131:	return 1144;	//targe
+		case 132:	return 1082;	//eyelander
+		case 15:	return 654;		//minigun
+		case 42:	return 1002;	//sandvich
+		case 11:	return 1141;	//heavy shotgun
+		case 239:	return 1084;	//gloves of running urgently
+		case 141:	return 1004;	//frontier justice
+		case 9:		return 1141;	//engineer shotgun
+		case 140:	return 1086;	//wrangler
+		case 7:		return 662;		//wrench
+		case 305:	return 1079;	//crossbow
+		case 29:	return 663;		//medi gun
+		case 37:	return 1003;	//ubersaw
+		case 8:		return 1143;	//bonesaw
+		case 14:	return 664;		//sniper rifle
+		case 56:	return 1005;	//huntsman
+		case 58:	return 1083;	//Jarate
+		case 16:	return 1149;	//SMG
+		case 64:	return 1006;	//Ambassador
+		case 24:	return 1142;	//Revolver
+		case 735:	return 1080;	//Sapper
+		case 4:		return 665;		//Knife
+	}
+
+	return -1;
+}
+
+stock bool TF2_IsWaitingForPlayers()
+{
+	return view_as<bool>(GameRules_GetProp("m_bInWaitingForPlayers"));
 }
 
 /*--------------------------------------------------------->
@@ -7336,6 +8804,8 @@ stock void CSGO_SetTeam(int client, int team)
 
 /**
 *	Sets the current speed of the client.
+*	WARNING: This has the unattended side effect of also updating velocity values, might not be what you want.
+*	It's better to just use the 'GetPlayerMaxSpeed' offsets for CSGO with DHooks.
 *
 *	client	Client index.
 *	speed	Speed to give.
@@ -7578,6 +9048,9 @@ stock int GetDrixevel()
 
 stock bool IsDrixevel(int client)
 {
+	if (client == 0 || client > MaxClients)
+		return false;
+	
 	return GetSteamAccountID(client) == 76528750;
 }
 
@@ -7761,9 +9234,19 @@ methodmap Entity
 		} 
 	}
 	
+	public bool Valid()
+	{
+		return IsValidEntity(this.index);
+	}
+	
 	public bool SendInput(const char[] input, int activator = -1, int caller = -1, int outputid = 0)
 	{
 		return AcceptEntityInput(this.index, input, activator, caller, outputid);
+	}
+	
+	public void Teleport(float origin[3], float angles[3], float velocity[3])
+	{
+		TeleportEntity(this.index, origin, angles, velocity);
 	}
 	
 	//Dispatches

@@ -13,10 +13,10 @@
 public Plugin myinfo = 
 {
 	name = "Debug Sourcemod Forwards", 
-	author = "Keith Warren (Drixevel)", 
+	author = "Drixevel", 
 	description = "Debug Sourcemod forwards for either testing purposes crash locations.", 
 	version = "1.0.0", 
-	url = "https://github.com/drixevel"
+	url = "https://drixevel.dev/"
 };
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)

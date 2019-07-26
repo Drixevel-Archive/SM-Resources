@@ -11,8 +11,13 @@
 #include <sourcemod-colors>
 #include <adminmenu>
 
+#undef REQUIRE_EXTENSIONS
+#include <tf2items>
+#define REQUIRE_EXTENSIONS
+
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
+#include <tf_econ_data>
 #define REQUIRE_PLUGIN
 
 //Globals
@@ -27,6 +32,7 @@ int g_iAmmo[MAX_ENTITY_LIMIT + 1];
 int g_iClip[MAX_ENTITY_LIMIT + 1];
 
 TopMenu hTopMenu;
+bool g_SpewConditions;
 bool g_SpewSounds;
 bool g_SpewAmbients;
 bool g_SpewEntities;
@@ -38,14 +44,33 @@ int g_iTarget[MAXPLAYERS + 1] = {INVALID_ENT_REFERENCE, ...};
 bool g_Locked;
 ArrayList g_HookEvents;
 
+//L4D/2 Respawning
+Handle hRoundRespawn;
+Handle hBecomeGhost;
+Handle hState_Transition;
+
 public Plugin myinfo =
 {
 	name = "Server Tools",
-	author = "Keith Warren (Drixevel)",
+	author = "Drixevel",
 	description = "A simple set of admin tools that help with development or server moderation.",
 	version = "1.0.0",
-	url = "https://github.com/drixevel"
+	url = "https://drixevel.dev/"
 };
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	MarkNativeAsOptional("TF2Econ_GetItemClassName");
+	MarkNativeAsOptional("TF2Econ_GetItemSlot");
+	MarkNativeAsOptional("TF2Items_CreateItem");
+	MarkNativeAsOptional("TF2Items_SetClassname");
+	MarkNativeAsOptional("TF2Items_SetItemIndex");
+	MarkNativeAsOptional("TF2Items_SetQuality");
+	MarkNativeAsOptional("TF2Items_SetLevel");
+	MarkNativeAsOptional("TF2Items_GiveNamedItem");
+	
+	return APLRes_Success;
+}
 
 public void OnPluginStart()
 {
@@ -69,37 +94,66 @@ public void OnPluginStart()
 
 	RegAdminCmd("sm_admintools", Command_ServerTools, ADMFLAG_SLAY, "List available commands under server tools.");
 	RegAdminCmd("sm_servertools", Command_ServerTools, ADMFLAG_SLAY, "List available commands under server tools.");
-	RegAdminCmd2("sm_teleport", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd2("sm_goto", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd("sm_tele", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd("sm_teleport", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
 	RegAdminCmd2("sm_bring", Command_Bring, ADMFLAG_SLAY, "Teleports clients to yourself.");
-	RegAdminCmd2("sm_port", Command_Port, ADMFLAG_SLAY, "Teleports clients to your crosshair.");
-	RegAdminCmd2("sm_sethealth", Command_SetHealth, ADMFLAG_SLAY, "Sets health on yourself or other clients.");
+	RegAdminCmd("sm_bringhere", Command_Bring, ADMFLAG_SLAY, "Teleports clients to yourself.");
+	RegAdminCmd2("sm_move", Command_Port, ADMFLAG_SLAY, "Teleports clients to your crosshair.");
+	RegAdminCmd("sm_port", Command_Port, ADMFLAG_SLAY, "Teleports clients to your crosshair.");
+	RegAdminCmd2("sm_health", Command_SetHealth, ADMFLAG_SLAY, "Sets health on yourself or other clients.");
+	RegAdminCmd("sm_sethealth", Command_SetHealth, ADMFLAG_SLAY, "Sets health on yourself or other clients.");
 	RegAdminCmd2("sm_addhealth", Command_AddHealth, ADMFLAG_SLAY, "Add health on yourself or other clients.");
 	RegAdminCmd2("sm_removehealth", Command_RemoveHealth, ADMFLAG_SLAY, "Remove health from yourself or other clients.");
-	RegAdminCmd2("sm_setclass", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
-	RegAdminCmd2("sm_setteam", Command_SetTeam, ADMFLAG_SLAY, "Sets the team of yourself or other clients.");
+	RegAdminCmd2("sm_class", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
+	RegAdminCmd("sm_setclass", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
+	RegAdminCmd2("sm_team", Command_SetTeam, ADMFLAG_SLAY, "Sets the team of yourself or other clients.");
+	RegAdminCmd("sm_setteam", Command_SetTeam, ADMFLAG_SLAY, "Sets the team of yourself or other clients.");
 	RegAdminCmd2("sm_respawn", Command_Respawn, ADMFLAG_SLAY, "Respawn yourself or clients.");
-	RegAdminCmd2("sm_regenerate", Command_Regenerate, ADMFLAG_SLAY, "Regenerate yourself or clients.");
-	RegAdminCmd2("sm_refillammunition", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
-	RegAdminCmd2("sm_refillclip", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
-	RegAdminCmd2("sm_managebots", Command_ManageBots, ADMFLAG_SLAY, "Manage bots on the server.");
+	RegAdminCmd2("sm_regen", Command_Regenerate, ADMFLAG_SLAY, "Regenerate yourself or clients.");
+	RegAdminCmd("sm_regenerate", Command_Regenerate, ADMFLAG_SLAY, "Regenerate yourself or clients.");
+	RegAdminCmd2("sm_refill", Command_RefillWeapon, ADMFLAG_SLAY, "Refill magazine/clip and ammunition for all of the clients weapons.");
+	RegAdminCmd("sm_refillweapons", Command_RefillWeapon, ADMFLAG_SLAY, "Refill magazine/clip and ammunition for all of the clients weapons.");
+	RegAdminCmd2("sm_ammo", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
+	RegAdminCmd("sm_ammunition", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
+	RegAdminCmd("sm_refillammunition", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
+	RegAdminCmd2("sm_clip", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_refillclip", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_mag", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_refillmag", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_refillmagazine", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd2("sm_bots", Command_ManageBots, ADMFLAG_SLAY, "Manage bots on the server.");
+	RegAdminCmd("sm_managebots", Command_ManageBots, ADMFLAG_SLAY, "Manage bots on the server.");
 	RegAdminCmd2("sm_password", Command_Password, ADMFLAG_SLAY, "Set a password on the server or remove it.");
 	RegAdminCmd("sm_setpassword", Command_Password, ADMFLAG_SLAY, "Set a password on the server or remove it.");
 	RegAdminCmd2("sm_endround", Command_EndRound, ADMFLAG_SLAY, "Ends the current round.");
 	RegAdminCmd2("sm_setcondition", Command_SetCondition, ADMFLAG_SLAY, "Sets a condition on yourself or other clients.");
 	RegAdminCmd("sm_addcondition", Command_SetCondition, ADMFLAG_SLAY, "Adds a condition on yourself or other clients.");
 	RegAdminCmd2("sm_removecondition", Command_RemoveCondition, ADMFLAG_SLAY, "Removes a condition from yourself or other clients.");
-	RegAdminCmd2("sm_setubercharge", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
-	RegAdminCmd2("sm_addubercharge", Command_AddUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd2("sm_removeubercharge", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd2("sm_setmetal", Command_SetMetal, ADMFLAG_SLAY, "Sets metal on yourself or other clients.");
+	RegAdminCmd("sm_stripcondition", Command_RemoveCondition, ADMFLAG_SLAY, "Removes a condition from yourself or other clients.");
+	RegAdminCmd2("sm_spewconditions", Command_SpewConditions, ADMFLAG_SLAY, "Logs all conditions applied into chat.");
+	RegAdminCmd2("sm_uber", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
+	RegAdminCmd("sm_ubercharge", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
+	RegAdminCmd("sm_setubercharge", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
+	RegAdminCmd2("sm_adduber", Command_AddUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd("sm_addubercharge", Command_AddUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd2("sm_removeuber", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd("sm_removeubercharge", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd("sm_stripubercharge", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd2("sm_metal", Command_SetMetal, ADMFLAG_SLAY, "Sets metal on yourself or other clients.");
+	RegAdminCmd("sm_setmetal", Command_SetMetal, ADMFLAG_SLAY, "Sets metal on yourself or other clients.");
 	RegAdminCmd2("sm_addmetal", Command_AddMetal, ADMFLAG_SLAY, "Adds metal to yourself or other clients.");
 	RegAdminCmd2("sm_removemetal", Command_RemoveMetal, ADMFLAG_SLAY, "Remove metal from yourself or other clients.");
+	RegAdminCmd("sm_stripmetal", Command_RemoveMetal, ADMFLAG_SLAY, "Remove metal from yourself or other clients.");
+	RegAdminCmd2("sm_getmetal", Command_GetMetal, ADMFLAG_SLAY, "Displays the metal for yourself or other clients.");
 	RegAdminCmd2("sm_settime", Command_SetTime, ADMFLAG_SLAY, "Sets time on the server.");
 	RegAdminCmd2("sm_addtime", Command_AddTime, ADMFLAG_SLAY, "Adds time on the server.");
 	RegAdminCmd2("sm_removetime", Command_RemoveTime, ADMFLAG_SLAY, "Remove time on the server.");
-	RegAdminCmd2("sm_setcrits", Command_SetCrits, ADMFLAG_SLAY, "Sets crits on yourself or other clients.");
-	RegAdminCmd2("sm_addcrits", Command_SetCrits, ADMFLAG_SLAY, "Adds crits on yourself or other clients.");
+	RegAdminCmd2("sm_crits", Command_SetCrits, ADMFLAG_SLAY, "Sets crits on yourself or other clients.");
+	RegAdminCmd("sm_setcrits", Command_SetCrits, ADMFLAG_SLAY, "Sets crits on yourself or other clients.");
+	RegAdminCmd("sm_addcrits", Command_SetCrits, ADMFLAG_SLAY, "Adds crits on yourself or other clients.");
 	RegAdminCmd2("sm_removecrits", Command_RemoveCrits, ADMFLAG_SLAY, "Removes crits from yourself or other clients.");
+	RegAdminCmd("sm_stripcrits", Command_RemoveCrits, ADMFLAG_SLAY, "Removes crits from yourself or other clients.");
 	RegAdminCmd2("sm_setgod", Command_SetGod, ADMFLAG_SLAY, "Sets godmode on yourself or other clients.");
 	RegAdminCmd2("sm_setbuddha", Command_SetBuddha, ADMFLAG_SLAY, "Sets buddhamode on yourself or other clients.");
 	RegAdminCmd2("sm_setmortal", Command_SetMortal, ADMFLAG_SLAY, "Sets mortality on yourself or other clients.");
@@ -111,20 +165,24 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_reload", Command_Reload, ADMFLAG_SLAY, "Reload a certain plugin that's currently loaded.");
 	RegAdminCmd2("sm_spawnsentry", Command_SpawnSentry, ADMFLAG_SLAY, "Spawn a sentry where you're looking.");
 	RegAdminCmd2("sm_spawndispenser", Command_SpawnDispenser, ADMFLAG_SLAY, "Spawn a dispenser where you're looking.");
-	RegAdminCmd2("sm_particle", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
+	RegAdminCmd("sm_particle", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
 	RegAdminCmd("sm_spawnparticle", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
-	RegAdminCmd("sm_p", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
-	RegAdminCmd2("sm_listparticles", Command_ListParticles, ADMFLAG_SLAY, "List particles by name and click on them to test them.");
-	RegAdminCmd("sm_lp", Command_ListParticles, ADMFLAG_SLAY, "List particles by name and click on them to test them.");
+	RegAdminCmd2("sm_p", Command_Particle, ADMFLAG_SLAY, "Spawn a particle where you're looking.");
+	RegAdminCmd("sm_listparticles", Command_ListParticles, ADMFLAG_SLAY, "List particles by name and click on them to test them.");
+	RegAdminCmd2("sm_lp", Command_ListParticles, ADMFLAG_SLAY, "List particles by name and click on them to test them.");
 	RegAdminCmd("sm_generateparticles", Command_GenerateParticles, ADMFLAG_SLAY, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
-	RegAdminCmd("sm_gp", Command_GenerateParticles, ADMFLAG_SLAY, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
+	RegAdminCmd2("sm_gp", Command_GenerateParticles, ADMFLAG_SLAY, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
 	RegAdminCmd2("sm_spewsounds", Command_SpewSounds, ADMFLAG_SLAY, "Logs all sounds played live into chat.");
 	RegAdminCmd2("sm_spewambients", Command_SpewAmbients, ADMFLAG_SLAY, "Logs all ambient sounds played live into chat.");
 	RegAdminCmd2("sm_spewentities", Command_SpewEntities, ADMFLAG_SLAY, "Logs all entities created live into chat.");
 	RegAdminCmd2("sm_getentitymodel", Command_GetEntityModel, ADMFLAG_SLAY, "Gets the model of a certain entity if it has a model.");
 	RegAdminCmd2("sm_setkillstreak", Command_SetKillstreak, ADMFLAG_SLAY, "Sets your current killstreak.");
+	RegAdminCmd2("sm_giveweapon", Command_GiveWeapon, ADMFLAG_SLAY, "Give yourself a certain weapon based on index.");
+	RegAdminCmd2("sm_spawnkit", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
+	RegAdminCmd("sm_spawnhealth", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
+	RegAdminCmd("sm_spawnhealthkit", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
 	RegAdminCmd2("sm_lock", Command_Lock, ADMFLAG_SLAY, "Lock the server to admins only.");
-	RegAdminCmd2("sm_lockserver", Command_Lock, ADMFLAG_SLAY, "Lock the server to admins only.");
+	RegAdminCmd("sm_lockserver", Command_Lock, ADMFLAG_SLAY, "Lock the server to admins only.");
 	RegAdminCmd2("sm_createprop", Command_CreateProp, ADMFLAG_SLAY, "Create a dynamic prop entity.");
 	RegAdminCmd2("sm_animateprop", Command_AnimateProp, ADMFLAG_SLAY, "Animate a dynamic prop entity.");
 	RegAdminCmd2("sm_deleteprop", Command_DeleteProp, ADMFLAG_SLAY, "Delete a dynamic prop entity.");
@@ -134,6 +192,10 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_setrendermode", Command_SetRenderMode, ADMFLAG_SLAY, "Sets you current render mode.");
 	RegAdminCmd2("sm_applyattribute", Command_ApplyAttribute, ADMFLAG_SLAY, "Apply an attribute to you or your weapons.");
 	RegAdminCmd2("sm_removeattribute", Command_RemoveAttribute, ADMFLAG_SLAY, "Remove an attribute from you or your weapons.");
+	RegAdminCmd2("sm_getentprop", Command_GetEntProp, ADMFLAG_SLAY, "Get an entity int property for entities.");
+	RegAdminCmd2("sm_setentprop", Command_SetEntProp, ADMFLAG_SLAY, "Set an entity int property for entities.");
+	RegAdminCmd2("sm_getentpropfloat", Command_GetEntPropFloat, ADMFLAG_SLAY, "Get an entity float property for entities.");
+	RegAdminCmd2("sm_setentpropfloat", Command_SetEntPropFloat, ADMFLAG_SLAY, "Set an entity float property for entities.");
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_SLAY, "Create an entity.");
@@ -153,6 +215,28 @@ public void OnPluginStart()
 		
 	CreateTimer(1.0, Timer_CheckForUpdates, _, TIMER_REPEAT);
 	g_HookEvents = new ArrayList(ByteCountToCells(256));
+	
+	if (game == Engine_Left4Dead || game == Engine_Left4Dead2)
+	{
+		Handle hGameConf = LoadGameConfigFile("l4drespawn");
+		
+		if (hGameConf != null)
+		{
+			StartPrepSDKCall(SDKCall_Player);
+			PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "RoundRespawn");
+			hRoundRespawn = EndPrepSDKCall();
+			
+			StartPrepSDKCall(SDKCall_Player);
+			PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "BecomeGhost");
+			PrepSDKCall_AddParameter(SDKType_PlainOldData , SDKPass_Plain);
+			hBecomeGhost = EndPrepSDKCall();
+
+			StartPrepSDKCall(SDKCall_Player);
+			PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "State_Transition");
+			PrepSDKCall_AddParameter(SDKType_PlainOldData , SDKPass_Plain);
+			hState_Transition = EndPrepSDKCall();
+		}
+	}
 }
 
 void RegAdminCmd2(const char[] cmd, ConCmd callback, int adminflags, const char[] description = "", const char[] group = "", int flags = 0)
@@ -220,10 +304,10 @@ public void OnAllPluginsLoaded()
 			ReplaceString(sReload, sizeof(sReload), ".smx", "", true);
 			
 			ServerCommand("sm plugins reload %s", sReload);
-			SendPrintAll("Plugin '{U}%s {D}' has been reloaded.", sName);
+			ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
 			
-			if (GetPluginStatus(FindPluginByFile(sReload)) != Plugin_Running)
-				ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
+			SendPrintAll("Plugin '{U}%s {D}' has been reloaded.", sName);
+			PrintToServer("Plugin '%s' has been reloaded.", sName);
 			
 			ServerCommand("sm_reload_translations %s", sReload); //Automatically reloads translations.
 		}
@@ -246,6 +330,11 @@ public void OnMapEnd()
 	delete g_OwnedEntities[0];
 	g_iTarget[0] = INVALID_ENT_REFERENCE;
 	g_Locked = false;
+	
+	g_SpewConditions = false;
+	g_SpewSounds = false;
+	g_SpewAmbients = false;
+	g_SpewEntities = false;
 }
 
 public void OnAdminMenuReady(Handle aTopMenu)
@@ -284,7 +373,7 @@ public void OnClientDisconnect(int client)
 void SendPrintAll(char[] format, any ...)
 {
 	char sBuffer[255];
-	VFormat(sBuffer, sizeof(sBuffer), format, 3);
+	VFormat(sBuffer, sizeof(sBuffer), format, 2);
 	
 	char sChatColor[32]; char sUnique[32];
 	if (IsSource2009())
@@ -298,7 +387,7 @@ void SendPrintAll(char[] format, any ...)
 		sUnique = "{lightred}";
 	}
 	
-	Format(sBuffer, sizeof(sBuffer), "%s%s%s", sChatColor, CHAT_TAG, sBuffer);
+	Format(sBuffer, sizeof(sBuffer), "%s%s %s", sChatColor, CHAT_TAG, sBuffer);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{U}", sUnique, false);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{D}", "{default}", false);
 	
@@ -307,7 +396,7 @@ void SendPrintAll(char[] format, any ...)
 		if (!IsClientConnected(i) || !IsClientInGame(i) || IsFakeClient(i))
 			continue;
 		
-		CReplyToCommand(i, sBuffer);
+		CPrintToChat(i, sBuffer);
 	}
 }
 
@@ -328,16 +417,16 @@ void SendPrint(int client, char[] format, any ...)
 		sUnique = "{lightred}";
 	}
 	
-	Format(sBuffer, sizeof(sBuffer), "%s%s%s", sChatColor, CHAT_TAG, sBuffer);
+	Format(sBuffer, sizeof(sBuffer), "%s%s %s", sChatColor, CHAT_TAG, sBuffer);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{U}", sUnique, false);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{D}", "{default}", false);
 	
-	CReplyToCommand(client, sBuffer);
+	CPrintToChat(client, sBuffer);
 }
 
 public Action Command_ServerTools(int client, int args)
 {
-	if (IsClientConsole(client))
+	if (IsClientServer(client))
 	{
 		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
@@ -371,7 +460,7 @@ public int PanelHandler_Commands(Menu menu, MenuAction action, int param1, int p
 
 public Action Command_Teleport(int client, int args)
 {
-	if (IsClientConsole(client))
+	if (IsClientServer(client))
 	{
 		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
@@ -422,7 +511,7 @@ public Action Command_Teleport(int client, int args)
 
 public Action Command_Bring(int client, int args)
 {
-	if (IsClientConsole(client))
+	if (IsClientServer(client))
 	{
 		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
@@ -474,7 +563,7 @@ public Action Command_Bring(int client, int args)
 
 public Action Command_Port(int client, int args)
 {
-	if (IsClientConsole(client))
+	if (IsClientServer(client))
 	{
 		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
@@ -789,6 +878,26 @@ public Action Command_Respawn(int client, int args)
 		{
 			case Engine_TF2: TF2_RespawnPlayer(targets_list[i]);
 			case Engine_CSS, Engine_CSGO: CS_RespawnPlayer(targets_list[i]);
+			case Engine_Left4Dead, Engine_Left4Dead2:
+			{
+				switch(GetClientTeam(targets_list[i]))
+				{
+					case 2:
+					{
+						SDKCall(hRoundRespawn, targets_list[i]);
+						CheatCommand(targets_list[i], "give", "first_aid_kit");
+						CheatCommand(targets_list[i], "give", "smg");
+					}
+					
+					case 3:
+					{
+						SDKCall(hState_Transition, targets_list[i], 8);
+						SDKCall(hBecomeGhost, targets_list[i], 1);
+						SDKCall(hState_Transition, targets_list[i], 6);
+						SDKCall(hBecomeGhost, targets_list[i], 1);
+					}
+				}
+			}
 		}
 		
 		SendPrint(targets_list[i], "Your have been respawned by {U}%N {D}.", client);
@@ -804,6 +913,11 @@ public Action Command_Regenerate(int client, int args)
 	if (args == 0)
 	{
 		SendPrint(client, "You must specify a target to regenerate.");
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -829,6 +943,52 @@ public Action Command_Regenerate(int client, int args)
 	}
 
 	SendPrint(client, "You have regenerated {U}%s {D}.", sTargetName);
+
+	return Plugin_Handled;
+}
+
+public Action Command_RefillWeapon(int client, int args)
+{
+	if (args == 0)
+	{
+		SendPrint(client, "You must specify a target to refill their ammunition.");
+		return Plugin_Handled;
+	}
+
+	char sTarget[MAX_TARGET_LENGTH];
+	GetCmdArg(1, sTarget, sizeof(sTarget));
+
+	int targets_list[MAXPLAYERS];
+	char sTargetName[MAX_TARGET_LENGTH];
+	bool tn_is_ml;
+
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+
+	if (targets == COMMAND_TARGET_NONE)
+	{
+		ReplyToTargetError(client, COMMAND_TARGET_NONE);
+		return Plugin_Handled;
+	}
+
+	int weapon2;
+	for (int i = 0; i < targets; i++)
+	{
+		for (int x = 0; x < 8; x++)
+		{
+			if ((weapon2 = GetPlayerWeaponSlot(targets_list[i], i)) != INVALID_ENT_INDEX && IsValidEntity(weapon2))
+			{
+				if (g_iClip[weapon2] > 0)
+					SetClip(weapon2, g_iClip[weapon2]);
+				
+				if (g_iAmmo[weapon2] > 0)
+					SetAmmo(targets_list[i], weapon2, g_iAmmo[weapon2]);
+			}
+		}
+
+		SendPrint(targets_list[i], "Your weapons ammunitions have been refilled by {U}%N {D}.", client);
+	}
+
+	SendPrint(client, "You have refilled the ammunition ammo for {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -859,7 +1019,7 @@ public Action Command_RefillAmunition(int client, int args)
 	int weapon2;
 	for (int i = 0; i < targets; i++)
 	{
-		for (int x = 0; x < TF_MAX_SLOTS; x++)
+		for (int x = 0; x < 8; x++)
 		{
 			if ((weapon2 = GetPlayerWeaponSlot(targets_list[i], i)) != INVALID_ENT_INDEX && IsValidEntity(weapon2) && g_iAmmo[weapon2] > 0)
 				SetAmmo(targets_list[i], weapon2, g_iAmmo[weapon2]);
@@ -899,7 +1059,7 @@ public Action Command_RefillClip(int client, int args)
 	int weapon2;
 	for (int i = 0; i < targets; i++)
 	{
-		for (int x = 0; x < TF_MAX_SLOTS; x++)
+		for (int x = 0; x < 8; x++)
 		{
 			if ((weapon2 = GetPlayerWeaponSlot(targets_list[i], i)) != INVALID_ENT_INDEX && IsValidEntity(weapon2) && g_iClip[weapon2] > 0)
 				SetClip(weapon2, g_iClip[weapon2]);
@@ -944,11 +1104,18 @@ public void OnEntityDestroyed(int entity)
 
 	g_iAmmo[entity] = 0;
 	g_iClip[entity] = 0;
+	
+	if (g_SpewEntities)
+	{
+		char classname[64];
+		GetEntityClassname(entity, classname, sizeof(classname));
+		SendPrintAll("[SpewEntities] -{U}%i {D}: {U}%s {D}({U}Destroyed{D})", entity, classname);
+	}
 }
 
 public Action Command_ManageBots(int client, int args)
 {
-	if (IsClientConsole(client))
+	if (IsClientServer(client))
 	{
 		SendPrint(client, "You must be in-game to use this command.");
 		return Plugin_Handled;
@@ -1255,18 +1422,36 @@ public Action Command_Password(int client, int args)
 
 public Action Command_EndRound(int client, int args)
 {
-	TFTeam team = TFTeam_Unassigned;
-
-	if (args > 0)
+	switch (game)
 	{
-		char sTeam[12];
-		GetCmdArgString(sTeam, sizeof(sTeam));
-		team = view_as<TFTeam>(StringToInt(sTeam));
+		case Engine_TF2:
+		{
+			TFTeam team = TFTeam_Unassigned;
+
+			if (args > 0)
+				team = view_as<TFTeam>(GetCmdArgInt(1));
+
+			TF2_ForceRoundWin(team);
+			TF2_ForceWin(team);
+		}
+		case Engine_CSGO, Engine_CSS:
+		{
+			float delay;
+			CSRoundEndReason reason = CSRoundEnd_Draw;
+			bool blockhook = true;
+			
+			if (args >= 1)
+				delay = GetCmdArgFloat(1);
+			if (args >= 2)
+				reason = view_as<CSRoundEndReason>(GetCmdArgInt(2));
+			if (args >= 3)
+				blockhook = GetCmdArgBool(3);
+			
+			CS_TerminateRound(delay, reason, blockhook);
+		}
 	}
-
-	TF2_ForceRoundWin(team);
+	
 	SendPrintAll("{U}%N {D} has ended the current round.", client);
-
 	return Plugin_Handled;
 }
 
@@ -1280,6 +1465,11 @@ public Action Command_SetCondition(int client, int args)
 	else if (args == 1)
 	{
 		SendPrint(client, "You must specify a condition to set.");
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -1347,6 +1537,11 @@ public Action Command_RemoveCondition(int client, int args)
 		SendPrint(client, "You must specify a condition to remove.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -1387,11 +1582,49 @@ public Action Command_RemoveCondition(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_SpewConditions(int client, int args)
+{
+	if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
+	
+	g_SpewConditions = !g_SpewConditions;
+	SendPrint(client, "Spew Conditions: {U}%s {D}", g_SpewConditions ? "ON" : "OFF");
+	return Plugin_Handled;
+}
+
+public void TF2_OnConditionAdded(int client, TFCond condition)
+{
+	if (g_SpewConditions)
+	{
+		char sCondition[32];
+		TF2_GetConditionName(condition, sCondition, sizeof(sCondition));
+		SendPrint(client, "[Condition Added] -: {U}%s {D}", sCondition);
+	}
+}
+
+public void TF2_OnConditionRemoved(int client, TFCond condition)
+{
+	if (g_SpewConditions)
+	{
+		char sCondition[32];
+		TF2_GetConditionName(condition, sCondition, sizeof(sCondition));
+		SendPrint(client, "[Condition Removed] -: {U}%s {D}", sCondition);
+	}
+}
+
 public Action Command_SetUbercharge(int client, int args)
 {
 	if (args == 0)
 	{
 		SendPrint(client, "You must specify a target to set their ubercharge.");
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -1412,7 +1645,7 @@ public Action Command_SetUbercharge(int client, int args)
 
 	char sUbercharge[12];
 	GetCmdArg(2, sUbercharge, sizeof(sUbercharge));
-	float uber = ClampCell(StringToFloat(sUbercharge), 1.0, 999999.0);
+	float uber = ClampCell(StringToFloat(sUbercharge), 0.0, 999999.0);
 
 	for (int i = 0; i < targets; i++)
 	{
@@ -1435,6 +1668,11 @@ public Action Command_AddUbercharge(int client, int args)
 		SendPrint(client, "You must specify a target to add to their ubercharge.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -1453,7 +1691,7 @@ public Action Command_AddUbercharge(int client, int args)
 
 	char sUbercharge[12];
 	GetCmdArg(2, sUbercharge, sizeof(sUbercharge));
-	float uber = ClampCell(StringToFloat(sUbercharge), 1.0, 999999.0);
+	float uber = ClampCell(StringToFloat(sUbercharge), 0.0, 999999.0);
 
 	for (int i = 0; i < targets; i++)
 	{
@@ -1476,6 +1714,11 @@ public Action Command_RemoveUbercharge(int client, int args)
 		SendPrint(client, "You must specify a target to deduct from their ubercharge.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -1494,7 +1737,7 @@ public Action Command_RemoveUbercharge(int client, int args)
 
 	char sUbercharge[12];
 	GetCmdArg(2, sUbercharge, sizeof(sUbercharge));
-	float uber = ClampCell(StringToFloat(sUbercharge), 1.0, 999999.0);
+	float uber = ClampCell(StringToFloat(sUbercharge), 0.0, 999999.0);
 
 	for (int i = 0; i < targets; i++)
 	{
@@ -1515,6 +1758,11 @@ public Action Command_SetMetal(int client, int args)
 	if (args == 0)
 	{
 		SendPrint(client, "You must specify a target to set their metal.");
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -1558,6 +1806,11 @@ public Action Command_AddMetal(int client, int args)
 		SendPrint(client, "You must specify a target to add to their metal.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -1599,6 +1852,11 @@ public Action Command_RemoveMetal(int client, int args)
 		SendPrint(client, "You must specify a target to deduct from their metal.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -1630,6 +1888,45 @@ public Action Command_RemoveMetal(int client, int args)
 
 	SendPrint(client, "You have deducted metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
 
+	return Plugin_Handled;
+}
+
+public Action Command_GetMetal(int client, int args)
+{
+	if (args == 0)
+	{
+		SendPrint(client, "You must specify a target to see their metal amount.");
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
+
+	char sTarget[MAX_TARGET_LENGTH];
+	GetCmdArg(1, sTarget, sizeof(sTarget));
+
+	int targets_list[MAXPLAYERS];
+	char sTargetName[MAX_TARGET_LENGTH];
+	bool tn_is_ml;
+
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+
+	if (targets == COMMAND_TARGET_NONE)
+	{
+		ReplyToTargetError(client, COMMAND_TARGET_NONE);
+		return Plugin_Handled;
+	}
+
+	for (int i = 0; i < targets; i++)
+	{
+		if (TF2_GetPlayerClass(targets_list[i]) != TFClass_Engineer)
+			continue;
+
+		SendPrint(client, "{U}%N{D}'s metal amount is: {U}%i{D}", targets_list[i], TF2_GetMetal(targets_list[i]));
+	}
+	
 	return Plugin_Handled;
 }
 
@@ -1761,6 +2058,11 @@ public Action Command_SetCrits(int client, int args)
 		SendPrint(client, "You must specify a target to set crits on.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -1809,6 +2111,11 @@ public Action Command_RemoveCrits(int client, int args)
 	if (args == 0)
 	{
 		SendPrint(client, "You must specify a target to remove crits from.");
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -2016,6 +2323,11 @@ public Action Command_BleedPlayer(int client, int args)
 		SendPrint(client, "You must specify a target to bleed.");
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(1, sTarget, sizeof(sTarget));
@@ -2084,7 +2396,11 @@ public Action Command_IgnitePlayer(int client, int args)
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_IgnitePlayer(targets_list[i], client);
+		if (game == Engine_TF2)
+			TF2_IgnitePlayer(targets_list[i], client);
+		else
+			IgniteEntity(targets_list[i], 99999.0);
+		
 		SendPrint(targets_list[i], "Your have been ignited by {U}%N {D}.", client);
 	}
 
@@ -2097,7 +2413,7 @@ public Action Command_ReloadMap(int client, int args)
 {
 	char sCurrentMap[MAX_MAP_NAME_LENGTH];
 	GetCurrentMap(sCurrentMap, sizeof(sCurrentMap));
-	ServerCommand("sm_map {U}%s {D}", sCurrentMap);
+	ServerCommand("sm_map %s", sCurrentMap);
 
 	char sMap[MAX_MAP_NAME_LENGTH];
 	GetMapName(sMap, sizeof(sMap));
@@ -2124,7 +2440,7 @@ public Action Command_MapName(int client, int args)
 
 public Action Command_Reload(int client, int args)
 {
-	if (IsClientConsole(client))
+	if (IsClientServer(client))
 	{
 		SendPrint(client, "[SM] %t", "Command is in-game only");
 		return Plugin_Handled;
@@ -2179,6 +2495,11 @@ public Action Command_SpawnSentry(int client, int args)
 		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level> <mini> <disposable>", sCommand);
 		return Plugin_Handled;
 	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 
 	float vecOrigin[3];
 	if (!GetClientCrosshairOrigin(client, vecOrigin))
@@ -2211,6 +2532,11 @@ public Action Command_SpawnDispenser(int client, int args)
 		char sCommand[32];
 		GetCommandName(sCommand, sizeof(sCommand));
 		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level>", sCommand);
+		return Plugin_Handled;
+	}
+	else if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
 
@@ -2298,12 +2624,11 @@ public Action Command_Particle(int client, int args)
 
 public Action Command_ListParticles(int client, int args)
 {
-	int item = GetCmdArgInt(1);
-	ListParticles(client, item);
+	ListParticles(client);
 	return Plugin_Handled;
 }
 
-void ListParticles(int client, int item)
+void ListParticles(int client)
 {
 	int tblidx = FindStringTable("ParticleEffectNames");
 	
@@ -2323,7 +2648,10 @@ void ListParticles(int client, int item)
 		menu.AddItem(sParticle, sParticle);
 	}
 	
-	menu.DisplayAt(client, item, MENU_TIME_FOREVER);
+	if (menu.ItemCount == 0)
+		menu.AddItem("", "[Empty]", ITEMDRAW_DISABLED);
+	
+	menu.Display(client, MENU_TIME_FOREVER);
 }
 
 public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int param2)
@@ -2339,9 +2667,9 @@ public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int p
 			GetClientCrosshairOrigin(param1, vecOrigin);
 			
 			CreateParticle(sParticle, 2.0, vecOrigin);
-			SendPrint(param1, "{U}%s {D} Particle {U}%s {D} has been spawned for 2.0 seconds.", sParticle);
+			SendPrint(param1, "Particle {U}%s {D} has been spawned for 2.0 seconds.", sParticle);
 			
-			ListParticles(param1, param2);
+			ListParticles(param1);
 		}
 		case MenuAction_End:
 			delete menu;
@@ -2445,7 +2773,7 @@ public Action Command_SpewEntities(int client, int args)
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (g_SpewEntities)
-		SendPrintAll("[SpewEntities] -{U}%i {D}: {U}%s {D}", entity, classname);
+		SendPrintAll("[SpewEntities] -{U}%i {D}: {U}%s {D}({U}Created{D})", entity, classname);
 }
 
 public Action Command_GetEntityModel(int client, int args)
@@ -2473,6 +2801,12 @@ public Action Command_GetEntityModel(int client, int args)
 
 public Action Command_SetKillstreak(int client, int args)
 {
+	if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
+	
 	int value = GetCmdArgInt(1);
 	TF2_SetKillstreak(client, value);
 	SendPrint(client, "Killstreak set to: {U}%i {D}", value);
@@ -2863,6 +3197,108 @@ public int MenuHandler_ListOwnedEntities(Menu menu, MenuAction action, int param
 	}
 }
 
+public Action Command_GiveWeapon(int client, int args)
+{
+	int target = client;
+			
+	if (args > 0)
+		target = GetCmdArgTarget(client, 2);
+	
+	if (target == -1)
+	{
+		SendPrint(client, "Invalid target specified: Not Found");
+		return Plugin_Handled;
+	}
+	
+	if (!IsPlayerAlive(target))
+	{
+		SendPrint(client, "Invalid target specified: Not Alive");
+		return Plugin_Handled;
+	}
+	
+	char class[64];
+	switch (game)
+	{
+		case Engine_TF2:
+		{
+			int index = GetCmdArgInt(1);
+			
+			if (index < 0)
+			{
+				SendPrint(client, "Invalid index specified, please specify an index.");
+				return Plugin_Handled;
+			}
+			
+			TF2Econ_GetItemClassName(index, class, sizeof(class));
+			int slot = TF2Econ_GetItemSlot(index, TF2_GetPlayerClass(client));
+			
+			TF2_RemoveWeaponSlot(client, slot);
+			int weapon = TF2_GiveWeapon(target, class, index);
+			
+			if (IsValidEntity(weapon))
+			{
+				EquipWeapon(client, weapon);
+				
+				if (client == target)
+					SendPrint(client, "Weapon with index %i and class %s has been equipped.", index, class);
+				else
+				{
+					SendPrint(client, "Weapon with index %i and class %s has been given to %N.", index, class, target);
+					SendPrint(target, "Weapon with index %i and class %s has been received by %N.", index, class, client);
+				}
+			}
+			else
+				SendPrint(client, "Unknown error while creating weapon with index %i and class %s.", index, class);
+		}
+		default:
+		{
+			GetCmdArg(1, class, sizeof(class));
+			
+			if (args < 1 || strlen(class) == 0)
+			{
+				SendPrint(client, "Invalid Item specified, please input one.");
+				return Plugin_Handled;
+			}
+			
+			if (StrContains(class, "weapon_", false) != 0)
+				Format(class, sizeof(class), "weapon_%s", class);
+			
+			int weapon = GivePlayerItem(target, class);
+			
+			if (IsValidEntity(weapon))
+			{
+				EquipWeapon(client, weapon);
+				
+				if (client == target)
+					SendPrint(client, "Weapon with class %s has been equipped.", class);
+				else
+				{
+					SendPrint(client, "Weapon with class %s has been given to %N.", class, target);
+					SendPrint(target, "Weapon with class %s has been received by %N.", class, client);
+				}
+			}
+			else
+				SendPrint(client, "Unknown error while creating weapon with class %s.", class);
+		}
+	}
+	
+	return Plugin_Handled;
+}
+
+public Action Command_SpawnHealthkit(int client, int args)
+{
+	if (IsClientServer(client))
+		return Plugin_Continue;
+	
+	float vecOrigin[3];
+	GetClientCrosshairOrigin(client, vecOrigin);
+	
+	TF2_SpawnPickup(vecOrigin, PICKUP_TYPE_HEALTHKIT, PICKUP_FULL);
+	SendPrintAll("Health kit has been spawned where you're looking.");
+	
+	return Plugin_Handled;
+}
+
 public Action Command_Lock(int client, int args)
 {
 	ToggleLock(client);
@@ -2888,6 +3324,12 @@ public bool OnClientConnect(int client, char[] rejectmsg, int maxlen)
 
 public Action Command_CreateProp(int client, int args)
 {
+	if (args == 0)
+	{
+		SendPrint(client, "Must specify a model path.");
+		return Plugin_Handled;
+	}
+	
 	float vecOrigin[3];
 	GetClientCrosshairOrigin(client, vecOrigin);
 	
@@ -2898,7 +3340,7 @@ public Action Command_CreateProp(int client, int args)
 		PrecacheModel(sModel);
 	
 	CreateProp(sModel, vecOrigin);
-	SendPrint(client, "Prop '{U}%s {D}' has been spawned.");
+	SendPrint(client, "Prop has been spawned with model '{U}%s {D}'.", sModel);
 	
 	return Plugin_Handled;
 }
@@ -3058,6 +3500,12 @@ public Action Command_ApplyAttribute(int client, int args)
 	if (client == 0)
 		return Plugin_Handled;
 	
+	if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
+	
 	if (!IsPlayerAlive(client))
 	{
 		SendPrint(client, "You must be alive to apply attributes.");
@@ -3110,6 +3558,12 @@ public Action Command_RemoveAttribute(int client, int args)
 {
 	if (client == 0)
 		return Plugin_Handled;
+		
+	if (game != Engine_TF2)
+	{
+		SendPrint(client, "This command is for Team Fortress 2 only.");
+		return Plugin_Handled;
+	}
 	
 	if (!IsPlayerAlive(client))
 	{
@@ -3151,6 +3605,88 @@ public Action Command_RemoveAttribute(int client, int args)
 			SendPrint(client, "Removing attribute '{U}%s {D}' from your weapons.", sArg1);
 		}
 	}
+	
+	return Plugin_Handled;
+}
+
+public Action Command_GetEntProp(int client, int args)
+{
+	int target = client;
+	
+	PropType type = view_as<PropType>(GetCmdArgInt(1));
+	
+	char prop[64];
+	GetCmdArg(2, prop, sizeof(prop));
+	
+	if (!HasEntProp(target, type, prop))
+	{
+		SendPrint(client, "Entity doesn't have netprop: %s", prop);
+		return Plugin_Handled;
+	}
+	
+	SendPrint(client, "SetEntProp Output: %i", GetEntProp(target, type, prop));
+	return Plugin_Handled;
+}
+
+public Action Command_SetEntProp(int client, int args)
+{
+	int target = client;
+	
+	PropType type = view_as<PropType>(GetCmdArgInt(1));
+	
+	char prop[64];
+	GetCmdArg(2, prop, sizeof(prop));
+	
+	if (!HasEntProp(target, type, prop))
+	{
+		SendPrint(client, "Entity doesn't have netprop: %s", prop);
+		return Plugin_Handled;
+	}
+	
+	int value = GetCmdArgInt(3);
+	SetEntProp(target, type, prop, value);
+	SendPrint(client, "SetEntProp on %i: %i", target, value);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_GetEntPropFloat(int client, int args)
+{
+	int target = client;
+	
+	PropType type = view_as<PropType>(GetCmdArgInt(1));
+	
+	char prop[64];
+	GetCmdArg(2, prop, sizeof(prop));
+	
+	if (!HasEntProp(target, type, prop))
+	{
+		SendPrint(client, "Entity doesn't have netprop: %s", prop);
+		return Plugin_Handled;
+	}
+	
+	SendPrint(client, "SetEntPropFloat Output: %.2f", GetEntPropFloat(target, type, prop));
+	return Plugin_Handled;
+}
+
+public Action Command_SetEntPropFloat(int client, int args)
+{
+	int target = client;
+	
+	PropType type = view_as<PropType>(GetCmdArgInt(1));
+	
+	char prop[64];
+	GetCmdArg(2, prop, sizeof(prop));
+	
+	if (!HasEntProp(target, type, prop))
+	{
+		SendPrint(client, "Entity doesn't have netprop: %s", prop);
+		return Plugin_Handled;
+	}
+	
+	float value = GetCmdArgFloat(3);
+	SetEntPropFloat(target, type, prop, value);
+	SendPrint(client, "SetEntPropFloat on %i: %.2f", target, value);
 	
 	return Plugin_Handled;
 }
