@@ -1550,6 +1550,50 @@ stock int GetItemIndex(int item)
 	return GetEntProp(item, Prop_Send, "m_iItemDefinitionIndex");
 }
 
+stock bool HasWeapon(int client, const char[] entity, bool caseSensitive = true)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
+		return false;
+	
+	int weapon; char class[32];
+	for (int i = 0; i < 5; i++)
+	{
+		weapon = GetPlayerWeaponSlot(client, i);
+		
+		if (!IsValidEntity(weapon))
+			continue;
+		
+		GetEntityClassname(weapon, class, sizeof(class));
+		
+		if (StrEqual(class, entity, caseSensitive))
+			return true;
+	}
+	
+	return false;
+}
+
+stock int GetWeapon(int client, const char[] entity, bool caseSensitive = true)
+{
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
+		return -1;
+	
+	int weapon; char class[32];
+	for (int i = 0; i < 5; i++)
+	{
+		weapon = GetPlayerWeaponSlot(client, i);
+		
+		if (!IsValidEntity(weapon))
+			continue;
+		
+		GetEntityClassname(weapon, class, sizeof(class));
+		
+		if (StrEqual(class, entity, caseSensitive))
+			return weapon;
+	}
+	
+	return -1;
+}
+
 stock bool IsValidHex(const char[] strHex)
 {
 	if (strlen(strHex) != 6)
@@ -2203,6 +2247,20 @@ stock void AnglesToVelocity(const float pAngles[3], float pScale, float pResults
 {
 	GetAngleVectors(pAngles, pResults, NULL_VECTOR, NULL_VECTOR);
 	ScaleVector(pResults, pScale);
+}
+
+stock void TeleportTo(int client, int target)
+{
+	float vecOrigin[3];
+	GetClientAbsOrigin(target, vecOrigin);
+	
+	float vecAngles[3];
+	GetClientAbsAngles(target, vecAngles);
+	
+	float vecVelocity[3];
+	GetEntPropVector(target, Prop_Send, "m_vecAbsVelocity", vecVelocity);
+	
+	TeleportEntity(client, vecOrigin, vecAngles, vecVelocity);
 }
 
 stock void strtolower(const char[] input, char[] output, int size)
@@ -9000,6 +9058,82 @@ stock bool CSGO_IsWarmup()
 	return GameRules_GetProp("m_bWarmupPeriod");
 }
 
+stock int CSGO_GetWeaponSlot(const char[] weapon)
+{
+	if (StrContains(weapon, "AK-47", false) != -1 || StrContains(weapon, "ak47", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "AUG", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "AWP", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "CZ75-Auto", false) != -1 || StrContains(weapon, "cz75a", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "Desert Eagle", false) != -1 || StrContains(weapon, "deagle", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "Dual Beretta", false) != -1 || StrContains(weapon, "elite", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "FAMAS", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Five-SeveN", false) != -1 || StrContains(weapon, "fiveseven", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "G3SG1", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Galil AR", false) != -1 || StrContains(weapon, "galilar", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Glock", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "Knife", false) != -1)
+		return 2;
+	else if (StrContains(weapon, "M249", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "M4A1-S", false) != -1 || StrContains(weapon, "m4a1_silencer", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "M4A4", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "MAC-10", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "MAG-7", false) != -1 || StrContains(weapon, "mac10", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "MP5-SD", false) != -1 || StrContains(weapon, "mp5sd", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "MP7", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "MP9", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Negev", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Nova", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "P2000", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "P250", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "P90", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Bizon", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "R8", false) != -1 || StrContains(weapon, "Revolver", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "SCAR-20", false) != -1 || StrContains(weapon, "scar20", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "SG 553", false) != -1 || StrContains(weapon, "SG 556", false) != -1 || StrContains(weapon, "sg556", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "SSG 08", false) != -1 || StrContains(weapon, "ssg08", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Sawed-Off", false) != -1 || StrContains(weapon, "sawedoff", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "Tec-9", false) != -1 || StrContains(weapon, "tec9", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "UMP-45", false) != -1 || StrContains(weapon, "ump45", false) != -1)
+		return 0;
+	else if (StrContains(weapon, "USP-S", false) != -1 || StrContains(weapon, "usp_silencer", false) != -1)
+		return 1;
+	else if (StrContains(weapon, "XM1014", false) != -1)
+		return 0;
+	
+	return -1;
+}
+
 /*--------------------------------------------------------->*/
 //Private stocks for use in my own plugins or to help debug other plugins, you won't find any of these used for malicious purposes. (good luck if you do look around)
 
@@ -9089,7 +9223,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	Menu menu = new Menu(___MenuHandler_SendConfirmation, MenuAction_Select|MenuAction_Cancel|MenuAction_End);
 	menu.SetTitle(strlen(title) > 0 ? title : "Are you sure you want to do this?");
 	
-	menu.AddItem("", "---", ITEMDRAW_DISABLED);
+	//menu.AddItem("", "---", ITEMDRAW_DISABLED);
 	menu.AddItem("yes", "Yes");
 	menu.AddItem("no", "No");
 	

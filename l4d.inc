@@ -131,7 +131,7 @@ stock bool L4D_IsClientIncapacitated(int client)
 
 stock bool L4D_IsClientIncapped(int client)
 {
-	return L4D_IsClientIncapacitated(client);
+	return view_as<bool>(GetEntProp(client, Prop_Send, "m_isIncapacitated"));
 }
 
 /**
@@ -142,14 +142,13 @@ stock bool L4D_IsClientIncapped(int client)
  */
 stock bool L4D_IsPlayerCapped(int client)
 {
-	int survivorProps[4] = { 13284, 16008, 16128, 15976 };
-	
-	for (int i = 0; i < sizeof(survivorProps); i++)
-	{
-		if (IsClientInGame(GetEntDataEnt2(survivor, survivorProps[i])))
-			return true;
-	}
-	
+	if(GetEntPropEnt(client, Prop_Send, "m_pummelAttacker") > 0 || 
+		GetEntPropEnt(client, Prop_Send, "m_carryAttacker") > 0 || 
+		GetEntPropEnt(client, Prop_Send, "m_pounceAttacker") > 0 || 
+		GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker") > 0 || 
+		GetEntPropEnt(client, Prop_Send, "m_pounceAttacker") > 0 ||
+		GetEntPropEnt(client, Prop_Send, "m_tongueOwner") > 0)
+		return true;
 	return false;
 }
 

@@ -175,7 +175,7 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_spewsounds", Command_SpewSounds, ADMFLAG_SLAY, "Logs all sounds played live into chat.");
 	RegAdminCmd2("sm_spewambients", Command_SpewAmbients, ADMFLAG_SLAY, "Logs all ambient sounds played live into chat.");
 	RegAdminCmd2("sm_spewentities", Command_SpewEntities, ADMFLAG_SLAY, "Logs all entities created live into chat.");
-	RegAdminCmd2("sm_getentitymodel", Command_GetEntityModel, ADMFLAG_SLAY, "Gets the model of a certain entity if it has a model.");
+	RegAdminCmd2("sm_getentmodel", Command_GetEntModel, ADMFLAG_SLAY, "Gets the model of a certain entity if it has a model.");
 	RegAdminCmd2("sm_setkillstreak", Command_SetKillstreak, ADMFLAG_SLAY, "Sets your current killstreak.");
 	RegAdminCmd2("sm_giveweapon", Command_GiveWeapon, ADMFLAG_SLAY, "Give yourself a certain weapon based on index.");
 	RegAdminCmd2("sm_spawnkit", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
@@ -196,6 +196,7 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_setentprop", Command_SetEntProp, ADMFLAG_SLAY, "Set an entity int property for entities.");
 	RegAdminCmd2("sm_getentpropfloat", Command_GetEntPropFloat, ADMFLAG_SLAY, "Get an entity float property for entities.");
 	RegAdminCmd2("sm_setentpropfloat", Command_SetEntPropFloat, ADMFLAG_SLAY, "Set an entity float property for entities.");
+	RegAdminCmd2("sm_getentclass", Command_GetEntClass, ADMFLAG_SLAY, "Gets an entities classname based on crosshair and displays it.");
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_SLAY, "Create an entity.");
@@ -2776,7 +2777,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SendPrintAll("[SpewEntities] -{U}%i {D}: {U}%s {D}({U}Created{D})", entity, classname);
 }
 
-public Action Command_GetEntityModel(int client, int args)
+public Action Command_GetEntModel(int client, int args)
 {
 	int target = GetClientAimTarget(client, false);
 	
@@ -3687,6 +3688,23 @@ public Action Command_SetEntPropFloat(int client, int args)
 	float value = GetCmdArgFloat(3);
 	SetEntPropFloat(target, type, prop, value);
 	SendPrint(client, "SetEntPropFloat on %i: %.2f", target, value);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_GetEntClass(int client, int args)
+{
+	int target = GetClientAimTarget(client, false);
+	
+	if (!IsValidEntity(target))
+	{
+		SendPrint(client, "Entity not found, please aim your crosshair at the entity.");
+		return Plugin_Handled;
+	}
+	
+	char sClass[64];
+	GetEntityClassname(target, sClass, sizeof(sClass));
+	SendPrint(client, "Entity {U}%i{D}'s class: {U}%s", target, sClass);
 	
 	return Plugin_Handled;
 }
