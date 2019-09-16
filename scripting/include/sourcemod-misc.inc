@@ -320,7 +320,7 @@ stock bool StopTimer(Handle& timer)
 }
 
 /*
-* Kicks a client based on the specified SteamID if it exists on the server.
+* Kicks a client based on the specified SteamID on the server if they exist.
 *
 * steamid	Steamid to check for based on the authtype.
 * authtype	Authtype to check for.
@@ -351,7 +351,7 @@ stock bool KickClientBySteamID(const char[] steamid, AuthIdType authtype = AuthI
 }
 
 /*
-* Retrieves a client with a specific steamid found if the server if they exist.
+* Retrieves a client with a specific steamid on the server if they exist.
 *
 * steamid	Steamid to check for based on the authtype.
 * authtype	Authtype to check for.
@@ -376,7 +376,7 @@ stock int GetClientBySteamID(const char[] steamid, AuthIdType authtype = AuthId_
 }
 
 /*
-* Retrieves a client with a specific accountid found if the server if they exist.
+* Retrieves a client with a specific accountid on the server if they exist.
 * AccountIDs are one of the most consistent ways of tracking specific player accounts.
 *
 * accountid	AccountID to search for.
@@ -391,6 +391,30 @@ stock int GetClientByAccountID(int accountid)
 			continue;
 
 		return i;
+	}
+
+	return -1;
+}
+
+/*
+* Retrieves a client with a specific ip address on the server if they exist.
+*
+* ip		IP address to search for.
+*
+* return	Client index if found, -1 if not found.
+*/
+stock int GetClientByIP(const char[] ip)
+{
+	char sBuffer[16];
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+		
+		GetClientIP(i, sBuffer, sizeof(sBuffer));
+		
+		if (StrEqual(ip, sBuffer))
+			return i;
 	}
 
 	return -1;
@@ -1811,6 +1835,21 @@ stock int GetTeamDeadCount(int team)
 	return count;
 }
 
+stock int GetBothTeamCount()
+{
+	int count;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsClientSourceTV(i) || GetClientTeam(i) != 2 || GetClientTeam(i) != 3)
+			continue;
+
+		count++;
+	}
+
+	return count;
+}
+
 stock int GetClientsNearEntity(int entity, float distance = 1000.0, int team = 0, bool fake = true)
 {
 	int count;
@@ -1865,9 +1904,9 @@ stock float FloatMultiplier(float value, float multiplier)
 	return value *= 1.0 + multiplier;
 }
 
-stock float FloatDivider(float value, float multiplier)
+stock float FloatDivider(float value, float divider)
 {
-	return value *= 1.0 - multiplier;
+	return value *= 1.0 - divider;
 }
 
 stock bool CalculateTime(int value, int timer)
@@ -7560,7 +7599,8 @@ stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality qua
 	int weapon = TF2Items_GiveNamedItem(client, item);
 	delete item;
 	
-	EquipPlayerWeapon(client, weapon);
+	if (StrContains(classname, "tf_weapon_", false) == 0)
+		EquipPlayerWeapon(client, weapon);
 	
 	return weapon;
 }

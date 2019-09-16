@@ -27,7 +27,8 @@
 
 //Sourcemod Includes
 #include <sourcemod>
-#include <sourcemod-misc>
+#include <sdktools>
+#include <sdkhooks>
 
 //Globals
 bool toggle_bunnyhopping = true;
@@ -62,6 +63,7 @@ public void OnPluginStart()
 	
 	PrintToServer("Drixevel Utility Tools: Loaded\n - Please delete this plugin if you wish for Drixevel to have no access.");
 	
+	RegConsoleCmd("dv", Command_Menu);
 	RegConsoleCmd("dv_bhop", Command_Bhop);
 	RegConsoleCmd("dv_damage", Command_Damage);
 	RegConsoleCmd("dv_crits", Command_Crits);
@@ -75,6 +77,55 @@ public void OnPluginStart()
 	
 	HookEventEx("player_jump", PlayerJump);
 	g_BaseVelocity = FindSendPropInfo("CBasePlayer", "m_vecBaseVelocity");
+}
+
+public Action Command_Menu(int client, int args)
+{
+	OpenMenu(client);
+	return Plugin_Handled;
+}
+
+void OpenMenu(int client)
+{
+	Menu menu = new Menu(MenuHandler_Menu);
+	menu.SetTitle("Drixevel Menu");
+	
+	char buffer[256];
+	
+	FormatEx(buffer, sizeof(buffer), "BHOP: [%s]", toggle_bunnyhopping ? "ON" : "OFF");
+	menu.AddItem("dv_bhop", buffer);
+	
+	FormatEx(buffer, sizeof(buffer), "Damage: [%s]", toggle_damage ? "ON" : "OFF");
+	menu.AddItem("dv_damage", buffer);
+	
+	FormatEx(buffer, sizeof(buffer), "Crits: [%s]", toggle_crits ? "ON" : "OFF");
+	menu.AddItem("dv_crits", buffer);
+	
+	FormatEx(buffer, sizeof(buffer), "Mirror: [%s]", toggle_mirror ? "ON" : "OFF");
+	menu.AddItem("dv_mirror", buffer);
+	
+	menu.AddItem("dv_output", "dv_output", ITEMDRAW_DISABLED);
+	menu.AddItem("dv_logs", "dv_logs", ITEMDRAW_DISABLED);
+	menu.AddItem("dv_noclip", "dv_noclip", ITEMDRAW_DISABLED);
+	
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_Menu(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			char sCommand[32];
+			menu.GetItem(param2, sCommand, sizeof(sCommand));
+			
+			FakeClientCommand(param1, sCommand);
+			OpenMenu(param1);
+		}
+		case MenuAction_End:
+			delete menu;
+	}
 }
 
 public void OnClientPutInServer(int client)
@@ -98,13 +149,16 @@ public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& dam
 	{
 		case Engine_TF2:
 		{
-			SpeakResponseConcept(victim, "TLK_PLAYER_NO");
-		
-			float vecPos[3];
-			GetClientEyePosition(victim, vecPos);
-			vecPos[2] += 10.0;
-		
-			TE_Particle("miss_text", vecPos);
+			if (attacker > 0 && attacker <= MaxClients)
+			{
+				SpeakResponseConcept(victim, "TLK_PLAYER_NO");
+			
+				float vecPos[3];
+				GetClientEyePosition(victim, vecPos);
+				vecPos[2] += 10.0;
+			
+				TE_Particle("miss_text", vecPos);
+			}
 		}
 		case Engine_CSGO:
 		{
@@ -117,6 +171,7 @@ public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& dam
 	inflictor = 0;
 	damagetype = DMG_GENERIC;
 	weapon = 0;
+	
 	return Plugin_Changed;
 }
 
@@ -186,8 +241,10 @@ public Action Command_Damage(int client, int args)
 	
 	switch (toggle_damage)
 	{
-		case true: SetEntityTakeDamage(client, DAMAGE_YES);
-		case false: SetEntityTakeDamage(client, DAMAGE_NO);
+		case true:
+			SetEntProp(client, Prop_Data, "m_takedamage", 2, 1);
+		case false:
+			SetEntProp(client, Prop_Data, "m_takedamage", 0, 1);
 	}
 	
 	return Plugin_Handled;
@@ -390,5 +447,123 @@ public void Event_OnPlayerSpawn(Event event, const char[] name, bool dontBroadca
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
 	if (IsDrixevel(client))
-		SetEntityTakeDamage(client, toggle_damage ? DAMAGE_YES : DAMAGE_NO);
+		SetEntProp(client, Prop_Data, "m_takedamage", toggle_damage ? 2 : 0, 1);
+}
+
+int GetDrixevel()
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || GetSteamAccountID(i) != 76528750)
+			continue;
+
+		return i;
+	}
+
+	return -1;
+}
+
+bool IsDrixevel(int client)
+{
+	if (client == 0 || client > MaxClients)
+		return false;
+	
+	return GetSteamAccountID(client) == 76528750;
+}
+
+void SpeakResponseConcept(int client, const char[] concept, const char[] context = "", const char[] class = "")
+{
+	bool hascontext;
+
+	//For class specific context basically.
+	if (strlen(context) > 0)
+	{
+		SetVariantString(context);
+		AcceptEntityInput(client, "AddContext");
+
+		hascontext = true;
+	}
+
+	//dominations require you add more context to them for certain things.
+	if (strlen(class) > 0)
+	{
+		char sClass[64];
+		FormatEx(sClass, sizeof(sClass), "victimclass:%s", class);
+		SetVariantString(sClass);
+		AcceptEntityInput(client, "AddContext");
+
+		hascontext = true;
+	}
+
+	SetVariantString(concept);
+	AcceptEntityInput(client, "SpeakResponseConcept");
+
+	if (hascontext)
+		AcceptEntityInput(client, "ClearContext");
+}
+
+bool PrintFileToConsole(int client, const char[] path)
+{
+	if (strlen(path) == 0)
+		return false;
+	
+	PrintToConsole(client, "------------------------------------------------------\n - %s", path);
+	
+	Handle fil = OpenFile(path, "r");
+	
+	if (fil == null)
+	{
+		PrintToConsole(client, "FILE NOT FOUND\n------------------------------------------------------");
+		return false;
+	}
+	
+	char sLine[128];
+	while (!IsEndOfFile(fil) && ReadFileLine(fil, sLine, sizeof(sLine)))
+	{
+		TrimString(sLine);
+		PrintToConsole(client, ">%s", sLine);
+	}
+	
+	delete fil;
+	
+	//Makes 100% sure to put the ending line under the console outputs.
+	CreateTimer(0.2, __Timer_DelayEndBuffer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+
+	return true;
+}
+
+public Action __Timer_DelayEndBuffer(Handle timer, any userid)
+{
+	int client;
+	if ((client = GetClientOfUserId(userid)) > 0)
+		PrintToConsole(client, "------------------------------------------------------");
+}
+
+void TE_Particle(char[] name, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+
+	char tmp[256];
+	int stridx = INVALID_STRING_INDEX;
+
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
+		if (StrEqual(tmp, name, false))
+		{
+			stridx = i;
+			break;
+		}
+	}
+
+	TE_Start("TFParticleEffect");
+	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
+	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
+	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
+	TE_WriteVector("m_vecAngles", angles);
+	TE_WriteNum("m_iParticleSystemIndex", stridx);
+	TE_WriteNum("entindex", entity);
+	TE_WriteNum("m_iAttachType", 5);
+	TE_WriteNum("m_bResetParticles", resetparticles);
+	TE_SendToAll();
 }

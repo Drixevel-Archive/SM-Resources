@@ -304,6 +304,7 @@ public void OnAllPluginsLoaded()
 			ReplaceString(sReload, sizeof(sReload), sPath, "", true);
 			ReplaceString(sReload, sizeof(sReload), ".smx", "", true);
 			
+			EmitSoundToAll("ui/cyoa_map_open.wav");
 			ServerCommand("sm plugins reload %s", sReload);
 			ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
 			
@@ -321,6 +322,8 @@ public void OnAllPluginsLoaded()
 
 public void OnMapStart()
 {
+	PrecacheSound("ui/cyoa_map_open.wav");
+	
 	delete g_OwnedEntities[0];
 	g_OwnedEntities[0] = new ArrayList();
 	g_iTarget[0] = INVALID_ENT_REFERENCE;
@@ -539,7 +542,7 @@ public Action Command_Bring(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -591,7 +594,7 @@ public Action Command_Port(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -628,7 +631,7 @@ public Action Command_SetHealth(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -666,7 +669,7 @@ public Action Command_AddHealth(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -704,7 +707,7 @@ public Action Command_RemoveHealth(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -752,7 +755,7 @@ public Action Command_SetClass(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -803,9 +806,9 @@ public Action Command_SetTeam(int client, int args)
 	char sTargetName[MAX_TARGET_LENGTH];
 	bool tn_is_ml;
 
-	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_CONNECTED, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -842,10 +845,10 @@ public Action Command_SetTeam(int client, int args)
 			default: ChangeClientTeam(targets_list[i], team);
 		}
 		
-		SendPrint(targets_list[i], "Your team has been set to {U}%s {D} by {U}%N {D}.", sTeamName, client);
+		SendPrint(targets_list[i], "Your team has been set to {U}%s {D}by {U}%N {D}.", sTeamName, client);
 	}
 
-	SendPrint(client, "You have set the team of {U}%s {D} to {U}%s {D}.", sTargetName, sTeamName);
+	SendPrint(client, "You have set the team of {U}%s {D}to {U}%s {D}.", sTargetName, sTeamName);
 
 	return Plugin_Handled;
 }
@@ -867,7 +870,7 @@ public Action Command_Respawn(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_CONNECTED, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -931,7 +934,7 @@ public Action Command_Regenerate(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -965,7 +968,7 @@ public Action Command_RefillWeapon(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1011,7 +1014,7 @@ public Action Command_RefillAmunition(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1051,7 +1054,7 @@ public Action Command_RefillClip(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1483,7 +1486,7 @@ public Action Command_SetCondition(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1553,7 +1556,7 @@ public Action Command_RemoveCondition(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1638,7 +1641,7 @@ public Action Command_SetUbercharge(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1684,7 +1687,7 @@ public Action Command_AddUbercharge(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1730,7 +1733,7 @@ public Action Command_RemoveUbercharge(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1776,7 +1779,7 @@ public Action Command_SetMetal(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1822,7 +1825,7 @@ public Action Command_AddMetal(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1868,7 +1871,7 @@ public Action Command_RemoveMetal(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -1914,7 +1917,7 @@ public Action Command_GetMetal(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2074,7 +2077,7 @@ public Action Command_SetCrits(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2129,7 +2132,7 @@ public Action Command_RemoveCrits(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2166,7 +2169,7 @@ public Action Command_SetGod(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2200,7 +2203,7 @@ public Action Command_SetBuddha(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2234,7 +2237,7 @@ public Action Command_SetMortal(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2268,7 +2271,7 @@ public Action Command_StunPlayer(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2339,7 +2342,7 @@ public Action Command_BleedPlayer(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
@@ -2389,7 +2392,7 @@ public Action Command_IgnitePlayer(int client, int args)
 
 	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
 
-	if (targets == COMMAND_TARGET_NONE)
+	if (targets <= 0)
 	{
 		ReplyToTargetError(client, COMMAND_TARGET_NONE);
 		return Plugin_Handled;
