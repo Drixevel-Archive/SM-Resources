@@ -9263,7 +9263,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	Menu menu = new Menu(___MenuHandler_SendConfirmation, MenuAction_Select|MenuAction_Cancel|MenuAction_End);
 	menu.SetTitle(strlen(title) > 0 ? title : "Are you sure you want to do this?");
 	
-	//menu.AddItem("", "---", ITEMDRAW_DISABLED);
+	menu.AddItem("", "---", ITEMDRAW_DISABLED);
 	menu.AddItem("yes", "Yes");
 	menu.AddItem("no", "No");
 	
