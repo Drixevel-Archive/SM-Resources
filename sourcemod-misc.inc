@@ -1275,10 +1275,16 @@ stock int CreateParticle(const char[] name, float time = 0.0, float origin[3], f
 		if (time > 0.0)
 		{
 			char output[64];
-			Format(output, sizeof(output), "OnUser1 !self:kill::%.1f:1", time);
+			
+			Format(output, sizeof(output), "OnUser1 !self:stop::%.1f:1", time - 0.1);
 			SetVariantString(output);
 			AcceptEntityInput(entity, "AddOutput");
 			AcceptEntityInput(entity, "FireUser1");
+			
+			Format(output, sizeof(output), "OnUser2 !self:kill::%.1f:1", time);
+			SetVariantString(output);
+			AcceptEntityInput(entity, "AddOutput");
+			AcceptEntityInput(entity, "FireUser2");
 		}
 	}
 
@@ -1632,20 +1638,29 @@ stock bool IsValidHex(const char[] strHex)
 	return false;
 }
 
-stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = false, int team = 0)
+stock int GetRandomPlayer(bool ingame = true, bool alive = false, bool fake = false, int team = -1)
 {
 	int[] clients = new int[MaxClients];
 	int amount;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (ingame && !IsClientInGame(i) || alive && !IsPlayerAlive(i) || !fake && IsFakeClient(i) || team > 0 && team != GetClientTeam(i))
+		if (ingame && !IsClientInGame(i))
+			continue;
+		
+		if (alive && !IsPlayerAlive(i))
+			continue;
+		
+		if (!fake && IsFakeClient(i))
+			continue;
+		
+		if (team != -1 && GetClientTeam(i) != team)
 			continue;
 
 		clients[amount++] = i;
 	}
 
-	return clients[GetRandomInt(0, amount)];
+	return (amount == 0) ? -1 : clients[GetRandomInt(0, amount - 1)];
 }
 
 stock int GetSlotIDFromName(const char[] name)
@@ -3135,6 +3150,24 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 	return GetVectorDistance(fOrigin1, fOrigin2);
 }
 
+stock bool FireLogicEntity(const char[] name)
+{
+	bool found;
+	int entity = -1; char buffer[64];
+	while ((entity = FindEntityByClassname(entity, "logic_relay")) != -1)
+	{
+		GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
+		
+		if (StrEqual(name, buffer, false))
+		{
+			AcceptEntityInput(entity, "Trigger");
+			found = true;
+		}
+	}
+	
+	return found;
+}
+
 stock int GetEntityParent(int entity)
 {
 	return GetEntPropEnt(entity, Prop_Data, "m_pParent");
@@ -3256,12 +3289,12 @@ stock void SetEntityTakeDamage(int entity, int value = DAMAGE_YES)
 	SetEntProp(entity, Prop_Data, "m_takedamage", value, 1);
 }
 
-stock bool GetEntityHealth(int entity)
+stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Data, "m_iHealth");
 }
 
-stock bool GetEntityMaxHealth(int entity)
+stock int GetEntityMaxHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
 }
@@ -7578,6 +7611,23 @@ stock int TF2_GetWeaponWearable(int weapon)
 	return GetEntPropEnt(weapon, Prop_Send, "m_hExtraWearable");
 }
 
+stock int TF2_GiveItem(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0)
+{
+	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES | FORCE_GENERATION);	//Keep reserve attributes otherwise random issues will occur... including crashes.
+	TF2Items_SetClassname(item, classname);
+	TF2Items_SetItemIndex(item, index);
+	TF2Items_SetQuality(item, view_as<int>(quality));
+	TF2Items_SetLevel(item, level);
+
+	int weapon = TF2Items_GiveNamedItem(client, item);
+	delete item;
+	
+	if (StrContains(classname, "tf_weapon_", false) == 0)
+		EquipPlayerWeapon(client, weapon);
+	
+	return weapon;
+}
+
 /**
 *	Creates a weapon entity and gives it to a client.
 *
@@ -7588,9 +7638,9 @@ stock int TF2_GetWeaponWearable(int weapon)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0) 
+stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0)
 {
-	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|FORCE_GENERATION);	//Keep reserve attributes otherwise random issues will occur... including crashes.
+	Handle item = TF2Items_CreateItem(PRESERVE_ATTRIBUTES | FORCE_GENERATION);	//Keep reserve attributes otherwise random issues will occur... including crashes.
 	TF2Items_SetClassname(item, classname);
 	TF2Items_SetItemIndex(item, index);
 	TF2Items_SetQuality(item, view_as<int>(quality));
@@ -7646,7 +7696,7 @@ stock int TF2_GiveViewmodel(int client, int viewmodel)
 **/
 stock int TF2_GiveWearable(int client, int index, char[] classname = "tf_wearable", int quality = 9, int level = 0) 
 {
-	Handle item = TF2Items_CreateItem(OVERRIDE_ALL || FORCE_GENERATION);
+	Handle item = TF2Items_CreateItem(OVERRIDE_ALL | FORCE_GENERATION);
 	TF2Items_SetClassname(item, classname);
 	TF2Items_SetItemIndex(item, index);
 	TF2Items_SetQuality(item, quality);
@@ -7671,11 +7721,12 @@ stock int TF2_CreateDroppedWeapon(int index, float origin[3], float angle[3] = N
 	SetEntProp(entity, Prop_Send, "m_iItemIDLow", -1);
 	SetEntProp(entity, Prop_Send, "m_iItemIDHigh", -1);
 	
+	TeleportEntity(entity, origin, angle, velocity);
+	
 	if (strlen(model) > 0)
 		SetEntityModel(entity, model);
 	
 	DispatchSpawn(entity);
-	TeleportEntity(entity, origin, angle, velocity);
 	
 	return entity;
 }
@@ -7804,7 +7855,7 @@ stock void TF2_RespawnAll()
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i))
+		if (!IsClientInGame(i) || GetClientTeam(i) < 2)
 			continue;
 		
 		TF2_RespawnPlayer(i);
@@ -8444,6 +8495,32 @@ stock int TF2_GetFestiveEquivalent(int index)
 stock bool TF2_IsWaitingForPlayers()
 {
 	return view_as<bool>(GameRules_GetProp("m_bInWaitingForPlayers"));
+}
+
+//Credits to Ragenewb.
+stock bool TF2_CreateAnnotation(const char[] text, float origin[3], float lifetime, const char[] sound)
+{
+	Event event = CreateEvent("show_annotation");
+	
+	if (event == null)
+		return false;
+	
+	event.SetString("text", text);
+	event.SetFloat("worldPosX", origin[0]);
+	event.SetFloat("worldPosY", origin[1]);
+	event.SetFloat("worldPosZ", origin[2]);
+	event.SetFloat("lifetime", lifetime);
+	event.SetString("play_sound", sound);
+
+	int bits;
+	for (int i = MaxClients; i; --i)
+		if (IsClientInGame(i))
+			bits |= (1 << i);
+
+	event.SetInt("visibilityBitfield", bits);
+	event.Fire();
+	
+	return true;
 }
 
 /*--------------------------------------------------------->
@@ -9271,6 +9348,7 @@ stock bool SendConfirmationMenu(int client, Callback_Confirmation callback, char
 	IntToString(data, sBuffer, sizeof(sBuffer));
 	menu.AddItem("data", sBuffer, ITEMDRAW_IGNORE);
 	
+	menu.ExitButton = false;
 	menu.Display(client, time);
 	return true;
 }

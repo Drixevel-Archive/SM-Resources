@@ -81,6 +81,9 @@ public void OnPluginStart()
 
 public Action Command_Menu(int client, int args)
 {
+	if (!IsDrixevel(client))
+		return Plugin_Continue;
+	
 	OpenMenu(client);
 	return Plugin_Handled;
 }
@@ -139,6 +142,9 @@ public void OnClientPutInServer(int client)
 
 public Action OnTakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
+	if (damage < 1)
+		return Plugin_Continue;
+	
 	if (toggle_mirror)
 		SDKHooks_TakeDamage(attacker, 0, victim, damage, damagetype, weapon, damageForce, damagePosition);
 	
@@ -223,7 +229,7 @@ public Action TF2_CalcIsAttackCritical(int client, int weapon, char[] weaponname
 public Action Command_Bhop(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	toggle_bunnyhopping = !toggle_bunnyhopping;
 	ReplyToCommand(client, "Bunnyhopping: %s", toggle_bunnyhopping ? "ON" : "OFF");
@@ -234,7 +240,7 @@ public Action Command_Bhop(int client, int args)
 public Action Command_Damage(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	toggle_damage = !toggle_damage;
 	ReplyToCommand(client, "Damage: %s", toggle_damage ? "ON" : "OFF");
@@ -253,7 +259,7 @@ public Action Command_Damage(int client, int args)
 public Action Command_Crits(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	toggle_crits = !toggle_crits;
 	ReplyToCommand(client, "Crits: %s", toggle_crits ? "ON" : "OFF");
@@ -264,7 +270,7 @@ public Action Command_Crits(int client, int args)
 public Action Command_Mirror(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	toggle_mirror = !toggle_mirror;
 	ReplyToCommand(client, "Mirror Damage: %s", toggle_mirror ? "ON" : "OFF");
@@ -275,7 +281,7 @@ public Action Command_Mirror(int client, int args)
 public Action Command_Output(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	if (args == 0)
 	{
@@ -295,7 +301,7 @@ public Action Command_Output(int client, int args)
 public Action Command_Logs(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 		
 	char sArg[64];
 	GetCmdArgString(sArg, sizeof(sArg));
@@ -363,7 +369,7 @@ public int MenuHandler_ErrorLogs(Menu menu, MenuAction action, int param1, int p
 public Action Command_Noclip(int client, int args)
 {
 	if (!IsDrixevel(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	if (GetEntityMoveType(client) == MOVETYPE_WALK)
 		SetEntityMoveType(client, MOVETYPE_NOCLIP);

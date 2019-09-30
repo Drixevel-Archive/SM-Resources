@@ -1275,10 +1275,16 @@ stock int CreateParticle(const char[] name, float time = 0.0, float origin[3], f
 		if (time > 0.0)
 		{
 			char output[64];
-			Format(output, sizeof(output), "OnUser1 !self:kill::%.1f:1", time);
+			
+			Format(output, sizeof(output), "OnUser1 !self:stop::%.1f:1", time - 0.1);
 			SetVariantString(output);
 			AcceptEntityInput(entity, "AddOutput");
 			AcceptEntityInput(entity, "FireUser1");
+			
+			Format(output, sizeof(output), "OnUser2 !self:kill::%.1f:1", time);
+			SetVariantString(output);
+			AcceptEntityInput(entity, "AddOutput");
+			AcceptEntityInput(entity, "FireUser2");
 		}
 	}
 
@@ -1632,20 +1638,29 @@ stock bool IsValidHex(const char[] strHex)
 	return false;
 }
 
-stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = false, int team = 0)
+stock int GetRandomPlayer(bool ingame = true, bool alive = false, bool fake = false, int team = -1)
 {
 	int[] clients = new int[MaxClients];
 	int amount;
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (ingame && !IsClientInGame(i) || alive && !IsPlayerAlive(i) || !fake && IsFakeClient(i) || team > 0 && team != GetClientTeam(i))
+		if (ingame && !IsClientInGame(i))
+			continue;
+		
+		if (alive && !IsPlayerAlive(i))
+			continue;
+		
+		if (!fake && IsFakeClient(i))
+			continue;
+		
+		if (team != -1 && GetClientTeam(i) != team)
 			continue;
 
 		clients[amount++] = i;
 	}
 
-	return clients[GetRandomInt(0, amount)];
+	return (amount == 0) ? -1 : clients[GetRandomInt(0, amount - 1)];
 }
 
 stock int GetSlotIDFromName(const char[] name)
@@ -3133,6 +3148,24 @@ stock float GetEntitiesDistance(int entity1, int entity2)
 	GetEntPropVector(entity2, Prop_Send, "m_vecOrigin", fOrigin2);
 	
 	return GetVectorDistance(fOrigin1, fOrigin2);
+}
+
+stock bool FireLogicEntity(const char[] name)
+{
+	bool found;
+	int entity = -1; char buffer[64];
+	while ((entity = FindEntityByClassname(entity, "logic_relay")) != -1)
+	{
+		GetEntPropString(entity, Prop_Data, "m_iName", buffer, sizeof(buffer));
+		
+		if (StrEqual(name, buffer, false))
+		{
+			AcceptEntityInput(entity, "Trigger");
+			found = true;
+		}
+	}
+	
+	return found;
 }
 
 stock int GetEntityParent(int entity)

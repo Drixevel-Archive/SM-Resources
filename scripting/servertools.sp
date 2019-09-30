@@ -49,12 +49,16 @@ Handle hRoundRespawn;
 Handle hBecomeGhost;
 Handle hState_Transition;
 
+//Timers
+Handle g_Timer[MAXPLAYERS + 1];
+float g_TimerVal[MAXPLAYERS + 1];
+
 public Plugin myinfo =
 {
 	name = "Server Tools",
 	author = "Drixevel",
 	description = "A simple set of admin tools that help with development or server moderation.",
-	version = "1.0.0",
+	version = "1.0.1",
 	url = "https://drixevel.dev/"
 };
 
@@ -92,38 +96,39 @@ public void OnPluginStart()
 	g_Commands = new ArrayList(ByteCountToCells(128));
 	g_CachedTimes = new StringMap();
 
-	RegAdminCmd("sm_admintools", Command_ServerTools, ADMFLAG_ROOT, "List available commands under server tools.");
-	RegAdminCmd("sm_servertools", Command_ServerTools, ADMFLAG_ROOT, "List available commands under server tools.");
+	RegAdminCmd("sm_admintools", Command_ServerTools, ADMFLAG_SLAY, "List available commands under server tools.");
+	RegAdminCmd("sm_servertools", Command_ServerTools, ADMFLAG_SLAY, "List available commands under server tools.");
 	RegAdminCmd2("sm_restart", Command_Restart, ADMFLAG_ROOT, "Restart the server.");
 	RegAdminCmd2("sm_quit", Command_Quit, ADMFLAG_ROOT, "Quit the server.");
-	RegAdminCmd2("sm_goto", Command_Teleport, ADMFLAG_ROOT, "Teleports yourself to other clients.");
-	RegAdminCmd("sm_tele", Command_Teleport, ADMFLAG_ROOT, "Teleports yourself to other clients.");
-	RegAdminCmd("sm_teleport", Command_Teleport, ADMFLAG_ROOT, "Teleports yourself to other clients.");
-	RegAdminCmd2("sm_bring", Command_Bring, ADMFLAG_ROOT, "Teleports clients to yourself.");
-	RegAdminCmd("sm_bringhere", Command_Bring, ADMFLAG_ROOT, "Teleports clients to yourself.");
-	RegAdminCmd2("sm_move", Command_Port, ADMFLAG_ROOT, "Teleports clients to your crosshair.");
-	RegAdminCmd("sm_port", Command_Port, ADMFLAG_ROOT, "Teleports clients to your crosshair.");
-	RegAdminCmd2("sm_health", Command_SetHealth, ADMFLAG_ROOT, "Sets health on yourself or other clients.");
-	RegAdminCmd("sm_sethealth", Command_SetHealth, ADMFLAG_ROOT, "Sets health on yourself or other clients.");
-	RegAdminCmd2("sm_addhealth", Command_AddHealth, ADMFLAG_ROOT, "Add health on yourself or other clients.");
-	RegAdminCmd2("sm_removehealth", Command_RemoveHealth, ADMFLAG_ROOT, "Remove health from yourself or other clients.");
-	RegAdminCmd2("sm_class", Command_SetClass, ADMFLAG_ROOT, "Sets the class of yourself or other clients.");
-	RegAdminCmd("sm_setclass", Command_SetClass, ADMFLAG_ROOT, "Sets the class of yourself or other clients.");
-	RegAdminCmd2("sm_team", Command_SetTeam, ADMFLAG_ROOT, "Sets the team of yourself or other clients.");
-	RegAdminCmd("sm_setteam", Command_SetTeam, ADMFLAG_ROOT, "Sets the team of yourself or other clients.");
-	RegAdminCmd2("sm_respawn", Command_Respawn, ADMFLAG_ROOT, "Respawn yourself or clients.");
-	RegAdminCmd2("sm_regen", Command_Regenerate, ADMFLAG_ROOT, "Regenerate yourself or clients.");
-	RegAdminCmd("sm_regenerate", Command_Regenerate, ADMFLAG_ROOT, "Regenerate yourself or clients.");
-	RegAdminCmd2("sm_refill", Command_RefillWeapon, ADMFLAG_ROOT, "Refill magazine/clip and ammunition for all of the clients weapons.");
-	RegAdminCmd("sm_refillweapons", Command_RefillWeapon, ADMFLAG_ROOT, "Refill magazine/clip and ammunition for all of the clients weapons.");
-	RegAdminCmd2("sm_ammo", Command_RefillAmunition, ADMFLAG_ROOT, "Refill your ammunition.");
-	RegAdminCmd("sm_ammunition", Command_RefillAmunition, ADMFLAG_ROOT, "Refill your ammunition.");
-	RegAdminCmd("sm_refillammunition", Command_RefillAmunition, ADMFLAG_ROOT, "Refill your ammunition.");
-	RegAdminCmd2("sm_clip", Command_RefillClip, ADMFLAG_ROOT, "Refill your clip.");
-	RegAdminCmd("sm_refillclip", Command_RefillClip, ADMFLAG_ROOT, "Refill your clip.");
-	RegAdminCmd("sm_mag", Command_RefillClip, ADMFLAG_ROOT, "Refill your clip.");
-	RegAdminCmd("sm_refillmag", Command_RefillClip, ADMFLAG_ROOT, "Refill your clip.");
-	RegAdminCmd("sm_refillmagazine", Command_RefillClip, ADMFLAG_ROOT, "Refill your clip.");
+	RegAdminCmd2("sm_goto", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd("sm_tele", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd("sm_teleport", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd2("sm_bring", Command_Bring, ADMFLAG_SLAY, "Teleports clients to yourself.");
+	RegAdminCmd("sm_bringhere", Command_Bring, ADMFLAG_SLAY, "Teleports clients to yourself.");
+	RegAdminCmd2("sm_move", Command_Port, ADMFLAG_SLAY, "Teleports clients to your crosshair.");
+	RegAdminCmd("sm_port", Command_Port, ADMFLAG_SLAY, "Teleports clients to your crosshair.");
+	RegAdminCmd2("sm_health", Command_SetHealth, ADMFLAG_SLAY, "Sets health on yourself or other clients.");
+	RegAdminCmd("sm_sethealth", Command_SetHealth, ADMFLAG_SLAY, "Sets health on yourself or other clients.");
+	RegAdminCmd2("sm_addhealth", Command_AddHealth, ADMFLAG_SLAY, "Add health on yourself or other clients.");
+	RegAdminCmd2("sm_removehealth", Command_RemoveHealth, ADMFLAG_SLAY, "Remove health from yourself or other clients.");
+	RegAdminCmd2("sm_class", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
+	RegAdminCmd("sm_setclass", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
+	RegAdminCmd2("sm_team", Command_SetTeam, ADMFLAG_SLAY, "Sets the team of yourself or other clients.");
+	RegAdminCmd("sm_setteam", Command_SetTeam, ADMFLAG_SLAY, "Sets the team of yourself or other clients.");
+	RegAdminCmd("sm_switchteams", Command_SwitchTeams, ADMFLAG_SLAY, "Switches all players on both teams in the same round.");
+	RegAdminCmd2("sm_respawn", Command_Respawn, ADMFLAG_SLAY, "Respawn yourself or clients.");
+	RegAdminCmd2("sm_regen", Command_Regenerate, ADMFLAG_SLAY, "Regenerate yourself or clients.");
+	RegAdminCmd("sm_regenerate", Command_Regenerate, ADMFLAG_SLAY, "Regenerate yourself or clients.");
+	RegAdminCmd2("sm_refill", Command_RefillWeapon, ADMFLAG_SLAY, "Refill magazine/clip and ammunition for all of the clients weapons.");
+	RegAdminCmd("sm_refillweapons", Command_RefillWeapon, ADMFLAG_SLAY, "Refill magazine/clip and ammunition for all of the clients weapons.");
+	RegAdminCmd2("sm_ammo", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
+	RegAdminCmd("sm_ammunition", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
+	RegAdminCmd("sm_refillammunition", Command_RefillAmunition, ADMFLAG_SLAY, "Refill your ammunition.");
+	RegAdminCmd2("sm_clip", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_refillclip", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_mag", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_refillmag", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
+	RegAdminCmd("sm_refillmagazine", Command_RefillClip, ADMFLAG_SLAY, "Refill your clip.");
 	RegAdminCmd2("sm_bots", Command_ManageBots, ADMFLAG_ROOT, "Manage bots on the server.");
 	RegAdminCmd("sm_managebots", Command_ManageBots, ADMFLAG_ROOT, "Manage bots on the server.");
 	RegAdminCmd2("sm_password", Command_Password, ADMFLAG_ROOT, "Set a password on the server or remove it.");
@@ -134,39 +139,39 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_removecondition", Command_RemoveCondition, ADMFLAG_ROOT, "Removes a condition from yourself or other clients.");
 	RegAdminCmd("sm_stripcondition", Command_RemoveCondition, ADMFLAG_ROOT, "Removes a condition from yourself or other clients.");
 	RegAdminCmd2("sm_spewconditions", Command_SpewConditions, ADMFLAG_ROOT, "Logs all conditions applied into chat.");
-	RegAdminCmd2("sm_uber", Command_SetUbercharge, ADMFLAG_ROOT, "Sets ubercharge on yourself or other clients.");
-	RegAdminCmd("sm_ubercharge", Command_SetUbercharge, ADMFLAG_ROOT, "Sets ubercharge on yourself or other clients.");
-	RegAdminCmd("sm_setubercharge", Command_SetUbercharge, ADMFLAG_ROOT, "Sets ubercharge on yourself or other clients.");
-	RegAdminCmd2("sm_adduber", Command_AddUbercharge, ADMFLAG_ROOT, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd("sm_addubercharge", Command_AddUbercharge, ADMFLAG_ROOT, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd2("sm_removeuber", Command_RemoveUbercharge, ADMFLAG_ROOT, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd("sm_removeubercharge", Command_RemoveUbercharge, ADMFLAG_ROOT, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd("sm_stripubercharge", Command_RemoveUbercharge, ADMFLAG_ROOT, "Adds ubercharge to yourself or other clients.");
-	RegAdminCmd2("sm_metal", Command_SetMetal, ADMFLAG_ROOT, "Sets metal on yourself or other clients.");
-	RegAdminCmd("sm_setmetal", Command_SetMetal, ADMFLAG_ROOT, "Sets metal on yourself or other clients.");
-	RegAdminCmd2("sm_addmetal", Command_AddMetal, ADMFLAG_ROOT, "Adds metal to yourself or other clients.");
-	RegAdminCmd2("sm_removemetal", Command_RemoveMetal, ADMFLAG_ROOT, "Remove metal from yourself or other clients.");
-	RegAdminCmd("sm_stripmetal", Command_RemoveMetal, ADMFLAG_ROOT, "Remove metal from yourself or other clients.");
-	RegAdminCmd2("sm_getmetal", Command_GetMetal, ADMFLAG_ROOT, "Displays the metal for yourself or other clients.");
-	RegAdminCmd2("sm_settime", Command_SetTime, ADMFLAG_ROOT, "Sets time on the server.");
-	RegAdminCmd2("sm_addtime", Command_AddTime, ADMFLAG_ROOT, "Adds time on the server.");
-	RegAdminCmd2("sm_removetime", Command_RemoveTime, ADMFLAG_ROOT, "Remove time on the server.");
-	RegAdminCmd2("sm_crits", Command_SetCrits, ADMFLAG_ROOT, "Sets crits on yourself or other clients.");
-	RegAdminCmd("sm_setcrits", Command_SetCrits, ADMFLAG_ROOT, "Sets crits on yourself or other clients.");
-	RegAdminCmd("sm_addcrits", Command_SetCrits, ADMFLAG_ROOT, "Adds crits on yourself or other clients.");
-	RegAdminCmd2("sm_removecrits", Command_RemoveCrits, ADMFLAG_ROOT, "Removes crits from yourself or other clients.");
-	RegAdminCmd("sm_stripcrits", Command_RemoveCrits, ADMFLAG_ROOT, "Removes crits from yourself or other clients.");
-	RegAdminCmd2("sm_setgod", Command_SetGod, ADMFLAG_ROOT, "Sets godmode on yourself or other clients.");
-	RegAdminCmd2("sm_setbuddha", Command_SetBuddha, ADMFLAG_ROOT, "Sets buddhamode on yourself or other clients.");
-	RegAdminCmd2("sm_setmortal", Command_SetMortal, ADMFLAG_ROOT, "Sets mortality on yourself or other clients.");
-	RegAdminCmd2("sm_stunplayer", Command_StunPlayer, ADMFLAG_ROOT, "Stuns either yourself or other clients.");
-	RegAdminCmd2("sm_bleedplayer", Command_BleedPlayer, ADMFLAG_ROOT, "Bleeds either yourself or other clients.");
-	RegAdminCmd2("sm_igniteplayer", Command_IgnitePlayer, ADMFLAG_ROOT, "Ignite either yourself or other clients.");
+	RegAdminCmd2("sm_uber", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
+	RegAdminCmd("sm_ubercharge", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
+	RegAdminCmd("sm_setubercharge", Command_SetUbercharge, ADMFLAG_SLAY, "Sets ubercharge on yourself or other clients.");
+	RegAdminCmd2("sm_adduber", Command_AddUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd("sm_addubercharge", Command_AddUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd2("sm_removeuber", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd("sm_removeubercharge", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd("sm_stripubercharge", Command_RemoveUbercharge, ADMFLAG_SLAY, "Adds ubercharge to yourself or other clients.");
+	RegAdminCmd2("sm_metal", Command_SetMetal, ADMFLAG_SLAY, "Sets metal on yourself or other clients.");
+	RegAdminCmd("sm_setmetal", Command_SetMetal, ADMFLAG_SLAY, "Sets metal on yourself or other clients.");
+	RegAdminCmd2("sm_addmetal", Command_AddMetal, ADMFLAG_SLAY, "Adds metal to yourself or other clients.");
+	RegAdminCmd2("sm_removemetal", Command_RemoveMetal, ADMFLAG_SLAY, "Remove metal from yourself or other clients.");
+	RegAdminCmd("sm_stripmetal", Command_RemoveMetal, ADMFLAG_SLAY, "Remove metal from yourself or other clients.");
+	RegAdminCmd2("sm_getmetal", Command_GetMetal, ADMFLAG_SLAY, "Displays the metal for yourself or other clients.");
+	RegAdminCmd2("sm_settime", Command_SetTime, ADMFLAG_SLAY, "Sets time on the server.");
+	RegAdminCmd2("sm_addtime", Command_AddTime, ADMFLAG_SLAY, "Adds time on the server.");
+	RegAdminCmd2("sm_removetime", Command_RemoveTime, ADMFLAG_SLAY, "Remove time on the server.");
+	RegAdminCmd2("sm_crits", Command_SetCrits, ADMFLAG_SLAY, "Sets crits on yourself or other clients.");
+	RegAdminCmd("sm_setcrits", Command_SetCrits, ADMFLAG_SLAY, "Sets crits on yourself or other clients.");
+	RegAdminCmd("sm_addcrits", Command_SetCrits, ADMFLAG_SLAY, "Adds crits on yourself or other clients.");
+	RegAdminCmd2("sm_removecrits", Command_RemoveCrits, ADMFLAG_SLAY, "Removes crits from yourself or other clients.");
+	RegAdminCmd("sm_stripcrits", Command_RemoveCrits, ADMFLAG_SLAY, "Removes crits from yourself or other clients.");
+	RegAdminCmd2("sm_setgod", Command_SetGod, ADMFLAG_SLAY, "Sets godmode on yourself or other clients.");
+	RegAdminCmd2("sm_setbuddha", Command_SetBuddha, ADMFLAG_SLAY, "Sets buddhamode on yourself or other clients.");
+	RegAdminCmd2("sm_setmortal", Command_SetMortal, ADMFLAG_SLAY, "Sets mortality on yourself or other clients.");
+	RegAdminCmd2("sm_stunplayer", Command_StunPlayer, ADMFLAG_SLAY, "Stuns either yourself or other clients.");
+	RegAdminCmd2("sm_bleedplayer", Command_BleedPlayer, ADMFLAG_SLAY, "Bleeds either yourself or other clients.");
+	RegAdminCmd2("sm_igniteplayer", Command_IgnitePlayer, ADMFLAG_SLAY, "Ignite either yourself or other clients.");
 	RegAdminCmd2("sm_reloadmap", Command_ReloadMap, ADMFLAG_ROOT, "Reloads the current map.");
-	RegAdminCmd2("sm_mapname", Command_MapName, ADMFLAG_ROOT, "Retrieves the name of the current map.");
+	RegAdminCmd2("sm_mapname", Command_MapName, ADMFLAG_SLAY, "Retrieves the name of the current map.");
 	RegAdminCmd2("sm_reload", Command_Reload, ADMFLAG_ROOT, "Reload a certain plugin that's currently loaded.");
-	RegAdminCmd2("sm_spawnsentry", Command_SpawnSentry, ADMFLAG_ROOT, "Spawn a sentry where you're looking.");
-	RegAdminCmd2("sm_spawndispenser", Command_SpawnDispenser, ADMFLAG_ROOT, "Spawn a dispenser where you're looking.");
+	RegAdminCmd2("sm_spawnsentry", Command_SpawnSentry, ADMFLAG_SLAY, "Spawn a sentry where you're looking.");
+	RegAdminCmd2("sm_spawndispenser", Command_SpawnDispenser, ADMFLAG_SLAY, "Spawn a dispenser where you're looking.");
 	RegAdminCmd("sm_particle", Command_Particle, ADMFLAG_ROOT, "Spawn a particle where you're looking.");
 	RegAdminCmd("sm_spawnparticle", Command_Particle, ADMFLAG_ROOT, "Spawn a particle where you're looking.");
 	RegAdminCmd2("sm_p", Command_Particle, ADMFLAG_ROOT, "Spawn a particle where you're looking.");
@@ -178,11 +183,11 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_spewambients", Command_SpewAmbients, ADMFLAG_ROOT, "Logs all ambient sounds played live into chat.");
 	RegAdminCmd2("sm_spewentities", Command_SpewEntities, ADMFLAG_ROOT, "Logs all entities created live into chat.");
 	RegAdminCmd2("sm_getentmodel", Command_GetEntModel, ADMFLAG_ROOT, "Gets the model of a certain entity if it has a model.");
-	RegAdminCmd2("sm_setkillstreak", Command_SetKillstreak, ADMFLAG_ROOT, "Sets your current killstreak.");
-	RegAdminCmd2("sm_giveweapon", Command_GiveWeapon, ADMFLAG_ROOT, "Give yourself a certain weapon based on index.");
-	RegAdminCmd2("sm_spawnkit", Command_SpawnHealthkit, ADMFLAG_ROOT, "Spawns a healthkit where you're looking.");
-	RegAdminCmd("sm_spawnhealth", Command_SpawnHealthkit, ADMFLAG_ROOT, "Spawns a healthkit where you're looking.");
-	RegAdminCmd("sm_spawnhealthkit", Command_SpawnHealthkit, ADMFLAG_ROOT, "Spawns a healthkit where you're looking.");
+	RegAdminCmd2("sm_setkillstreak", Command_SetKillstreak, ADMFLAG_SLAY, "Sets your current killstreak.");
+	RegAdminCmd2("sm_giveweapon", Command_GiveWeapon, ADMFLAG_SLAY, "Give yourself a certain weapon based on index.");
+	RegAdminCmd2("sm_spawnkit", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
+	RegAdminCmd("sm_spawnhealth", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
+	RegAdminCmd("sm_spawnhealthkit", Command_SpawnHealthkit, ADMFLAG_SLAY, "Spawns a healthkit where you're looking.");
 	RegAdminCmd2("sm_lock", Command_Lock, ADMFLAG_ROOT, "Lock the server to admins only.");
 	RegAdminCmd("sm_lockserver", Command_Lock, ADMFLAG_ROOT, "Lock the server to admins only.");
 	RegAdminCmd2("sm_createprop", Command_CreateProp, ADMFLAG_ROOT, "Create a dynamic prop entity.");
@@ -200,6 +205,9 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_setentpropfloat", Command_SetEntPropFloat, ADMFLAG_ROOT, "Set an entity float property for entities.");
 	RegAdminCmd2("sm_getentclass", Command_GetEntClass, ADMFLAG_ROOT, "Gets an entities classname based on crosshair and displays it.");
 	
+	RegAdminCmd("sm_starttimer", Command_StartTimer, ADMFLAG_SLAY, "Start a timer for either yourself or the server to see.");
+	RegAdminCmd("sm_stoptimer", Command_Stoptimer, ADMFLAG_SLAY, "Stops a currently active timer on the server.");
+	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_ROOT, "Create an entity.");
 	RegAdminCmd("sm_dispatchkeyvalue", Command_DispatchKeyValue, ADMFLAG_ROOT, "Dispatch keyvalue on an entity.");
@@ -216,7 +224,7 @@ public void OnPluginStart()
 	if (LibraryExists("adminmenu") && ((topmenu = GetAdminTopMenu()) != null))
 		OnAdminMenuReady(topmenu);
 		
-	CreateTimer(1.0, Timer_CheckForUpdates, _, TIMER_REPEAT);
+	CreateTimer(2.0, Timer_CheckForUpdates, _, TIMER_REPEAT);
 	g_HookEvents = new ArrayList(ByteCountToCells(256));
 	
 	if (game == Engine_Left4Dead || game == Engine_Left4Dead2)
@@ -308,7 +316,6 @@ public void OnAllPluginsLoaded()
 			
 			EmitSoundToAll("ui/cyoa_map_open.wav");
 			ServerCommand("sm plugins reload %s", sReload);
-			ServerCommand("sm plugins load %s", sReload); //Fixes an unloading issue.
 			
 			SendPrintAll("Plugin '{U}%s {D}' has been reloaded.", sName);
 			PrintToServer("Plugin '%s' has been reloaded.", sName);
@@ -374,6 +381,9 @@ public void OnClientDisconnect(int client)
 {
 	delete g_OwnedEntities[client];
 	g_iTarget[client] = INVALID_ENT_REFERENCE;
+	
+	StopTimer(g_Timer[client]);
+	g_TimerVal[client] = 0.0;
 }
 
 void SendPrintAll(char[] format, any ...)
@@ -892,6 +902,20 @@ public Action Command_SetTeam(int client, int args)
 
 	SendPrint(client, "You have set the team of {U}%s {D}to {U}%s {D}.", sTargetName, sTeamName);
 
+	return Plugin_Handled;
+}
+
+public Action Command_SwitchTeams(int client, int args)
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || GetClientTeam(i) < 2)
+			continue;
+		
+		ChangeClientTeam_Alive(i, GetClientTeam(i) == 2 ? 3 : 2);
+	}
+	
+	SendPrintAll("{U}%N {D}has switched both teams.", client);
 	return Plugin_Handled;
 }
 
@@ -3751,5 +3775,35 @@ public Action Command_GetEntClass(int client, int args)
 	GetEntityClassname(target, sClass, sizeof(sClass));
 	SendPrint(client, "Entity {U}%i{D}'s class: {U}%s", target, sClass);
 	
+	return Plugin_Handled;
+}
+
+public Action Command_StartTimer(int client, int args)
+{
+	g_TimerVal[client] = 0.0;
+	
+	StopTimer(g_Timer[client]);
+	g_Timer[client] = CreateTimer(1.0, Timer_Start, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	
+	return Plugin_Handled;
+}
+
+public Action Timer_Start(Handle timer, any data)
+{
+	int client = data;
+	
+	if (!IsClientInGame(client))
+		return Plugin_Stop;
+	
+	g_TimerVal[client] += 1.0;
+	PrintHintText(client, "Timer :: %.2f", g_TimerVal[client]);
+	
+	return Plugin_Continue;
+}
+
+public Action Command_Stoptimer(int client, int args)
+{
+	StopTimer(g_Timer[client]);
+	g_TimerVal[client] = 0.0;
 	return Plugin_Handled;
 }
