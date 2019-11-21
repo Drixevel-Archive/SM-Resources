@@ -18,9 +18,14 @@
 #endif
 #define _misc_tf_included
 
+#undef REQUIRE_EXTENSIONS
 #tryinclude <tf2_stocks>
 #tryinclude <tf2items>
+#define REQUIRE_EXTENSIONS
+
+#undef REQUIRE_PLUGINS
 #tryinclude <tf2attributes>
+#define REQUIRE_PLUGINS
 
 #define QUALITY_NAME_LENGTH 32
 #define ATTRIBUTE_NAME_LENGTH 64

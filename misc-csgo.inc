@@ -24,7 +24,9 @@
 #endif
 #define _misc_csgo_included
 
+#undef REQUIRE_EXTENSIONS
 #tryinclude <cstrike>
+#define REQUIRE_EXTENSIONS
 
 //Color codes for CSGO and old engines.
 #define COLOR_DEFAULT "\x01"

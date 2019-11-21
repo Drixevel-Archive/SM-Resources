@@ -33,7 +33,10 @@
 #tryinclude <sdkhooks>
 #tryinclude <regex>
 #tryinclude <clientprefs>
+
+#undef REQUIRE_EXTENSIONS
 #tryinclude <steamworks>
+#define REQUIRE_EXTENSIONS
 
 #define IS_CONSOLE 0
 #define IS_SERVER 0
