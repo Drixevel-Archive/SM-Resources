@@ -3882,7 +3882,6 @@ stock void ReadPackVector(DataPack pack, float vector[3])
 	vector[2] = pack.ReadFloat();
 }
 
-
 /*--------------------------------------------------------->*/
 //MODEL
 

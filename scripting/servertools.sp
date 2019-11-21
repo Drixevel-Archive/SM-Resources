@@ -2,7 +2,11 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-//Sourcemod Includes
+//Defines
+#define PLUGIN_VERSION "1.0.1"
+#define PLUGIN_DESCRIPTION "A simple set of admin tools that help with development or server moderation."
+
+//Includes
 #include <sourcemod>
 #include <adminmenu>
 
@@ -21,6 +25,8 @@
 #define REQUIRE_PLUGIN
 
 //Globals
+ConVar convar_DisableWaitingForPlayers;
+
 EngineVersion game;
 char g_ChatColor[32];
 char g_UniqueIdent[32];
@@ -59,8 +65,8 @@ public Plugin myinfo =
 {
 	name = "Server Tools",
 	author = "Drixevel",
-	description = "A simple set of admin tools that help with development or server moderation.",
-	version = "1.0.1",
+	description = PLUGIN_DESCRIPTION,
+	version = PLUGIN_VERSION,
 	url = "https://drixevel.dev/"
 };
 
@@ -82,6 +88,9 @@ public void OnPluginStart()
 {
 	LoadTranslations("common.phrases");
 	CSetPrefix("{lime}[Tools]");
+	
+	CreateConVar("sm_servertools_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION, FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	convar_DisableWaitingForPlayers = CreateConVar("sm_servertools_disable_waitingforplayers", "1");
 	
 	game = GetEngineVersion();
 	
@@ -288,7 +297,8 @@ void RegAdminCmd2(const char[] cmd, ConCmd callback, int adminflags, const char[
 
 public void TF2_OnWaitingForPlayersStart()
 {
-	ServerCommand("mp_waitingforplayers_cancel 1");
+	if (convar_DisableWaitingForPlayers.BoolValue)
+		ServerCommand("mp_waitingforplayers_cancel 1");
 }
 
 public Action Timer_CheckForUpdates(Handle timer)
@@ -661,8 +671,11 @@ public Action Command_Bring(int client, int args)
 		TeleportEntity(targets_list[i], vecOrigin, vecAngles, NULL_VECTOR);
 		SendPrint(targets_list[i], "You have been teleported to {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have teleported {U}%s {D} to you.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have teleported {U}%t {D} to you.", sTargetName);
+	else
+		SendPrint(client, "You have teleported {U}%s {D} to you.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -710,8 +723,11 @@ public Action Command_Port(int client, int args)
 		TeleportEntity(targets_list[i], vecOrigin, NULL_VECTOR, NULL_VECTOR);
 		SendPrint(targets_list[i], "You have been ported by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have ported {U}%s {D} to your look position.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have ported {U}%t {D} to your look position.", sTargetName);
+	else
+		SendPrint(client, "You have ported {U}%s {D} to your look position.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -752,8 +768,11 @@ public Action Command_SetHealth(int client, int args)
 		
 		SendPrint(targets_list[i], "Your health has been set to {U}%i {D} by {U}%N {D}.", health, client);
 	}
-
-	SendPrint(client, "You have set the health of {U}%s {D} to {U}%i {D}.", sTargetName, health);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set the health of {U}%t {D} to {U}%i {D}.", sTargetName, health);
+	else
+		SendPrint(client, "You have set the health of {U}%s {D} to {U}%i {D}.", sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -794,8 +813,11 @@ public Action Command_AddHealth(int client, int args)
 		
 		SendPrint(targets_list[i], "Your health has been increased by {U}%i {D} by {U}%N {D}.", health, client);
 	}
-
-	SendPrint(client, "You have increased the health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have increased the health of {U}%t {D} by {U}%i {D}.", sTargetName, health);
+	else
+		SendPrint(client, "You have increased the health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -841,8 +863,11 @@ public Action Command_RemoveHealth(int client, int args)
 		
 		SendPrint(targets_list[i], "Your health has been deducted by {U}%i {D} by {U}%N {D}.", health, client);
 	}
-
-	SendPrint(client, "You have deducted health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have deducted health of {U}%t {D} by {U}%i {D}.", sTargetName, health);
+	else
+		SendPrint(client, "You have deducted health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
 
 	return Plugin_Handled;
 }
@@ -880,8 +905,11 @@ public Action Command_SetArmor(int client, int args)
 		CSGO_SetClientArmor(targets_list[i], armor);
 		SendPrint(targets_list[i], "Your armor has been set to {U}%i {D} by {U}%N {D}.", armor, client);
 	}
-
-	SendPrint(client, "You have set the armor of {U}%s {D} to {U}%i {D}.", sTargetName, armor);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set the armor of {U}%t {D} to {U}%i {D}.", sTargetName, armor);
+	else
+		SendPrint(client, "You have set the armor of {U}%s {D} to {U}%i {D}.", sTargetName, armor);
 
 	return Plugin_Handled;
 }
@@ -918,8 +946,11 @@ public Action Command_AddArmor(int client, int args)
 		CSGO_AddClientArmor(targets_list[i], armor);
 		SendPrint(targets_list[i], "Your armor has been increased by {U}%i {D} by {U}%N {D}.", armor, client);
 	}
-
-	SendPrint(client, "You have increased the armor of {U}%s {D} by {U}%i {D}.", sTargetName, armor);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have increased the armor of {U}%t {D} by {U}%i {D}.", sTargetName, armor);
+	else
+		SendPrint(client, "You have increased the armor of {U}%s {D} by {U}%i {D}.", sTargetName, armor);
 
 	return Plugin_Handled;
 }
@@ -956,8 +987,11 @@ public Action Command_RemoveArmor(int client, int args)
 		CSGO_RemoveClientArmor(targets_list[i], armor);
 		SendPrint(targets_list[i], "Your armor has been deducted by {U}%i {D} by {U}%N {D}.", armor, client);
 	}
-
-	SendPrint(client, "You have deducted armor of {U}%s {D} by {U}%i {D}.", sTargetName, armor);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have deducted armor of {U}%t {D} by {U}%i {D}.", sTargetName, armor);
+	else
+		SendPrint(client, "You have deducted armor of {U}%s {D} by {U}%i {D}.", sTargetName, armor);
 
 	return Plugin_Handled;
 }
@@ -1014,8 +1048,11 @@ public Action Command_SetClass(int client, int args)
 		TF2_RegeneratePlayer(targets_list[i]);
 		SendPrint(targets_list[i], "Your class has been set to {U}%s {D} by {U}%N {D}.", sClassName, client);
 	}
-
-	SendPrint(client, "You have set the class of {U}%s {D} to {U}%s {D}.", sTargetName, sClassName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set the class of {U}%t {D} to {U}%s {D}.", sTargetName, sClassName);
+	else
+		SendPrint(client, "You have set the class of {U}%s {D} to {U}%s {D}.", sTargetName, sClassName);
 
 	return Plugin_Handled;
 }
@@ -1081,8 +1118,11 @@ public Action Command_SetTeam(int client, int args)
 		
 		SendPrint(targets_list[i], "Your team has been set to {U}%s {D}by {U}%N {D}.", sTeamName, client);
 	}
-
-	SendPrint(client, "You have set the team of {U}%s {D}to {U}%s {D}.", sTargetName, sTeamName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set the team of {U}%t {D}to {U}%s {D}.", sTargetName, sTeamName);
+	else
+		SendPrint(client, "You have set the team of {U}%s {D}to {U}%s {D}.", sTargetName, sTeamName);
 
 	return Plugin_Handled;
 }
@@ -1154,8 +1194,11 @@ public Action Command_Respawn(int client, int args)
 		
 		SendPrint(targets_list[i], "Your have been respawned by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have respawned {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have respawned {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have respawned {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1193,8 +1236,11 @@ public Action Command_Regenerate(int client, int args)
 		TF2_RegeneratePlayer(targets_list[i]);
 		SendPrint(targets_list[i], "Your have been regenerated by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have regenerated {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have regenerated {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have regenerated {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1239,8 +1285,11 @@ public Action Command_RefillWeapon(int client, int args)
 
 		SendPrint(targets_list[i], "Your weapons ammunitions have been refilled by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have refilled the ammunition ammo for {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have refilled the ammunition ammo for {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have refilled the ammunition ammo for {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1279,8 +1328,11 @@ public Action Command_RefillAmunition(int client, int args)
 
 		SendPrint(targets_list[i], "Your weapons ammunitions have been refilled by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have refilled the ammunition ammo for {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have refilled the ammunition ammo for {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have refilled the ammunition ammo for {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1319,8 +1371,11 @@ public Action Command_RefillClip(int client, int args)
 
 		SendPrint(targets_list[i], "Your weapons clips have been refilled by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have refilled the clip ammo for {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have refilled the clip ammo for {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have refilled the clip ammo for {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1771,8 +1826,11 @@ public Action Command_SetCondition(int client, int args)
 		TF2_AddCondition(targets_list[i], condition, time, client);
 		SendPrint(targets_list[i], "Your have gained a new condition from {U}%N {D} for %.2f seconds.", client, time);
 	}
-
-	SendPrint(client, "You have set a new condition on {U}%s {D} for %.2f seconds.", sTargetName, time);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set a new condition on {U}%t {D} for %.2f seconds.", sTargetName, time);
+	else
+		SendPrint(client, "You have set a new condition on {U}%s {D} for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -1828,8 +1886,11 @@ public Action Command_RemoveCondition(int client, int args)
 		TF2_RemoveCondition(targets_list[i], condition);
 		SendPrint(targets_list[i], "Your have been stripped of a condition by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have been stripped of a condition by {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have been stripped of a condition by {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have been stripped of a condition by {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -1907,8 +1968,11 @@ public Action Command_SetUbercharge(int client, int args)
 		TF2_SetUberLevel(targets_list[i], uber);
 		SendPrint(targets_list[i], "Your ubercharge has been set to %.2f by {U}%N {D}.", uber, client);
 	}
-
-	SendPrint(client, "You have set the ubercharge of {U}%s {D} to %.2f.", sTargetName, uber);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set the ubercharge of {U}%t {D} to %.2f.", sTargetName, uber);
+	else
+		SendPrint(client, "You have set the ubercharge of {U}%s {D} to %.2f.", sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1953,8 +2017,11 @@ public Action Command_AddUbercharge(int client, int args)
 		TF2_AddUberLevel(targets_list[i], uber);
 		SendPrint(targets_list[i], "Your ubercharge has been increased by %.2f by {U}%N {D}.", uber, client);
 	}
-
-	SendPrint(client, "You have increased the ubercharge of {U}%s {D} by %.2f.", sTargetName, uber);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have increased the ubercharge of {U}%t {D} by %.2f.", sTargetName, uber);
+	else
+		SendPrint(client, "You have increased the ubercharge of {U}%s {D} by %.2f.", sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -1999,8 +2066,11 @@ public Action Command_RemoveUbercharge(int client, int args)
 		TF2_RemoveUberLevel(targets_list[i], uber);
 		SendPrint(targets_list[i], "Your ubercharge has been deducted by %.2f by {U}%N {D}.", uber, client);
 	}
-
-	SendPrint(client, "You have deducted ubercharge of {U}%s {D} by %.2f.", sTargetName, uber);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have deducted ubercharge of {U}%t {D} by %.2f.", sTargetName, uber);
+	else
+		SendPrint(client, "You have deducted ubercharge of {U}%s {D} by %.2f.", sTargetName, uber);
 
 	return Plugin_Handled;
 }
@@ -2045,8 +2115,11 @@ public Action Command_SetMetal(int client, int args)
 		TF2_SetMetal(targets_list[i], metal);
 		SendPrint(targets_list[i], "Your metal has been set to {U}%i {D} by {U}%N {D}.", metal, client);
 	}
-
-	SendPrint(client, "You have set the metal of {U}%s {D} to {U}%i {D}.", sTargetName, metal);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set the metal of {U}%t {D} to {U}%i {D}.", sTargetName, metal);
+	else
+		SendPrint(client, "You have set the metal of {U}%s {D} to {U}%i {D}.", sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -2091,8 +2164,11 @@ public Action Command_AddMetal(int client, int args)
 		TF2_AddMetal(targets_list[i], metal);
 		SendPrint(targets_list[i], "Your metal has been increased by {U}%i {D} by {U}%N {D}.", metal, client);
 	}
-
-	SendPrint(client, "You have increased the metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have increased the metal of {U}%t {D} by {U}%i {D}.", sTargetName, metal);
+	else
+		SendPrint(client, "You have increased the metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -2137,8 +2213,11 @@ public Action Command_RemoveMetal(int client, int args)
 		TF2_RemoveMetal(targets_list[i], metal);
 		SendPrint(targets_list[i], "Your metal has been deducted by {U}%i {D} by {U}%N {D}.", metal, client);
 	}
-
-	SendPrint(client, "You have deducted metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have deducted metal of {U}%t {D} by {U}%i {D}.", sTargetName, metal);
+	else
+		SendPrint(client, "You have deducted metal of {U}%s {D} by {U}%i {D}.", sTargetName, metal);
 
 	return Plugin_Handled;
 }
@@ -2155,29 +2234,22 @@ public Action Command_GetMetal(int client, int args)
 		SendPrint(client, "This command is for Team Fortress 2 only.");
 		return Plugin_Handled;
 	}
-
-	char sTarget[MAX_TARGET_LENGTH];
-	GetCmdArg(1, sTarget, sizeof(sTarget));
-
-	int targets_list[MAXPLAYERS];
-	char sTargetName[MAX_TARGET_LENGTH];
-	bool tn_is_ml;
-
-	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
-
-	if (targets <= 0)
+	
+	int target = GetCmdArgTarget(client, 1, false, false);
+	
+	if (target == -1)
 	{
-		ReplyToTargetError(client, COMMAND_TARGET_NONE);
+		SendPrint(client, "Target not found, please try again.");
+		return Plugin_Handled;
+	}
+	
+	if (TF2_GetPlayerClass(target) != TFClass_Engineer)
+	{
+		SendPrint(client, "{U}%N {D}is not an engineer.", target);
 		return Plugin_Handled;
 	}
 
-	for (int i = 0; i < targets; i++)
-	{
-		if (TF2_GetPlayerClass(targets_list[i]) != TFClass_Engineer)
-			continue;
-
-		SendPrint(client, "{U}%N{D}'s metal amount is: {U}%i{D}", targets_list[i], TF2_GetMetal(targets_list[i]));
-	}
+	SendPrint(client, "{U}%N{D}'s metal amount is: {U}%i{D}", target, TF2_GetMetal(target));
 	
 	return Plugin_Handled;
 }
@@ -2352,8 +2424,11 @@ public Action Command_SetCrits(int client, int args)
 		TF2_AddCondition(targets_list[i], TFCond_CritOnWin, time, client);
 		SendPrint(targets_list[i], "Your have gained crits from {U}%N {D} for %.2f seconds.", client, time);
 	}
-
-	SendPrint(client, "You have set crits on {U}%s {D} for %.2f seconds.", sTargetName, time);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set crits on {U}%t {D} for %.2f seconds.", sTargetName, time);
+	else
+		SendPrint(client, "You have set crits on {U}%s {D} for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -2394,8 +2469,11 @@ public Action Command_RemoveCrits(int client, int args)
 		TF2_RemoveCondition(targets_list[i], TFCond_CritOnWin);
 		SendPrint(targets_list[i], "Your have been stripped of crits by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have stripped crits from {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have stripped crits from {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have stripped crits from {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -2428,8 +2506,11 @@ public Action Command_SetGod(int client, int args)
 		TF2_SetGodmode(targets_list[i], TFGod_God);
 		SendPrint(targets_list[i], "Your have been set to godmode by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have set godmode on {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set godmode on {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have set godmode on {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -2462,8 +2543,11 @@ public Action Command_SetBuddha(int client, int args)
 		TF2_SetGodmode(targets_list[i], TFGod_Buddha);
 		SendPrint(targets_list[i], "Your have been set to buddhamode by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have set buddhamode on {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set buddhamode on {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have set buddhamode on {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -2496,8 +2580,11 @@ public Action Command_SetMortal(int client, int args)
 		TF2_SetGodmode(targets_list[i], TFGod_Mortal);
 		SendPrint(targets_list[i], "Your have been set to mortalmode by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have set mortalmode on {U}%s {D}.", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have set mortalmode on {U}%t {D}.", sTargetName);
+	else
+		SendPrint(client, "You have set mortalmode on {U}%s {D}.", sTargetName);
 
 	return Plugin_Handled;
 }
@@ -2562,8 +2649,11 @@ public Action Command_StunPlayer(int client, int args)
 		TF2_StunPlayer(targets_list[i], time, slowdown, TF_STUNFLAGS_SMALLBONK, client);
 		SendPrint(targets_list[i], "Your have been stunned by {U}%N {D}  for %.2f seconds.", client, time);
 	}
-
-	SendPrint(client, "You have stunned {U}%s {D}  for %.2f seconds.", sTargetName, time);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have stunned {U}%t {D}  for %.2f seconds.", sTargetName, time);
+	else
+		SendPrint(client, "You have stunned {U}%s {D}  for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -2617,8 +2707,11 @@ public Action Command_BleedPlayer(int client, int args)
 		TF2_MakeBleed(targets_list[i], client, time);
 		SendPrint(targets_list[i], "Your have been cut by {U}%N {D}  for %.2f seconds.", client, time);
 	}
-
-	SendPrint(client, "You have cut {U}%s {D}  for %.2f seconds.", sTargetName, time);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have cut {U}%t {D}  for %.2f seconds.", sTargetName, time);
+	else
+		SendPrint(client, "You have cut {U}%s {D}  for %.2f seconds.", sTargetName, time);
 
 	return Plugin_Handled;
 }
@@ -2655,8 +2748,11 @@ public Action Command_IgnitePlayer(int client, int args)
 		
 		SendPrint(targets_list[i], "Your have been ignited by {U}%N {D}.", client);
 	}
-
-	SendPrint(client, "You have ignited {U}%s {D}", sTargetName);
+	
+	if (tn_is_ml)
+		SendPrint(client, "You have ignited {U}%t {D}", sTargetName);
+	else
+		SendPrint(client, "You have ignited {U}%s {D}", sTargetName);
 
 	return Plugin_Handled;
 }
