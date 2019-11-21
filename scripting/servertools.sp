@@ -2,14 +2,14 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-//Defines
-#define CHAT_TAG "{lime}[Tools]{default}"
-
 //Sourcemod Includes
 #include <sourcemod>
-#include <sourcemod-misc>
-#include <sourcemod-colors>
 #include <adminmenu>
+
+#include <misc-sm>
+#include <misc-colors>
+#include <misc-tf>
+#include <misc-csgo>
 
 #undef REQUIRE_EXTENSIONS
 #include <tf2items>
@@ -36,6 +36,8 @@ bool g_SpewConditions;
 bool g_SpewSounds;
 bool g_SpewAmbients;
 bool g_SpewEntities;
+bool g_SpewTriggers;
+bool g_SpewCommands;
 
 //entity tools
 ArrayList g_OwnedEntities[MAXPLAYERS + 1];
@@ -79,6 +81,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnPluginStart()
 {
 	LoadTranslations("common.phrases");
+	CSetPrefix("{lime}[Tools]");
 	
 	game = GetEngineVersion();
 	
@@ -103,6 +106,8 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_goto", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
 	RegAdminCmd("sm_tele", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
 	RegAdminCmd("sm_teleport", Command_Teleport, ADMFLAG_SLAY, "Teleports yourself to other clients.");
+	RegAdminCmd("sm_telecoords", Command_TeleportCoords, ADMFLAG_SLAY, "Teleports yourself to certain coordinates.");
+	RegAdminCmd("sm_teleportcoords", Command_TeleportCoords, ADMFLAG_SLAY, "Teleports yourself to certain coordinates.");
 	RegAdminCmd2("sm_bring", Command_Bring, ADMFLAG_SLAY, "Teleports clients to yourself.");
 	RegAdminCmd("sm_bringhere", Command_Bring, ADMFLAG_SLAY, "Teleports clients to yourself.");
 	RegAdminCmd2("sm_move", Command_Port, ADMFLAG_SLAY, "Teleports clients to your crosshair.");
@@ -111,6 +116,10 @@ public void OnPluginStart()
 	RegAdminCmd("sm_sethealth", Command_SetHealth, ADMFLAG_SLAY, "Sets health on yourself or other clients.");
 	RegAdminCmd2("sm_addhealth", Command_AddHealth, ADMFLAG_SLAY, "Add health on yourself or other clients.");
 	RegAdminCmd2("sm_removehealth", Command_RemoveHealth, ADMFLAG_SLAY, "Remove health from yourself or other clients.");
+	RegAdminCmd2("sm_armor", Command_SetArmor, ADMFLAG_SLAY, "Sets armor on yourself or other clients.");
+	RegAdminCmd("sm_setarmor", Command_SetArmor, ADMFLAG_SLAY, "Sets armor on yourself or other clients.");
+	RegAdminCmd2("sm_addarmor", Command_AddArmor, ADMFLAG_SLAY, "Add armor on yourself or other clients.");
+	RegAdminCmd2("sm_removearmor", Command_RemoveArmor, ADMFLAG_SLAY, "Remove armor from yourself or other clients.");
 	RegAdminCmd2("sm_class", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
 	RegAdminCmd("sm_setclass", Command_SetClass, ADMFLAG_SLAY, "Sets the class of yourself or other clients.");
 	RegAdminCmd2("sm_team", Command_SetTeam, ADMFLAG_SLAY, "Sets the team of yourself or other clients.");
@@ -162,14 +171,16 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_removecrits", Command_RemoveCrits, ADMFLAG_SLAY, "Removes crits from yourself or other clients.");
 	RegAdminCmd("sm_stripcrits", Command_RemoveCrits, ADMFLAG_SLAY, "Removes crits from yourself or other clients.");
 	RegAdminCmd2("sm_setgod", Command_SetGod, ADMFLAG_SLAY, "Sets godmode on yourself or other clients.");
+	RegAdminCmd2("sm_god", Command_SetGod, ADMFLAG_SLAY, "Sets godmode on yourself or other clients.");
 	RegAdminCmd2("sm_setbuddha", Command_SetBuddha, ADMFLAG_SLAY, "Sets buddhamode on yourself or other clients.");
+	RegAdminCmd2("sm_buddha", Command_SetBuddha, ADMFLAG_SLAY, "Sets buddhamode on yourself or other clients.");
 	RegAdminCmd2("sm_setmortal", Command_SetMortal, ADMFLAG_SLAY, "Sets mortality on yourself or other clients.");
+	RegAdminCmd2("sm_mortal", Command_SetMortal, ADMFLAG_SLAY, "Sets mortality on yourself or other clients.");
 	RegAdminCmd2("sm_stunplayer", Command_StunPlayer, ADMFLAG_SLAY, "Stuns either yourself or other clients.");
 	RegAdminCmd2("sm_bleedplayer", Command_BleedPlayer, ADMFLAG_SLAY, "Bleeds either yourself or other clients.");
 	RegAdminCmd2("sm_igniteplayer", Command_IgnitePlayer, ADMFLAG_SLAY, "Ignite either yourself or other clients.");
 	RegAdminCmd2("sm_reloadmap", Command_ReloadMap, ADMFLAG_ROOT, "Reloads the current map.");
 	RegAdminCmd2("sm_mapname", Command_MapName, ADMFLAG_SLAY, "Retrieves the name of the current map.");
-	RegAdminCmd2("sm_reload", Command_Reload, ADMFLAG_ROOT, "Reload a certain plugin that's currently loaded.");
 	RegAdminCmd2("sm_spawnsentry", Command_SpawnSentry, ADMFLAG_SLAY, "Spawn a sentry where you're looking.");
 	RegAdminCmd2("sm_spawndispenser", Command_SpawnDispenser, ADMFLAG_SLAY, "Spawn a dispenser where you're looking.");
 	RegAdminCmd("sm_particle", Command_Particle, ADMFLAG_ROOT, "Spawn a particle where you're looking.");
@@ -177,6 +188,7 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_p", Command_Particle, ADMFLAG_ROOT, "Spawn a particle where you're looking.");
 	RegAdminCmd("sm_listparticles", Command_ListParticles, ADMFLAG_ROOT, "List particles by name and click on them to test them.");
 	RegAdminCmd2("sm_lp", Command_ListParticles, ADMFLAG_ROOT, "List particles by name and click on them to test them.");
+	RegAdminCmd2("sm_plist", Command_ListParticles, ADMFLAG_ROOT, "List particles by name and click on them to test them.");
 	RegAdminCmd("sm_generateparticles", Command_GenerateParticles, ADMFLAG_ROOT, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
 	RegAdminCmd2("sm_gp", Command_GenerateParticles, ADMFLAG_ROOT, "Generates a list of particles under the addons/sourcemod/data/particles folder.");
 	RegAdminCmd2("sm_spewsounds", Command_SpewSounds, ADMFLAG_ROOT, "Logs all sounds played live into chat.");
@@ -204,9 +216,20 @@ public void OnPluginStart()
 	RegAdminCmd2("sm_getentpropfloat", Command_GetEntPropFloat, ADMFLAG_ROOT, "Get an entity float property for entities.");
 	RegAdminCmd2("sm_setentpropfloat", Command_SetEntPropFloat, ADMFLAG_ROOT, "Set an entity float property for entities.");
 	RegAdminCmd2("sm_getentclass", Command_GetEntClass, ADMFLAG_ROOT, "Gets an entities classname based on crosshair and displays it.");
+	RegAdminCmd2("sm_getentcount", Command_GetEntCount, ADMFLAG_ROOT, "Displays the current entity count.");
 	
 	RegAdminCmd("sm_starttimer", Command_StartTimer, ADMFLAG_SLAY, "Start a timer for either yourself or the server to see.");
 	RegAdminCmd("sm_stoptimer", Command_Stoptimer, ADMFLAG_SLAY, "Stops a currently active timer on the server.");
+	
+	RegAdminCmd("sm_spewtriggers", Command_SpewTriggers, ADMFLAG_SLAY, "Logs all triggers being touched by the player.");
+	RegAdminCmd("sm_spewcommands", Command_SpewCommands, ADMFLAG_SLAY, "Logs all commands being sent by the player.");
+	
+	RegAdminCmd("sm_load", Command_LoadPlugin, ADMFLAG_SLAY);
+	RegAdminCmd("sm_loadplugin", Command_LoadPlugin, ADMFLAG_SLAY);
+	RegAdminCmd("sm_reload", Command_ReloadPlugin, ADMFLAG_SLAY);
+	RegAdminCmd("sm_reloadplugin", Command_ReloadPlugin, ADMFLAG_SLAY);
+	RegAdminCmd("sm_unload", Command_UnloadPlugin, ADMFLAG_SLAY);
+	RegAdminCmd("sm_unloadplugin", Command_UnloadPlugin, ADMFLAG_SLAY);
 	
 	//entity tools
 	RegAdminCmd("sm_createentity", Command_CreateEntity, ADMFLAG_ROOT, "Create an entity.");
@@ -248,12 +271,24 @@ public void OnPluginStart()
 			hState_Transition = EndPrepSDKCall();
 		}
 	}
+	
+	int entity = -1; char classname[64];
+	while ((entity = FindEntityByClassname(entity, "*")) != -1)
+	{
+		GetEntityClassname(entity, classname, sizeof(classname));
+		OnEntityCreated(entity, classname);
+	}
 }
 
 void RegAdminCmd2(const char[] cmd, ConCmd callback, int adminflags, const char[] description = "", const char[] group = "", int flags = 0)
 {
 	RegAdminCmd(cmd, callback, adminflags, description, group, flags);
 	g_Commands.PushString(cmd);
+}
+
+public void TF2_OnWaitingForPlayersStart()
+{
+	ServerCommand("mp_waitingforplayers_cancel 1");
 }
 
 public Action Timer_CheckForUpdates(Handle timer)
@@ -348,6 +383,8 @@ public void OnMapEnd()
 	g_SpewSounds = false;
 	g_SpewAmbients = false;
 	g_SpewEntities = false;
+	g_SpewTriggers = false;
+	g_SpewCommands = false;
 }
 
 public void OnAdminMenuReady(Handle aTopMenu)
@@ -403,7 +440,7 @@ void SendPrintAll(char[] format, any ...)
 		sUnique = "{lightred}";
 	}
 	
-	Format(sBuffer, sizeof(sBuffer), "%s%s %s", sChatColor, CHAT_TAG, sBuffer);
+	Format(sBuffer, sizeof(sBuffer), "%s%s", sChatColor, sBuffer);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{U}", sUnique, false);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{D}", "{default}", false);
 	
@@ -433,7 +470,7 @@ void SendPrint(int client, char[] format, any ...)
 		sUnique = "{lightred}";
 	}
 	
-	Format(sBuffer, sizeof(sBuffer), "%s%s %s", sChatColor, CHAT_TAG, sBuffer);
+	Format(sBuffer, sizeof(sBuffer), "%s%s", sChatColor, sBuffer);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{U}", sUnique, false);
 	ReplaceString(sBuffer, sizeof(sBuffer), "{D}", "{default}", false);
 	
@@ -565,6 +602,19 @@ public Action Command_Teleport(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_TeleportCoords(int client, int args)
+{
+	float vecOrigin[3];
+	vecOrigin[0] = GetCmdArgFloat(1);
+	vecOrigin[1] = GetCmdArgFloat(2);
+	vecOrigin[2] = GetCmdArgFloat(3);
+	
+	TeleportEntity(client, vecOrigin, NULL_VECTOR, NULL_VECTOR);
+
+	SendPrint(client, "You have teleported to coordinates: %.2f/%.2f/%.2f", vecOrigin[0], vecOrigin[1], vecOrigin[2]);
+	return Plugin_Handled;
+}
+
 public Action Command_Bring(int client, int args)
 {
 	if (IsClientServer(client))
@@ -653,7 +703,7 @@ public Action Command_Port(int client, int args)
 	}
 
 	float vecOrigin[3];
-	GetClientCrosshairOrigin(client, vecOrigin);
+	GetClientLookOrigin(client, vecOrigin);
 
 	for (int i = 0; i < targets; i++)
 	{
@@ -695,7 +745,11 @@ public Action Command_SetHealth(int client, int args)
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_SetPlayerHealth(targets_list[i], health);
+		if (game == Engine_TF2)
+			TF2_SetPlayerHealth(targets_list[i], health);
+		else
+			SetEntityHealth(targets_list[i], health);
+		
 		SendPrint(targets_list[i], "Your health has been set to {U}%i {D} by {U}%N {D}.", health, client);
 	}
 
@@ -733,7 +787,11 @@ public Action Command_AddHealth(int client, int args)
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_AddPlayerHealth(targets_list[i], health);
+		if (game == Engine_TF2)
+			TF2_AddPlayerHealth(targets_list[i], health);
+		else
+			SetEntityHealth(targets_list[i], (GetClientHealth(targets_list[i]) + health));
+		
 		SendPrint(targets_list[i], "Your health has been increased by {U}%i {D} by {U}%N {D}.", health, client);
 	}
 
@@ -771,11 +829,135 @@ public Action Command_RemoveHealth(int client, int args)
 
 	for (int i = 0; i < targets; i++)
 	{
-		TF2_RemovePlayerHealth(targets_list[i], health);
+		if (game == Engine_TF2)
+			TF2_RemovePlayerHealth(targets_list[i], health);
+		else
+		{
+			if ((GetClientHealth(targets_list[i]) - health) < 1)
+				ForcePlayerSuicide(targets_list[i]);
+			else
+				SetEntityHealth(targets_list[i], (GetClientHealth(targets_list[i]) - health));
+		}
+		
 		SendPrint(targets_list[i], "Your health has been deducted by {U}%i {D} by {U}%N {D}.", health, client);
 	}
 
 	SendPrint(client, "You have deducted health of {U}%s {D} by {U}%i {D}.", sTargetName, health);
+
+	return Plugin_Handled;
+}
+
+
+public Action Command_SetArmor(int client, int args)
+{
+	if (args == 0)
+	{
+		SendPrint(client, "You must specify a target to set their armor.");
+		return Plugin_Handled;
+	}
+
+	char sTarget[MAX_TARGET_LENGTH];
+	GetCmdArg(1, sTarget, sizeof(sTarget));
+
+	int targets_list[MAXPLAYERS];
+	char sTargetName[MAX_TARGET_LENGTH];
+	bool tn_is_ml;
+
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+
+	if (targets <= 0)
+	{
+		ReplyToTargetError(client, COMMAND_TARGET_NONE);
+		return Plugin_Handled;
+	}
+
+	char sArmor[12];
+	GetCmdArg(2, sArmor, sizeof(sArmor));
+	int armor = ClampCell(StringToInt(sArmor), 1, 999999);
+
+	for (int i = 0; i < targets; i++)
+	{
+		CSGO_SetClientArmor(targets_list[i], armor);
+		SendPrint(targets_list[i], "Your armor has been set to {U}%i {D} by {U}%N {D}.", armor, client);
+	}
+
+	SendPrint(client, "You have set the armor of {U}%s {D} to {U}%i {D}.", sTargetName, armor);
+
+	return Plugin_Handled;
+}
+
+public Action Command_AddArmor(int client, int args)
+{
+	if (args == 0)
+	{
+		SendPrint(client, "You must specify a target to add to their armor.");
+		return Plugin_Handled;
+	}
+
+	char sTarget[MAX_TARGET_LENGTH];
+	GetCmdArg(1, sTarget, sizeof(sTarget));
+
+	int targets_list[MAXPLAYERS];
+	char sTargetName[MAX_TARGET_LENGTH];
+	bool tn_is_ml;
+
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+
+	if (targets <= 0)
+	{
+		ReplyToTargetError(client, COMMAND_TARGET_NONE);
+		return Plugin_Handled;
+	}
+
+	char sArmor[12];
+	GetCmdArg(2, sArmor, sizeof(sArmor));
+	int armor = ClampCell(StringToInt(sArmor), 1, 999999);
+
+	for (int i = 0; i < targets; i++)
+	{
+		CSGO_AddClientArmor(targets_list[i], armor);
+		SendPrint(targets_list[i], "Your armor has been increased by {U}%i {D} by {U}%N {D}.", armor, client);
+	}
+
+	SendPrint(client, "You have increased the armor of {U}%s {D} by {U}%i {D}.", sTargetName, armor);
+
+	return Plugin_Handled;
+}
+
+public Action Command_RemoveArmor(int client, int args)
+{
+	if (args == 0)
+	{
+		SendPrint(client, "You must specify a target to deduct from their armor.");
+		return Plugin_Handled;
+	}
+
+	char sTarget[MAX_TARGET_LENGTH];
+	GetCmdArg(1, sTarget, sizeof(sTarget));
+
+	int targets_list[MAXPLAYERS];
+	char sTargetName[MAX_TARGET_LENGTH];
+	bool tn_is_ml;
+
+	int targets = ProcessTargetString(sTarget, client, targets_list, sizeof(targets_list), COMMAND_FILTER_ALIVE, sTargetName, sizeof(sTargetName), tn_is_ml);
+
+	if (targets <= 0)
+	{
+		ReplyToTargetError(client, COMMAND_TARGET_NONE);
+		return Plugin_Handled;
+	}
+
+	char sArmor[12];
+	GetCmdArg(2, sArmor, sizeof(sArmor));
+	int armor = ClampCell(StringToInt(sArmor), 1, 999999);
+
+	for (int i = 0; i < targets; i++)
+	{
+		CSGO_RemoveClientArmor(targets_list[i], armor);
+		SendPrint(targets_list[i], "Your armor has been deducted by {U}%i {D} by {U}%N {D}.", armor, client);
+	}
+
+	SendPrint(client, "You have deducted armor of {U}%s {D} by {U}%i {D}.", sTargetName, armor);
 
 	return Plugin_Handled;
 }
@@ -1485,7 +1667,7 @@ public Action Command_Password(int client, int args)
 	password.SetString(sPassword);
 
 	SendPrintAll("{U}%N {D} has set a password on the server locking it.", client);
-	SendPrint(client, "You have set the server password locking it to {U}%s {D}.");
+	SendPrint(client, "You have set the server password locking it to {U}%s {D}.", sNewPassword);
 
 	return Plugin_Handled;
 }
@@ -2508,54 +2690,6 @@ public Action Command_MapName(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action Command_Reload(int client, int args)
-{
-	if (IsClientServer(client))
-	{
-		SendPrint(client, "[SM] %t", "Command is in-game only");
-		return Plugin_Handled;
-	}
-
-	Menu menu = new Menu(MenuHandler_Reload);
-	menu.SetTitle("Reload a plugin:");
-
-	Handle iter = GetPluginIterator();
-	
-	char sName[128]; char sFile[256];
-	while (MorePlugins(iter))
-	{
-		Handle plugin = ReadPlugin(iter);
-
-		GetPluginInfo(plugin, PlInfo_Name, sName, sizeof(sName));
-		GetPluginFilename(plugin, sFile, sizeof(sFile));
-		SendPrint(client, sName);
-
-		menu.AddItem(sFile, sName);
-	}
-
-	delete iter;
-	
-	menu.Display(client, MENU_TIME_FOREVER);
-	return Plugin_Handled;
-}
-
-public int MenuHandler_Reload(Menu menu, MenuAction action, int param1, int param2)
-{
-	switch (action)
-	{
-		case MenuAction_Select:
-		{
-			char sFile[256]; char sName[128];
-			GetMenuItem(menu, param2, sFile, sizeof(sFile), _, sName, sizeof(sName));
-			ServerCommand("sm plugins reload %s", sFile);
-			SendPrint(param1, "Plugin '{U}%s {D}' has been reloaded.", sName);
-			Command_Reload(param1, 0);
-		}
-		case MenuAction_End:
-			delete menu;
-	}
-}
-
 public Action Command_SpawnSentry(int client, int args)
 {
 	if (args == 0)
@@ -2572,7 +2706,7 @@ public Action Command_SpawnSentry(int client, int args)
 	}
 
 	float vecOrigin[3];
-	if (!GetClientCrosshairOrigin(client, vecOrigin))
+	if (!GetClientLookOrigin(client, vecOrigin))
 	{
 		SendPrint(client, "Invalid look position.");
 		return Plugin_Handled;
@@ -2611,7 +2745,7 @@ public Action Command_SpawnDispenser(int client, int args)
 	}
 
 	float vecOrigin[3];
-	if (!GetClientCrosshairOrigin(client, vecOrigin))
+	if (!GetClientLookOrigin(client, vecOrigin))
 	{
 		SendPrint(client, "Invalid look position.");
 		return Plugin_Handled;
@@ -2643,7 +2777,7 @@ public Action Command_SpawnTeleporter(int client, int args)
 	}
 
 	float vecOrigin[3];
-	if (!GetClientCrosshairOrigin(client, vecOrigin))
+	if (!GetClientLookOrigin(client, vecOrigin))
 	{
 		SendPrint(client, "Invalid look position.");
 		return Plugin_Handled;
@@ -2671,7 +2805,7 @@ public Action Command_Particle(int client, int args)
 	{
 		char sCommand[64];
 		GetCommandName(sCommand, sizeof(sCommand));
-		SendPrint(client, "Usage: {U}%s {D} <target> <team> <level> <mode>", sCommand);
+		SendPrint(client, "Usage: {U}%s {D} <particle> <time>", sCommand);
 		return Plugin_Handled;
 	}
 	
@@ -2684,7 +2818,7 @@ public Action Command_Particle(int client, int args)
 		time = 2.0;
 	
 	float vecOrigin[3];
-	GetClientCrosshairOrigin(client, vecOrigin);
+	GetClientLookOrigin(client, vecOrigin);
 	
 	CreateParticle(sParticle, time, vecOrigin);
 	SendPrint(client, "Particle {U}%s {D} has been spawned for %.2f second(s).", sParticle, time);
@@ -2734,7 +2868,7 @@ public int MenuHandler_Particles(Menu menu, MenuAction action, int param1, int p
 			menu.GetItem(param2, sParticle, sizeof(sParticle));
 			
 			float vecOrigin[3];
-			GetClientCrosshairOrigin(param1, vecOrigin);
+			GetClientLookOrigin(param1, vecOrigin);
 			
 			CreateParticle(sParticle, 2.0, vecOrigin);
 			SendPrint(param1, "Particle {U}%s {D} has been spawned for 2.0 seconds.", sParticle);
@@ -2844,6 +2978,9 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (g_SpewEntities)
 		SendPrintAll("[SpewEntities] -{U}%i {D}: {U}%s {D}({U}Created{D})", entity, classname);
+	
+	if (StrContains(classname, "trigger", false) == 0)
+		SDKHook(entity, SDKHook_StartTouch, OnTriggerTouch);
 }
 
 public Action Command_GetEntModel(int client, int args)
@@ -3361,7 +3498,7 @@ public Action Command_SpawnHealthkit(int client, int args)
 		return Plugin_Continue;
 	
 	float vecOrigin[3];
-	GetClientCrosshairOrigin(client, vecOrigin);
+	GetClientLookOrigin(client, vecOrigin);
 	
 	TF2_SpawnPickup(vecOrigin, PICKUP_TYPE_HEALTHKIT, PICKUP_FULL);
 	SendPrintAll("Health kit has been spawned where you're looking.");
@@ -3401,7 +3538,7 @@ public Action Command_CreateProp(int client, int args)
 	}
 	
 	float vecOrigin[3];
-	GetClientCrosshairOrigin(client, vecOrigin);
+	GetClientLookOrigin(client, vecOrigin);
 	
 	char sModel[PLATFORM_MAX_PATH];
 	GetCmdArgString(sModel, sizeof(sModel));
@@ -3805,5 +3942,84 @@ public Action Command_Stoptimer(int client, int args)
 {
 	StopTimer(g_Timer[client]);
 	g_TimerVal[client] = 0.0;
+	return Plugin_Handled;
+}
+
+public Action Command_SpewTriggers(int client, int args)
+{
+	g_SpewTriggers = !g_SpewTriggers;
+	SendPrint(client, "Spew Triggers Touched: {U}%s {D}", g_SpewTriggers ? "ON" : "OFF");
+	
+	return Plugin_Handled;
+}
+
+public void OnTriggerTouch(int entity, int other)
+{
+	if (IsPlayerIndex(other) && g_SpewTriggers)
+	{
+		char classname[64];
+		GetEntityClassname(entity, classname, sizeof(classname));
+		SendPrintAll("[SpewTriggers] -{U}%i {D}: {U}%s {D}({U}Touched {D}by {U}%N{D})", entity, classname, other);
+	}
+}
+
+public Action Command_SpewCommands(int client, int args)
+{
+	g_SpewCommands = !g_SpewCommands;
+	SendPrint(client, "Spew Commands Touched: {U}%s {D}", g_SpewCommands ? "ON" : "OFF");
+	
+	return Plugin_Handled;
+}
+
+public Action OnClientCommand(int client, int args)
+{
+	if (g_SpewCommands)
+	{
+		char sCommand[64];
+		GetCmdArg(0, sCommand, sizeof(sCommand));
+		
+		char sArguments[64];
+		GetCmdArgString(sArguments, sizeof(sArguments));
+		
+		SendPrintAll("[SpewCommands] -{U}%N {D}: {U}%s {D}[{U}%s{D}]", client, sCommand, sArguments);
+	}
+}
+
+public Action Command_LoadPlugin(int client, int args)
+{
+	char sName[128];
+	GetCmdArgString(sName, sizeof(sName));
+	
+	ServerCommand("sm plugins load %s", sName);
+	SendPrint(client, "{U}%s {D}has been loaded.", sName);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_ReloadPlugin(int client, int args)
+{
+	char sName[128];
+	GetCmdArgString(sName, sizeof(sName));
+	
+	ServerCommand("sm plugins reload %s", sName);
+	SendPrint(client, "{U}%s {D}has been reloaded.", sName);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_UnloadPlugin(int client, int args)
+{
+	char sName[128];
+	GetCmdArgString(sName, sizeof(sName));
+	
+	ServerCommand("sm plugins unload %s", sName);
+	SendPrint(client, "{U}%s {D}has been unloaded.", sName);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_GetEntCount(int client, int args)
+{
+	SendPrint(client, "Total Networked Entities: {U}%i", GetEntityCount());
 	return Plugin_Handled;
 }
