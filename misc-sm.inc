@@ -1053,7 +1053,7 @@ stock int AttachParticle(int entity, const char[] name, float time = 0.0, const 
 	return particle;
 }
 
-stock int CreateParticle(const char[] name, float time = 0.0, float origin[3], float angles[3] = {0.0, 0.0, 0.0}, float offsets[3] = {0.0, 0.0, 0.0})
+stock int CreateParticle(const char[] name, float origin[3], float time = 0.0, float angles[3] = {0.0, 0.0, 0.0}, float offsets[3] = {0.0, 0.0, 0.0})
 {
 	if (strlen(name) == 0)
 		return -1;
@@ -1187,7 +1187,7 @@ stock bool SetPlayerWeaponAmmo(int client, int weapon, int clip = -1, int ammo =
 	
 	if (ammo > -1)
 	{
-		int iOffset = FindDataMainfo(client, "m_iAmmo") + (GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType") * 4);
+		int iOffset = FindDataMapInfo(client, "m_iAmmo") + (GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType") * 4);
 		SetEntData(client, iOffset, ammo, 4, true);
 	}
 
@@ -1460,7 +1460,7 @@ stock int GetRandomClient(bool ingame = true, bool alive = false, bool fake = fa
 		clients[amount++] = i;
 	}
 
-	return clients[GetRandomInt(0, amount - 1)];
+	return (amount == 0) ? -1 : clients[GetRandomInt(0, amount - 1)];
 }
 
 stock int GetSlotIDFromName(const char[] name)
@@ -2631,6 +2631,15 @@ stock void GetMapName(char[] buffer, int size)
 	GetMapDisplayName(buffer, buffer, size);
 }
 
+stock bool IsCurrentMap(const char[] buffer, bool casesensitive = false)
+{
+	char map[64];
+	GetCurrentMap(map, sizeof(map));
+	GetMapDisplayName(map, map, sizeof(map));
+	
+	return StrEqual(buffer, map, casesensitive);
+}
+
 stock bool CreateFile(const char[] buffer)
 {
 	if (strlen(buffer) == 0)
@@ -2851,7 +2860,7 @@ stock bool IsName(int entity, const char[] name, bool caseSensitive = false)
 	return StrEqual(buffer, name, caseSensitive);
 }
 
-stock bool TriggerEntity(const char[] name, const char[] classname)
+stock bool TriggerEntity(const char[] name, const char[] classname = "*")
 {
 	int entity = -1; char sName[256]; bool triggered;
 	while ((entity = FindEntityByClassname(entity, classname)) != -1)
@@ -3812,57 +3821,6 @@ stock int GetCmdArgTargetEx(int client, int argnum, bool nobots = false, bool im
 	char sTarget[MAX_TARGET_LENGTH];
 	GetCmdArg(argnum, sTarget, sizeof(sTarget));
 	return FindTargetEx(client, sTarget, nobots, immunity);
-}
-
-/*---------------------------------------------------------*/
-//MYSQL / SQLITE
-
-stock bool SQL_FetchBool(DBResultSet results, int field, DBResult &status = DBVal_Error)
-{
-	return view_as<bool>(results.FetchInt(field, status));
-}
-
-stock void SQL_SendQuery(Database& database, const char[] query, DBPriority prio = DBPrio_Normal)
-{
-	DataPack pack = new DataPack();
-	pack.WriteString(query);
-
-	database.Query(TQuery_Void, query, pack, prio);
-}
-
-stock void SQL_SendQuery2(Database& database, DBPriority prio = DBPrio_Normal, const char[] format, any ...)
-{
-	char query[8192];
-	VFormat(query, sizeof(query), format, 4);
-
-	DataPack pack = new DataPack();
-	pack.WriteString(query);
-
-	database.Query(TQuery_Void, query, pack, prio);
-}
-
-public void TQuery_Void(Database owner, DBResultSet hndl, const char[] error, DataPack data)
-{
-	if (hndl == null)
-	{
-		data.Reset();
-
-		char sQuery[8192];
-		data.ReadString(sQuery, sizeof(sQuery));
-
-		LogError("Error executing void query: %s", error);
-		LogError("Query Output: %s", sQuery);
-	}
-
-	delete data;
-}
-
-stock void SQL_TQueryF(Database& database, SQLQueryCallback callback, any data, DBPriority priority = DBPrio_Normal, const char[] format, any ...)
-{
-	char query[8192];
-	VFormat(query, sizeof(query), format, 6);
-
-	database.Query(callback, query, data, priority);
 }
 
 /*---------------------------------------------------------*/

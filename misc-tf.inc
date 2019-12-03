@@ -23,7 +23,7 @@
 #tryinclude <tf2items>
 #define REQUIRE_EXTENSIONS
 
-#undef REQUIRE_PLUGINS
+#undef REQUIRE_PLUGIN
 #tryinclude <tf2attributes>
 #define REQUIRE_PLUGINS
 
@@ -299,9 +299,9 @@ enum TF2Quality {
 *	class		Class to change to.
 *	persistent	Whether to keep the class through death.
 *
-*	return	Entity index of the glow.
+*	return	N/A
 **/
-stock void TF2_ChangePlayerClass(int client, TFClassType class, bool persistent = true)
+stock void TF2_SetClass(int client, TFClassType class, bool persistent = true)
 {
 	TF2_SetPlayerClass(client, class, _, persistent);
 	TF2_RegeneratePlayer(client);
@@ -335,7 +335,7 @@ stock int TF2_CreateGlow(const char[] name, int target, int color[4] = {255, 255
 
 		DispatchKeyValue(glow, "targetname", name);
 		DispatchKeyValue(glow, "target", sTarget);
-		DispatchKeyValue(glow, "Mode", "1");
+		DispatchKeyValue(glow, "Mode", "1"); //Mode is currently broken.
 		DispatchKeyValue(glow, "GlowColor", sGlow);
 		DispatchSpawn(glow);
 		
@@ -483,6 +483,23 @@ stock void TF2_SetPlayerVisible(int client, bool visible)
 
 /**
 *	Force the round to win and give the win to a certain team or draw.
+*	This version is cleaner and doesn't use an entity.
+*
+*	team	Team index to have the win. (unassigned = draw)
+*	map_valid	Passive check to use in your plugins to make sure the map is running.
+*
+*	return	void
+**/
+stock void TF2_ForceWin(TFTeam team = TFTeam_Unassigned)
+{
+	int iFlags = GetCommandFlags("mp_forcewin");
+	SetCommandFlags("mp_forcewin", iFlags &= ~FCVAR_CHEAT);
+	ServerCommand("mp_forcewin %i", view_as<int>(team));
+	SetCommandFlags("mp_forcewin", iFlags);
+}
+
+/**
+*	Force the round to win and give the win to a certain team or draw.
 *	You should code a boolean in your plugin to automatically pass to this callback so that it doesn't create the entity if the map isn't running.
 *
 *	team	Team index to have the win. (unassigned = draw)
@@ -490,9 +507,10 @@ stock void TF2_SetPlayerVisible(int client, bool visible)
 *
 *	return	void
 **/
-stock void TF2_ForceRoundWin(TFTeam team = TFTeam_Unassigned, bool map_valid = true)
+stock void TF2_ForceRoundWin(TFTeam team = TFTeam_Unassigned)
 {
-	if (map_valid && !IsValidEntity(0))
+	//Need to make sure the world exists in order for entities to be created.
+	if (!IsValidEntity(0))
 		return;
 	
 	int entity = FindEntityByClassname(-1, "team_control_point_master");
@@ -506,14 +524,6 @@ stock void TF2_ForceRoundWin(TFTeam team = TFTeam_Unassigned, bool map_valid = t
 
 	SetVariantInt(view_as<int>(team));
 	AcceptEntityInput(entity, "SetWinner");
-}
-
-stock void TF2_ForceWin(TFTeam team = TFTeam_Unassigned)
-{
-	int iFlags = GetCommandFlags("mp_forcewin");
-	SetCommandFlags("mp_forcewin", iFlags &= ~FCVAR_CHEAT);
-	ServerCommand("mp_forcewin %i", view_as<int>(team));
-	SetCommandFlags("mp_forcewin", iFlags);
 }
 
 /**
@@ -2626,7 +2636,7 @@ stock int TF2_GetWeaponWearable(int weapon)
 }
 
 /**
-*	Creates a weapon entity and gives it to a client.
+*	Creates an item entity and gives it to a client.
 *
 *	client	Client index.
 *	index	Index of the weapon.
@@ -2635,7 +2645,7 @@ stock int TF2_GetWeaponWearable(int weapon)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveWeapon(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0)
+stock int TF2_GiveItem(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0)
 {
 	char sClass[64];
 	strcopy(sClass, sizeof(sClass), classname);
