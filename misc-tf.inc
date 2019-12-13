@@ -730,10 +730,8 @@ stock void TF2_RemoveAllWearables(int client)
 {
 	int entity;
 	while ((entity = FindEntityByClassname(entity, "tf_wearable*")) != -1)
-	{
-		if (HasEntProp(entity, Prop_Send, "m_hOwnerEntity") && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+		if (GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
 			TF2_RemoveWearable(client, entity);
-	}
 }
 
 /**
