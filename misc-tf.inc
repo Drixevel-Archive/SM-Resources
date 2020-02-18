@@ -714,9 +714,19 @@ stock int TF2_GetHealingTarget(int client)
 *
 *	return	Is Arena or not.
 **/
-stock bool IsArenaActive()
+stock bool TF2_IsArena()
 {
 	return FindEntityByClassname(-1, "tf_logic_arena") != -1;
+}
+
+/**
+*	Simple check if the mode is mvm or not.
+*
+*	return	Is MvM or not.
+**/
+stock bool TF2_IsMvM()
+{
+	return FindEntityByClassname(-1, "tf_logic_mann_vs_machine") != -1;
 }
 
 /**
@@ -2643,7 +2653,7 @@ stock int TF2_GetWeaponWearable(int weapon)
 *
 *	return	Entity index.
 **/
-stock int TF2_GiveItem(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0)
+stock int TF2_GiveItem(int client, char[] classname, int index, TF2Quality quality = TF2Quality_Normal, int level = 0, const char[] attributes = "")
 {
 	char sClass[64];
 	strcopy(sClass, sizeof(sClass), classname);
@@ -2679,9 +2689,36 @@ stock int TF2_GiveItem(int client, char[] classname, int index, TF2Quality quali
 	TF2Items_SetItemIndex(item, index);
 	TF2Items_SetQuality(item, view_as<int>(quality));
 	TF2Items_SetLevel(item, level);
+	
+	char sAttrs[32][32];
+	int count = ExplodeString(attributes, " ; ", sAttrs, 32, 32);
+	
+	if (count > 1)
+	{
+		TF2Items_SetNumAttributes(item, count / 2);
+		
+		int i2;
+		for (int i = 0; i < count; i += 2)
+		{
+			TF2Items_SetAttribute(item, i2, StringToInt(sAttrs[i]), StringToFloat(sAttrs[i + 1]));
+			i2++;
+		}
+	}
+	else
+		TF2Items_SetNumAttributes(item, 0);
 
 	int weapon = TF2Items_GiveNamedItem(client, item);
 	delete item;
+	
+	if (StrEqual(sClass, "tf_weapon_builder", false) || StrEqual(sClass, "tf_weapon_sapper", false))
+	{
+		SetEntProp(weapon, Prop_Send, "m_iObjectType", 3);
+		SetEntProp(weapon, Prop_Data, "m_iSubType", 3);
+		SetEntProp(weapon, Prop_Send, "m_aBuildableObjectTypes", 0, _, 0);
+		SetEntProp(weapon, Prop_Send, "m_aBuildableObjectTypes", 0, _, 1);
+		SetEntProp(weapon, Prop_Send, "m_aBuildableObjectTypes", 0, _, 2);
+		SetEntProp(weapon, Prop_Send, "m_aBuildableObjectTypes", 1, _, 3);
+	}
 	
 	if (StrContains(sClass, "tf_weapon_", false) == 0)
 		EquipPlayerWeapon(client, weapon);

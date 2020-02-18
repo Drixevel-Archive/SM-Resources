@@ -2070,7 +2070,6 @@ stock void KnockbackClient(int client, float scale = 50.0, int dir = DIR_BACKWAR
 	ScaleVector(pResults, scale);
 	
 	if ((dir & DIR_FORWARD) != DIR_FORWARD && (dir & DIR_BACKWARD) != DIR_BACKWARD || (dir & DIR_RIGHT) != DIR_RIGHT && (dir & DIR_LEFT) != DIR_LEFT)
-		//pResults[0] = -pResults[0]; pResults[1] = -pResults[1]; pResults[2] = -pResults[2];
 		NegateVector(pResults);
 	
 	float vecOrigin[3];
@@ -2290,7 +2289,7 @@ stock bool PushPlayerFromPoint(int client, float point[3], float magnitude = 50.
 	return true;
 }
 
-stock bool PushAllPlayersFromPoint(float point[3], float magnitude = 50.0, float radius = 0.0, int team = 0, int attacker = 0)
+stock bool PushPlayersFromPoint(float point[3], float magnitude = 50.0, float radius = 0.0, int team = 0, int attacker = 0)
 {
 	if (magnitude <= 0.0)
 		return false;
@@ -3059,7 +3058,7 @@ stock void GetEntityAbsOrigin(int entity, float[3] origin)
 	GetEntPropVector(entity, Prop_Send, "m_vecAbsOrigin", origin);
 }
 
-stock void GetEntityAngle(int entity, float[3] angles)
+stock void GetEntityAngles(int entity, float[3] angles)
 {
 	GetEntPropVector(entity, Prop_Send, "m_angRotation", angles);
 }
@@ -4819,10 +4818,8 @@ stock int GetMenuInt(Menu menu, const char[] id, int defaultvalue = 0)
 	
 	char info[128]; char data[128];
 	for (int i = 0; i < menu.ItemCount; i++)
-	{
 		if (menu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, id))
 			return StringToInt(data);
-	}
 	
 	return defaultvalue;
 }
@@ -4843,10 +4840,8 @@ stock float GetMenuFloat(Menu menu, const char[] id, float defaultvalue = 0.0)
 		
 	char info[128]; char data[128];
 	for (int i = 0; i < menu.ItemCount; i++)
-	{
 		if (menu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, id))
 			return StringToFloat(data);
-	}
 	
 	return defaultvalue;
 }
@@ -4867,10 +4862,8 @@ stock bool GetMenuBool(Menu menu, const char[] id, bool defaultvalue = false)
 	
 	char info[128]; char data[128];
 	for (int i = 0; i < menu.ItemCount; i++)
-	{
 		if (menu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(info, id))
 			return view_as<bool>(StringToInt(data));
-	}
 	
 	return defaultvalue;
 }
@@ -4941,10 +4934,8 @@ stock bool RemoveMenuItemByInfo(Menu menu, const char[] info)
 	
 	char info[1024];
 	for (int i = 0; i < menu.ItemCount; i++)
-	{
 		if (menu.GetItem(i, info, sizeof(info)) && StrEqual(info, info, false))
 			return menu.RemoveItem(i);
-	}
 	
 	return false;
 }
@@ -4964,10 +4955,8 @@ stock bool RemoveMenuItemByName(Menu menu, const char[] name)
 	
 	char info[1024]; char data[1024];
 	for (int i = 0; i < menu.ItemCount; i++)
-	{
 		if (menu.GetItem(i, info, sizeof(info), _, data, sizeof(data)) && StrEqual(data, name, false))
 			return menu.RemoveItem(i);
-	}
 	
 	return false;
 }
