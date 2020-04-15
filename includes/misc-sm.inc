@@ -3138,12 +3138,12 @@ stock void SetEntityTakeDamage(int entity, int value = DAMAGE_YES)
 	SetEntProp(entity, Prop_Data, "m_takedamage", value, 1);
 }
 
-stock bool GetEntityHealth(int entity)
+stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Data, "m_iHealth");
 }
 
-stock bool GetEntityMaxHealth(int entity)
+stock int GetEntityMaxHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
 }

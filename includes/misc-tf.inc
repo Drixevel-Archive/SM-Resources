@@ -3604,3 +3604,52 @@ stock bool TF2_RemoveCash(int client, int value)
 	SetEntProp(client, Prop_Send, "m_nCurrency", total);
 	return true;
 }
+
+stock void TF2_CreateAnnotation(int client, float[3] origin, const char[] text, float lifetime = 10.0, const char[] sound = "vo/null.wav")
+{
+	if (!IsClientInGame(client))
+		return;
+	
+	Event event = CreateEvent("show_annotation");
+		
+	if (event == null)
+		return;
+		
+	event.SetFloat("worldPosX", origin[0]);
+	event.SetFloat("worldPosY", origin[1]);
+	event.SetFloat("worldPosZ", origin[2]);
+	event.SetInt("follow_entindex", client);
+	event.SetFloat("lifetime", lifetime);
+	event.SetInt("id", client + 8750);
+	event.SetString("text", text);
+	event.SetString("play_sound", sound);
+	event.SetString("show_effect", "0");
+	event.SetString("show_distance", "0");
+	event.Fire(false);
+}
+
+stock void TF2_CreateAnnotationToAll(float origin[3], const char[] text, float lifetime = 10.0, const char[] sound = "vo/null.wav")
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+	
+		Event event = CreateEvent("show_annotation");
+		
+		if (event == null)
+			continue;
+		
+		event.SetFloat("worldPosX", origin[0]);
+		event.SetFloat("worldPosY", origin[1]);
+		event.SetFloat("worldPosZ", origin[2]);
+		event.SetInt("follow_entindex", i);
+		event.SetFloat("lifetime", lifetime);
+		event.SetInt("id", i + 8750);
+		event.SetString("text", text);
+		event.SetString("play_sound", sound);
+		event.SetString("show_effect", "0");
+		event.SetString("show_distance", "0");
+		event.Fire(false);
+	}
+}
