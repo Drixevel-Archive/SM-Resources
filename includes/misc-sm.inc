@@ -831,6 +831,16 @@ stock void CopyArrayToArray(const any[] array, any[] newArray, int size)
 		newArray[i] = array[i];
 }
 
+/**
+*	Gets the origin of where the client is looking such as geometry, displacements and entities.
+*
+*	client			Client index.
+*	pOrigin			Origin results to pass through.
+*	filter_players	Filter out players from the traceray.
+*	distance		Maximum distance allowed in the traceray.
+*
+*	return	True if results are returned, false otherwise.
+**/
 stock bool GetClientLookOrigin(int client, float pOrigin[3], bool filter_players = true, float distance = 35.0)
 {
 	if (client == 0 || client > MaxClients || !IsClientInGame(client))
@@ -993,7 +1003,7 @@ stock void TE_Particle(char[] name, float origin[3], int entity = -1, float angl
 	TE_SendToAll();
 }
 
-stock void TE_ParticleByID(int stridx, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+stock void TE_ParticleById(int stridx, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
 {
 	if (stridx == INVALID_STRING_INDEX)
 		return;
@@ -1087,7 +1097,7 @@ stock int CreateParticle(const char[] name, float origin[3], float time = 0.0, f
 	return entity;
 }
 
-stock void SetEntitySelfDestruct(int entity, float duration)
+stock void AutoKillEnt(int entity, float duration)
 {
 	char output[64];
 	Format(output, sizeof(output), "OnUser1 !self:kill::%.1f:1", duration);
@@ -2096,6 +2106,15 @@ stock void BlinkClient(int client, float distance = 35.0)
 		TeleportEntity(client, vecOrigin, NULL_VECTOR, NULL_VECTOR);
 }
 
+/**
+*	Converts angles to velocity values.
+*
+*	pAngles		Angle vectors to pass through.
+*	pScale		Scale to apply to the velocity.
+*	pResults	Resulting velocity values.
+*
+*	return	N/A
+**/
 stock void AnglesToVelocity(const float pAngles[3], float pScale, float pResults[3])
 {
 	GetAngleVectors(pAngles, pResults, NULL_VECTOR, NULL_VECTOR);
@@ -2560,6 +2579,15 @@ stock bool IsClientNearEntityViaName(int client, const char[] name, const char[]
 }
 
 //With help from Arthurdead.
+/**
+*	Adds an offset to an angle vector of forward/back, left/right and up/down.
+*
+*	angle		Angle vectors to pass through.
+*	buffer		Buffer to store results in.
+*	offset		Offsetted angles to add onto.
+*
+*	return	N/A
+**/
 stock void VectorAddRotatedOffset(const float angle[3], float buffer[3], const float offset[3])
 {
     float vecForward[3]; float vecLeft[3]; float vecUp[3];
@@ -2578,6 +2606,14 @@ stock void VectorAddRotatedOffset(const float angle[3], float buffer[3], const f
 }
 
 //By Boikinov
+/**
+*	Rotates the Y axis via degrees easily for angles.
+*
+*	angle		Angle vectors to pass through.
+*	degree		Degrees to use.
+*
+*	return	N/A
+**/
 stock void RotateYaw(float angles[3], float degree)
 {
 	float direction[3], normal[3];
@@ -2897,7 +2933,7 @@ stock int SetEntityName(int entity, const char[] name)
 
 stock int FindEntityByName(const char[] name, const char[] classname = "*")
 {
-	int entity = -1; char temp[64];
+	int entity = -1; char temp[256];
 	while ((entity = FindEntityByClassname(entity, classname)) != -1)
 	{
 		GetEntPropString(entity, Prop_Data, "m_iName", temp, sizeof(temp));

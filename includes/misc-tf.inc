@@ -27,6 +27,11 @@
 #tryinclude <tf2attributes>
 #define REQUIRE_PLUGINS
 
+#define TFTeam_Spectator 1
+#define TFTeam_Red 2
+#define TFTeam_Blue 3
+#define TFTeam_Boss 5
+
 #define QUALITY_NAME_LENGTH 32
 #define ATTRIBUTE_NAME_LENGTH 64
 
@@ -204,10 +209,8 @@
 #define NEW_COLOR_YELLOW "\x07FFFF00"
 #define NEW_COLOR_YELLOWGREEN "\x079ACD32"
 
-#define TF2_MAX_CLASSES 10
-#define TF_MAX_CLASSES TF2_MAX_CLASSES
-#define TF2_MAX_SLOTS 8
-#define TF_MAX_SLOTS TF2_MAX_SLOTS
+#define TF_MAX_CLASSES 10
+#define TF_MAX_SLOTS 8
 
 #define PICKUP_TYPE_HEALTHKIT	1
 #define PICKUP_TYPE_AMMOBOX		2
