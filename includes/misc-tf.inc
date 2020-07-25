@@ -3656,3 +3656,70 @@ stock void TF2_CreateAnnotationToAll(float origin[3], const char[] text, float l
 		event.Fire(false);
 	}
 }
+
+stock int TF2_LookupParticle(const char[] name)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+
+	char tmp[256];
+	int stridx = INVALID_STRING_INDEX;
+
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
+		
+		if (StrEqual(tmp, name, false))
+		{
+			stridx = i;
+			break;
+		}
+	}
+	
+	return stridx;
+}
+
+stock void TF2_Particle(char[] name, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+{
+	int tblidx = FindStringTable("ParticleEffectNames");
+
+	char tmp[256];
+	int stridx = INVALID_STRING_INDEX;
+
+	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
+	{
+		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
+		if (StrEqual(tmp, name, false))
+		{
+			stridx = i;
+			break;
+		}
+	}
+
+	TE_Start("TFParticleEffect");
+	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
+	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
+	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
+	TE_WriteVector("m_vecAngles", angles);
+	TE_WriteNum("m_iParticleSystemIndex", stridx);
+	TE_WriteNum("entindex", entity);
+	TE_WriteNum("m_iAttachType", 5);
+	TE_WriteNum("m_bResetParticles", resetparticles);
+	TE_SendToAll();
+}
+
+stock void TF2_ParticleById(int stridx, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
+{
+	if (stridx == INVALID_STRING_INDEX)
+		return;
+
+	TE_Start("TFParticleEffect");
+	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
+	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
+	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
+	TE_WriteVector("m_vecAngles", angles);
+	TE_WriteNum("m_iParticleSystemIndex", stridx);
+	TE_WriteNum("entindex", entity);
+	TE_WriteNum("m_iAttachType", 5);
+	TE_WriteNum("m_bResetParticles", resetparticles);
+	TE_SendToAll();
+}

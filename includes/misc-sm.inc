@@ -953,73 +953,6 @@ stock bool IsEntityInSightRange(int client, int entity, float angle = 90.0, floa
 		return false;
 }
 
-stock int TE_LookupParticle(const char[] name)
-{
-	int tblidx = FindStringTable("ParticleEffectNames");
-
-	char tmp[256];
-	int stridx = INVALID_STRING_INDEX;
-
-	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
-	{
-		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
-		
-		if (StrEqual(tmp, name, false))
-		{
-			stridx = i;
-			break;
-		}
-	}
-	
-	return stridx;
-}
-
-stock void TE_Particle(char[] name, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
-{
-	int tblidx = FindStringTable("ParticleEffectNames");
-
-	char tmp[256];
-	int stridx = INVALID_STRING_INDEX;
-
-	for (int i = 0; i < GetStringTableNumStrings(tblidx); i++)
-	{
-		ReadStringTable(tblidx, i, tmp, sizeof(tmp));
-		if (StrEqual(tmp, name, false))
-		{
-			stridx = i;
-			break;
-		}
-	}
-
-	TE_Start("TFParticleEffect");
-	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
-	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
-	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
-	TE_WriteVector("m_vecAngles", angles);
-	TE_WriteNum("m_iParticleSystemIndex", stridx);
-	TE_WriteNum("entindex", entity);
-	TE_WriteNum("m_iAttachType", 5);
-	TE_WriteNum("m_bResetParticles", resetparticles);
-	TE_SendToAll();
-}
-
-stock void TE_ParticleById(int stridx, float origin[3], int entity = -1, float angles[3] = {0.0, 0.0, 0.0}, bool resetparticles = false)
-{
-	if (stridx == INVALID_STRING_INDEX)
-		return;
-
-	TE_Start("TFParticleEffect");
-	TE_WriteFloat("m_vecOrigin[0]", origin[0]);
-	TE_WriteFloat("m_vecOrigin[1]", origin[1]);
-	TE_WriteFloat("m_vecOrigin[2]", origin[2]);
-	TE_WriteVector("m_vecAngles", angles);
-	TE_WriteNum("m_iParticleSystemIndex", stridx);
-	TE_WriteNum("entindex", entity);
-	TE_WriteNum("m_iAttachType", 5);
-	TE_WriteNum("m_bResetParticles", resetparticles);
-	TE_SendToAll();
-}
-
 stock int AttachParticle(int entity, const char[] name, float time = 0.0, const char[] attach = "", float angles[3] = {0.0, 0.0, 0.0}, float offsets[3] = {0.0, 0.0, 0.0})
 {
 	float origin[3];
@@ -1181,141 +1114,32 @@ stock void GetServerIP(char[] buffer, int size, bool showport = false)
 		Format(buffer, size, "%s:%d", buffer, FindConVar("hostport").IntValue);
 }
 
-stock bool SetPlayerWeaponAmmo(int client, int weapon, int clip = -1, int ammo = -1)
+stock int GetWeaponAmmo(int client, int weapon)
 {
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon))
-		return false;
-
-	if (GetClip(weapon) == -1)
-		clip = -1;
-
-	if (clip > -1)
-		SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
-
-	if (GetAmmo(client, weapon) == -1)
-		ammo = -1;
+	int iAmmoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 	
-	if (ammo > -1)
-	{
-		int iOffset = FindDataMapInfo(client, "m_iAmmo") + (GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType") * 4);
-		SetEntData(client, iOffset, ammo, 4, true);
-	}
-
-	return true;
+	if (iAmmoType != -1)
+		return GetEntProp(client, Prop_Data, "m_iAmmo", _, iAmmoType);
+	
+	return 0;
 }
 
-stock int GetClip(int weapon)
+stock void SetWeaponAmmo(int client, int weapon, int ammo)
 {
-	if (weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Data, "m_iClip1"))
-		return -1;
-
-	return GetEntProp(weapon, Prop_Data, "m_iClip1");
+	int iAmmoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	
+	if (iAmmoType != -1)
+		SetEntProp(client, Prop_Data, "m_iAmmo", ammo, _, iAmmoType);
 }
 
-stock bool SetClip(int weapon, int clip)
+stock void SetWeaponClip(int weapon, int clip)
 {
-	if (weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Data, "m_iClip1"))
-		return false;
-
-	if (clip < 0)
-		clip = 0;
-
 	SetEntProp(weapon, Prop_Data, "m_iClip1", clip);
-	return true;
 }
 
-stock int GetAmmo(int client, int weapon)
+stock int GetWeaponClip(int weapon)
 {
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"))
-		return -1;
-
-	int iOffset = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4;
-	int iAmmoTable = FindSendPropInfo("CTFPlayer", "m_iAmmo");
-	return GetEntData(client, iAmmoTable + iOffset);
-}
-
-stock bool SetAmmo(int client, int weapon, int ammo)
-{
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"))
-		return false;
-
-	if (ammo < 0)
-		ammo = 0;
-	
-	SetEntData(client, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), ammo, 4, true);
-	return true;
-}
-
-stock bool AddAmmo(int client, int weapon, int ammo)
-{
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"))
-		return false;
-
-	if (ammo < 0)
-		ammo = 0;
-		
-	int iOffset = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4;
-	int iAmmoTable = FindSendPropInfo("CTFPlayer", "m_iAmmo");
-	int current = GetEntData(client, iAmmoTable + iOffset);
-	
-	int set = ammo + current;
-	int max = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
-	
-	if (set > max)
-		set = max;
-	
-	SetEntData(client, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), set, 4, true);
-	return true;
-}
-
-stock bool StripAmmo(int client, int weapon, int ammo)
-{
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"))
-		return false;
-
-	if (ammo < 0)
-		ammo = 0;
-		
-	int iOffset = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4;
-	int iAmmoTable = FindSendPropInfo("CTFPlayer", "m_iAmmo");
-	int current = GetEntData(client, iAmmoTable + iOffset);
-	
-	int set = ammo - current;
-	
-	if (set < 0)
-		set = 0;
-	
-	SetEntData(client, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), set, 4, true);
-	return true;
-}
-
-stock int GetMaxAmmo(int weapon)
-{
-	if (weapon == 0 || weapon <= MaxClients || !IsValidEntity(weapon) || !HasEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount"))
-		return -1;
-
-	return GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
-}
-
-stock void RefillAmmo(int client, int weapon)
-{
-	int max = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
-	SetEntData(client, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), max, 4, true);
-}
-
-stock void RefillWeapons(int client)
-{
-	int weapon; int max;
-	for (int i = 0; i < 5; i++)
-	{
-		weapon = GetPlayerWeaponSlot(client, i);
-		
-		if (!IsValidEntity(weapon))
-			continue;
-		
-		max = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoCount");
-		SetEntData(i, FindSendPropInfo("CTFPlayer", "m_iAmmo") + (GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType", 1) * 4), max, 4, true);
-	}
+	return GetEntProp(weapon, Prop_Data, "m_iClip1");
 }
 
 stock int GetActiveWeapon(int client)
@@ -1922,6 +1746,7 @@ stock void ScreenFadeAll(int duration = 4, int hold_time = 4, int flag = FFADE_I
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
 		
 		userMessage = StartMessageOne("Fade", i, (reliable ? USERMSG_RELIABLE : 0));
 
@@ -1945,7 +1770,7 @@ stock void ScreenFadeAll(int duration = 4, int hold_time = 4, int flag = FFADE_I
 			BfWriteByte(userMessage, colors[2]);
 			BfWriteByte(userMessage, colors[3]);
 		}
-			
+		
 		EndMessage();
 	}
 }
@@ -2119,6 +1944,11 @@ stock void AnglesToVelocity(const float pAngles[3], float pScale, float pResults
 {
 	GetAngleVectors(pAngles, pResults, NULL_VECTOR, NULL_VECTOR);
 	ScaleVector(pResults, pScale);
+}
+
+stock void VelocityToAngles(const float velocity[3], float angles[3])
+{
+	GetVectorAngles(velocity, angles);
 }
 
 stock void TeleportTo(int client, int target)
@@ -2496,7 +2326,7 @@ stock bool GetEntGroundCoordinates(int entity, float buffer[3], float distance =
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vecOrigin);
 
 	float vecLook[3] = {90.0, 0.0, 0.0};
-	Handle trace = TR_TraceRayFilterEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite, ___TraceEntityFilter_NoPlayers);
+	Handle trace = TR_TraceRayFilterEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite, ___TraceEntityFilter_NoPlayers, entity);
 
 	if (TR_DidHit(trace))
 	{
@@ -2517,7 +2347,7 @@ stock bool GetEntCeilingCoordinates(int entity, float buffer[3], float distance 
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vecOrigin);
 
 	float vecLook[3] = {-90.0, 0.0, 0.0};
-	Handle trace = TR_TraceRayFilterEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite, ___TraceEntityFilter_NoPlayers);
+	Handle trace = TR_TraceRayFilterEx(vecOrigin, vecLook, MASK_SOLID_BRUSHONLY, RayType_Infinite, ___TraceEntityFilter_NoPlayers, entity);
 
 	if (TR_DidHit(trace))
 	{
@@ -2534,7 +2364,7 @@ stock bool GetEntCeilingCoordinates(int entity, float buffer[3], float distance 
 
 public bool ___TraceEntityFilter_NoPlayers(int entity, int contentsMask, any data)
 {
-	return entity > MaxClients;
+	return entity != data && entity > MaxClients;
 }
 
 stock bool TeleportToDestination(int client, const char[] name, bool keep_velocity = false)
@@ -3040,6 +2870,51 @@ stock void DeleteAllEntities(const char[] classname)
 	int entity = -1;
 	while ((entity = FindEntityByClassname(entity, classname)) > MaxClients)
 		AcceptEntityInput(entity, "Kill");
+}
+
+stock void CreateRagdoll(float origin[3], float angles[3], const char[] model, int skin = 0, int team = 0, const char[] attachment = "", const char[] attachment_point = "head")
+{
+	int ragdoll = CreateEntityByName("prop_ragdoll");
+
+	if (IsValidEntity(ragdoll))
+	{
+		DispatchKeyValueVector(ragdoll, "origin", origin);
+		DispatchKeyValueVector(ragdoll, "angles", angles);
+		DispatchKeyValue(ragdoll, "model", model);
+		DispatchKeyValue(ragdoll, "spawnflags", "4");
+
+		char sSkin[16];
+		IntToString(skin, sSkin, sizeof(sSkin));
+		DispatchKeyValue(ragdoll, "skin", sSkin);
+
+		char sTeam[32];
+		IntToString(team, sTeam, sizeof(sTeam));
+		DispatchKeyValue(ragdoll, "TeamNum", sTeam);
+
+		DispatchSpawn(ragdoll);
+
+		if (strlen(attachment) > 0)
+		{
+			int item = CreateEntityByName("prop_dynamic");
+
+			if (IsValidEntity(item))
+			{
+				DispatchKeyValue(item, "model", attachment);
+				DispatchKeyValueFloat(item, "modelscale", GetEntPropFloat(ragdoll, Prop_Send, "m_flModelScale"));
+				DispatchKeyValue(item, "TeamNum", sTeam);
+				DispatchSpawn(item);
+
+				SetEntProp(item, Prop_Send, "m_nSkin", skin);
+				SetEntProp(item, Prop_Send, "m_fEffects", EF_BONEMERGE | EF_PARENT_ANIMATES);
+
+				SetVariantString("!activator");
+				AcceptEntityInput(item, "SetParent", ragdoll);
+
+				SetVariantString(attachment_point);
+				AcceptEntityInput(item, "SetParentAttachmentMaintainOffset");
+			}
+		}
+	}
 }
 
 stock float GetEntitiesDistance(int entity1, int entity2)
@@ -4125,6 +4000,18 @@ stock void StopSoundSafeAll(int entity, const char[] sample)
     StopSoundSafe(entity, SNDCHAN_VOICE_BASE, sample);
     StopSoundSafe(entity, SNDCHAN_USER_BASE, sample);
 }
+
+stock void StopSoundPerm(int client, const char[] sound)
+{
+    StopSound(client, SNDCHAN_AUTO, sound);
+    StopSound(client, SNDCHAN_WEAPON, sound);
+    StopSound(client, SNDCHAN_VOICE, sound);
+    StopSound(client, SNDCHAN_ITEM, sound);
+    StopSound(client, SNDCHAN_BODY, sound);
+    StopSound(client, SNDCHAN_STREAM, sound);
+    StopSound(client, SNDCHAN_VOICE_BASE, sound);
+    StopSound(client, SNDCHAN_USER_BASE, sound);
+} 
 
 stock bool PrepareSound(const char[] sample, bool preload = false, bool download = true)
 {
