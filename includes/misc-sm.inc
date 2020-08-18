@@ -3126,14 +3126,19 @@ stock void SetWeaponState(int weapon, int state)
 	SetEntProp(weapon, Prop_Send, "m_iWeaponState", state);
 }
 
-stock void ResetVector(float vec[3])
+#define DOOR_CLOSED 0
+#define DOOR_OPENING 1
+#define DOOR_OPEN 2
+#define DOOR_CLOSING 3
+
+stock int GetDoorState(int entity)
 {
-	vec[0] = vec[1] = vec[2] = 0.0;
+	return GetEntProp(entity, Prop_Data, "m_eDoorState");
 }
 
-stock bool IsVectorZero(float vec[3])
+stock void SetDoorState(int entity, int state)
 {
-    return vec[0] == 0.0 && vec[1] == 0.0 && vec[2] == 0.0;
+	SetEntProp(entity, Prop_Data, "m_eDoorState", state);
 }
 
 stock void SetEntityRenderColorEx(int entity, int color[4])
@@ -3479,6 +3484,16 @@ stock void GetDamageNameByType(int damagetype, char[] buffer, int size)
 	
 	if ((damagetype & DMG_CRIT) == DMG_CRIT)
 		Format(buffer, size, "%s| DMG_CRIT", buffer);
+}
+
+stock void ResetVector(float vec[3])
+{
+	vec[0] = vec[1] = vec[2] = 0.0;
+}
+
+stock bool IsVectorZero(float vec[3])
+{
+    return vec[0] == 0.0 && vec[1] == 0.0 && vec[2] == 0.0;
 }
 
 /**
