@@ -314,13 +314,12 @@ stock void TF2_SetClass(int client, TFClassType class, bool persistent = true)
 *	Create a glow entity and attach it to a client.
 *	This seems to have an unintended side effect for animations for models for some reason.
 *
-*	name	Name to give the entity.
 *	target	Target entity index to glow.
 *	colors	Color of the glow.
 *
 *	return	Entity index of the glow.
 **/
-stock int TF2_CreateGlow(const char[] name, int target, int color[4] = {255, 255, 255, 255})
+stock int TF2_CreateGlow(int target, int color[4] = {255, 255, 255, 255})
 {
 	char sClassname[64];
 	GetEntityClassname(target, sClassname, sizeof(sClassname));
@@ -336,7 +335,6 @@ stock int TF2_CreateGlow(const char[] name, int target, int color[4] = {255, 255
 		char sGlow[64];
 		Format(sGlow, sizeof(sGlow), "%i %i %i %i", color[0], color[1], color[2], color[3]);
 
-		DispatchKeyValue(glow, "targetname", name);
 		DispatchKeyValue(glow, "target", sTarget);
 		DispatchKeyValue(glow, "Mode", "1"); //Mode is currently broken.
 		DispatchKeyValue(glow, "GlowColor", sGlow);
