@@ -341,8 +341,9 @@ stock void CReplyToCommand(int client, const char[] message, any ...)
 	if (client != 0 && !IsClientInGame(client))
 		ThrowError("Client %d is not in game", client);
 
-	char buffer[MAX_BUFFER_SIZE];
 	SetGlobalTransTarget(client);
+
+	char buffer[MAX_BUFFER_SIZE];
 	VFormat(buffer, sizeof(buffer), message, 3);
 
 	AddPrefixAndDefaultColor(buffer, sizeof(buffer));
@@ -354,7 +355,13 @@ stock void CReplyToCommand(int client, const char[] message, any ...)
 		PrintToConsole(client, "%s", buffer);
 	}
 	else
-		CPrintToChat(client, "%s", buffer);
+	{
+		CProcessVariables(buffer, sizeof(buffer));
+		CAddWhiteSpace(buffer, sizeof(buffer));
+
+		SendPlayerMessage(client, buffer, g_iAuthor);
+		g_iAuthor = 0;
+	}
 }
 
 /*
