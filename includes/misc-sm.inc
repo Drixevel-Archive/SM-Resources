@@ -1144,9 +1144,6 @@ stock int GetWeaponClip(int weapon)
 
 stock int GetActiveWeapon(int client)
 {
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || !HasEntProp(client, Prop_Send, "m_hActiveWeapon"))
-		return -1;
-
 	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 }
 
@@ -2488,7 +2485,7 @@ stock float GetAngleBetweenVectors(const float vector1[3], const float vector2[3
 		degree *= -1.0;
 
 	return degree;
-}  
+}
 
 stock void GetMapName(char[] buffer, int size)
 {
