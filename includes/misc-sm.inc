@@ -3483,6 +3483,87 @@ stock void GetDamageNameByType(int damagetype, char[] buffer, int size)
 		Format(buffer, size, "%s| DMG_CRIT", buffer);
 }
 
+void GetButtons(int buttons, char[] buffer, int size)
+{
+	if ((buttons & IN_ATTACK) == IN_ATTACK)
+		Format(buffer, size, "%s|IN_ATTACK", buffer);
+	
+	if ((buttons & IN_JUMP) == IN_JUMP)
+		Format(buffer, size, "%s|IN_JUMP", buffer);
+	
+	if ((buttons & IN_DUCK) == IN_DUCK)
+		Format(buffer, size, "%s|IN_DUCK", buffer);
+	
+	if ((buttons & IN_FORWARD) == IN_FORWARD)
+		Format(buffer, size, "%s|IN_FORWARD", buffer);
+	
+	if ((buttons & IN_BACK) == IN_BACK)
+		Format(buffer, size, "%s|IN_BACK", buffer);
+	
+	if ((buttons & IN_USE) == IN_USE)
+		Format(buffer, size, "%s|IN_USE", buffer);
+	
+	if ((buttons & IN_CANCEL) == IN_CANCEL)
+		Format(buffer, size, "%s|IN_CANCEL", buffer);
+	
+	if ((buttons & IN_LEFT) == IN_LEFT)
+		Format(buffer, size, "%s|IN_LEFT", buffer);
+	
+	if ((buttons & IN_RIGHT) == IN_RIGHT)
+		Format(buffer, size, "%s|IN_RIGHT", buffer);
+	
+	if ((buttons & IN_MOVELEFT) == IN_MOVELEFT)
+		Format(buffer, size, "%s|IN_MOVELEFT", buffer);
+	
+	if ((buttons & IN_MOVERIGHT) == IN_MOVERIGHT)
+		Format(buffer, size, "%s|IN_MOVERIGHT", buffer);
+	
+	if ((buttons & IN_ATTACK2) == IN_ATTACK2)
+		Format(buffer, size, "%s|IN_ATTACK2", buffer);
+	
+	if ((buttons & IN_RUN) == IN_RUN)
+		Format(buffer, size, "%s|IN_RUN", buffer);
+	
+	if ((buttons & IN_RELOAD) == IN_RELOAD)
+		Format(buffer, size, "%s|IN_RELOAD", buffer);
+	
+	if ((buttons & IN_ALT1) == IN_ALT1)
+		Format(buffer, size, "%s|IN_ALT1", buffer);
+	
+	if ((buttons & IN_ALT2) == IN_ALT2)
+		Format(buffer, size, "%s|IN_ALT2", buffer);
+	
+	if ((buttons & IN_SCORE) == IN_SCORE)
+		Format(buffer, size, "%s|IN_SCORE", buffer);
+	
+	if ((buttons & IN_SPEED) == IN_SPEED)
+		Format(buffer, size, "%s|IN_SPEED", buffer);
+	
+	if ((buttons & IN_WALK) == IN_WALK)
+		Format(buffer, size, "%s|IN_WALK", buffer);
+	
+	if ((buttons & IN_ZOOM) == IN_ZOOM)
+		Format(buffer, size, "%s|IN_ZOOM", buffer);
+	
+	if ((buttons & IN_WEAPON1) == IN_WEAPON1)
+		Format(buffer, size, "%s|IN_WEAPON1", buffer);
+	
+	if ((buttons & IN_WEAPON2) == IN_WEAPON2)
+		Format(buffer, size, "%s|IN_WEAPON2", buffer);
+	
+	if ((buttons & IN_BULLRUSH) == IN_BULLRUSH)
+		Format(buffer, size, "%s|IN_BULLRUSH", buffer);
+	
+	if ((buttons & IN_GRENADE1) == IN_GRENADE1)
+		Format(buffer, size, "%s|IN_GRENADE1", buffer);
+	
+	if ((buttons & IN_GRENADE2) == IN_GRENADE2)
+		Format(buffer, size, "%s|IN_GRENADE2", buffer);
+	
+	if ((buttons & IN_ATTACK3) == IN_ATTACK3)
+		Format(buffer, size, "%s|IN_ATTACK3", buffer);
+}
+
 stock void ResetVector(float vec[3])
 {
 	vec[0] = vec[1] = vec[2] = 0.0;
@@ -4167,10 +4248,9 @@ stock void Effect_DrawRangedBeamBox(float origin[3], const float bottomCorner[3]
 /*--------------------------------------------------------->*/
 //Pelipoika Stocks (He sometimes randomly sends me these)
 
-
 stock bool GetClientAbsPosition(int client, float origin[3])
 {
-	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
+	if (client == 0 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client) || IsFakeClient(client))
 		return false;
 
 	GetClientAbsOrigin(client, origin);
